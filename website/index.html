@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GreenSearch - a lower-impact AI chat demo</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #f4efe6; color: #1d2b3a; }
+  header { background: #0f2a44; color: #fff; padding: 20px 24px; border-bottom: 4px solid #e8a317; }
+  header h1 { margin: 0 0 6px; font-size: 28px; }
+  header p { margin: 4px 0; max-width: 760px; line-height: 1.5; }
+  .demo-label { display: inline-block; background: #e8a317; color: #0f2a44; font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 13px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 18px; }
+  .totals { background: #fff; border: 1px solid #d8d0c0; border-radius: 10px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 18px; }
+  .totals b { font-size: 20px; }
+  .totals span { display: block; font-size: 13px; color: #5a6b7d; }
+  .grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 18px; margin-top: 18px; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .chat-box { background: #fff; border: 1px solid #d8d0c0; border-radius: 10px; padding: 16px; min-height: 420px; }
+  #chat { display: flex; flex-direction: column; gap: 12px; min-height: 300px; }
+  .msg { max-width: 88%; padding: 10px 12px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; }
+  .user { align-self: flex-end; background: #0f2a44; color: #fff; }
+  .bot { align-self: flex-start; background: #eef3f7; }
+  .meta { font-size: 12px; color: #5a6b7d; margin-top: 6px; white-space: normal; }
+  .bot .meta { color: #43566b; }
+  form { display: flex; gap: 8px; margin-top: 14px; }
+  input[type="text"] { flex: 1; padding: 11px; font-size: 16px; border: 1px solid #b9c2cc; border-radius: 8px; }
+  button { background: #e8a317; color: #0f2a44; border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
+  button.secondary { background: #eef3f7; color: #0f2a44; border: 1px solid #b9c2cc; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chips button { padding: 7px 10px; font-size: 14px; }
+  .panel { background: #fff; border: 1px solid #d8d0c0; border-radius: 10px; padding: 16px; }
+  .panel h2 { margin-top: 0; font-size: 19px; }
+  .panel h3 { font-size: 16px; margin-bottom: 4px; }
+  .panel p, .panel li { line-height: 1.55; }
+  .callout { background: #fff7e0; border-left: 4px solid #e8a317; padding: 10px 12px; margin: 12px 0; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-weight: 700; }
+  footer { color: #5a6b7d; font-size: 13px; line-height: 1.5; padding: 10px 0 24px; }
+  a { color: #0f5a8a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>GreenSearch</h1>
+  <p><span class="demo-label">Demo, not a live AI service</span></p>
+  <p>Chat like you would with ChatGPT or Gemini, but shorter by design. GreenSearch trims your question with PromptShrink, reuses an answer you already asked for when it can, and picks the shortest answer that still does the job.</p>
+  <p>Under each answer you see what that saved, compared with a regular verbose answer. The numbers are estimates, not measurements.</p>
+</header>
+
+<div class="wrap">
+  <div class="totals" id="totals">
+    <div><b id="t-calls">0</b><span>Messages in this session</span></div>
+    <div><b id="t-base">0</b><span>Baseline tokens (est.)</span></div>
+    <div><b id="t-green">0</b><span>GreenSearch tokens (est.)</span></div>
+    <div><b id="t-saved">0</b><span>Tokens saved (est.)</span></div>
+    <div><b id="t-co2">0 g</b><span>CO2e saved (est.)</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="chat-box">
+      <div id="chat"></div>
+      <form id="chat-form">
+        <input id="chat-input" type="text" placeholder="Ask something, for example: Explain DNS simply" autocomplete="off">
+        <button type="submit">Send</button>
+        <button type="button" class="secondary" id="clear-btn">Clear chat</button>
+      </form>
+      <div class="chips" id="chips"></div>
+      <p style="font-size:13px;color:#5a6b7d;line-height:1.5;">Try the 6 topics this demo actually covers: email follow-ups, APIs, workouts, backups, firewalls and Portcullis, and DNS. Anything else gets an honest fallback, not a made-up specific answer.</p>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>Why Finland matters, and what it does not change here</h2>
+        <p>GreenSearch is meant to run where electricity is almost carbon-free. The reference point Grant chose is Google Cloud in Finland.</p>
+        <ul>
+          <li><b>Google Cloud Finland (europe-north1): 98% carbon-free energy</b>, grid intensity 30 gCO2eq/kWh.</li>
+          <li><b>Google Hamina site: 97% carbon-free energy.</b></li>
+          <li><b>Google data centers globally: 65% carbon-free energy in 2025</b>, for contrast.</li>
+        </ul>
+        <div class="callout"><b>Important split:</b> This demo runs in your browser, not in Finland, and it has no live model behind it. So the Finland numbers do <b>not</b> change the CO2 numbers under each answer. The savings you see here come only from fewer tokens. Clean-energy hosting is a second, separate lever for a live version, and it is not added on top here, to avoid double counting.</div>
+        <p>Sources: <a href="https://cloud.google.com/sustainability/region-carbon">Google Cloud region carbon data</a> and <a href="https://sustainability.google/files/google-2026-environmental-report/">Google 2026 Environmental Report</a>.</p>
+        <details>
+          <summary>How the numbers are worked out</summary>
+          <p>Tokens: words x 1.33, minimum 1. CO2e: tokens x 0.0018 g.</p>
+          <p>Baseline for each message: your original question plus the full (Forest) answer for the same topic, with no trimming, no routing, and no reuse.</p>
+          <p>GreenSearch for each message: your trimmed question plus the routed answer (Sprout, Canopy, or Forest), or just the trimmed question on a cache hit, when an answer was already given in this session.</p>
+          <p>PromptShrink trims filler and verbose phrases from your question. It protects text inside code fences. Routing: Sprout if the trimmed question is 12 words or fewer, Forest if it is 35 words or more, has a complexity marker like "in detail" or "compare", or has 2 or more question marks, otherwise Canopy.</p>
+        </details>
+        <details>
+          <summary>Honest limits</summary>
+          <p>No live model, no backend, and nothing leaves this page. Answers are pre-written templates for the 6 topics above. Token and CO2 figures are arithmetic from those estimates, not measured energy use and not a bill. A regular LLM baseline here means the verbose/full version of the same answer, not a measured ChatGPT or Gemini query.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Built from the existing GreenSearch harness and PromptShrink + GreenSearch integration demo, with the same formulas and the same 6 templates. Mode names: the chat uses Sprout / Canopy / Forest, matching the site demo. The Python harness calls Forest "Full" - that name difference is still open, not hidden.
+  </footer>
+</div>
+
+<script>
+/* Pure logic first, so it can be tested outside a browser. DOM wiring is at the bottom. */
+function shrinkSegment(raw) {
+  var s = ' ' + raw + ' ';
+  var fillers = ['i was just wondering if', 'just wondering if', "i hope you're doing well", 'i hope you are doing well', 'what i really need is for you to', 'help me out with something', 'i would like you to', 'i would appreciate it if you could', 'i was hoping you could', 'you could please kindly', 'you could please', 'could you please kindly', 'could you please', 'can you please', 'please kindly', 'please', 'thank you so much in advance', 'thanks so much', 'it is important to note that', 'please note that', 'in my opinion', 'i think that', 'i believe that', 'as mentioned before', 'as i mentioned earlier', 'to be honest', 'frankly speaking', 'in summary', 'to summarize', 'hi there', 'hello', 'basically', 'in other words', 'actually', 'simply', 'honestly', 'obviously', 'clearly'];
+  fillers.forEach(function (p) {
+    var re = new RegExp('\\b' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+') + '\\b', 'gi');
+    s = s.replace(re, '');
+  });
+  var verbose = [['due to the fact that', 'because'], ['in order to', 'to'], ['at this point in time', 'now'], ['in the event that', 'if'], ['for the purpose of', 'for'], ['a large number of', 'many'], ['has the ability to', 'can'], ['is able to', 'can'], ['each and every', 'each'], ['first and foremost', 'first']];
+  verbose.forEach(function (pair) {
+    var re = new RegExp('\\b' + pair[0].replace(/ /g, '\\s+') + '\\b', 'gi');
+    s = s.replace(re, pair[1]);
+  });
+  s = s.replace(/\s+/g, ' ').trim(); s = s.replace(/\s+([.,!?;:])/g, '$1');
+  s = s.replace(/([.!?])[.!?]+/g, '$1'); s = s.replace(/([.!?])\s*,/g, '$1'); s = s.replace(/,\s*([.!?])/g, '$1'); s = s.replace(/,\s*,/g, ','); s = s.replace(/^[^A-Za-z0-9]+/, '');
+  s = s.replace(/\b(\w+)(\s+\1\b)+/gi, '$1');
+  var parts = s.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []; var seen = {}, kept = [];
+  parts.forEach(function (part) {
+    var t = part.trim(); if (!/[A-Za-z0-9]/.test(t)) return;
+    var key = t.toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9 ]/g, '');
+    if (seen[key]) return; seen[key] = true; kept.push(t);
+  });
+  s = kept.join(' '); s = s.replace(/\s+/g, ' ').trim(); s = s.replace(/\s+([.,!?;:])/g, '$1'); s = s.replace(/([.!?])[.!?]+/g, '$1'); s = s.replace(/^[^A-Za-z0-9]+/, '');
+  if (s) s = s.replace(/(^|[.!?]\s+)([a-z])/g, function (m, p, c) { return p + c.toUpperCase(); });
+  return s;
+}
+function shrinkPrompt(raw) {
+  var lines = raw.split('\n');
+  while (lines.length > 1) {
+    var last = lines[lines.length - 1].trim();
+    if (!last) { lines.pop(); continue; }
+    if (/^(best regards|kind regards|regards|cheers|sincerely|thanks|thank you)(,?\s+[A-Za-z ]*)?\.?$/i.test(last)) { lines.pop(); } else break;
+  }
+  var cleaned = lines.join('\n');
+  return cleaned.split(/(```[\s\S]*?```)/g).map(function (p) { return p.startsWith('```') ? p : shrinkSegment(p); }).join(' ').replace(/[ \t]+\n/g, '\n').trim();
+}
+function stripCodeFences(text) { return text.replace(/```[\s\S]*?```/g, ' '); }
+function proseWordCount(text) { var prose = stripCodeFences(text).trim(); return prose ? prose.split(/\s+/).length : 0; }
+var SPROUT_MAX_WORDS = 12, FOREST_MIN_WORDS = 35;
+var COMPLEXITY_MARKERS = ['compare', 'pros and cons', 'versus', 'in detail', 'step by step', 'trade-off', 'trade-offs', 'explain both'];
+function routeMode(shrunk) {
+  var prose = stripCodeFences(shrunk); var p = prose.toLowerCase(); var words = proseWordCount(shrunk);
+  var hasMarker = COMPLEXITY_MARKERS.some(function (m) { return p.indexOf(m) > -1; });
+  var qCount = (prose.match(/\?/g) || []).length;
+  if (hasMarker || qCount >= 2 || words >= FOREST_MIN_WORDS) return 'forest';
+  if (words <= SPROUT_MAX_WORDS) return 'sprout';
+  return 'canopy';
+}
+function detectTopic(shrunk) {
+  var p = stripCodeFences(shrunk).toLowerCase();
+  var tests = [['email', /\b(emails?|follow-ups?|follow ups?)\b/], ['api', /\bapis?\b/], ['workout', /\b(workouts?|exercises?)\b/], ['backup', /\bbackups?\b/], ['firewall', /\b(firewalls?|portcullis)\b/], ['dns', /\b(dns|domain name)\b/]];
+  for (var i = 0; i < tests.length; i++) { if (tests[i][1].test(p)) return tests[i][0]; }
+  return null;
+}
+function cacheKey(shrunk) { return shrunk.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); }
+var TEMPLATES = {
+  email: { sprout: 'Subject: Quick follow-up\n\nHi, just circling back on our missed call. Happy to reschedule at your convenience.\n\nThanks,\nGrant', canopy: 'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you?\n\nThanks,\nGrant', forest: 'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you? If mornings are tight, an afternoon slot works just as well. Just let me know a day that suits you.\n\nThanks,\nGrant' },
+  api: { sprout: 'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for.', canopy: 'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result.', forest: 'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result. That separation is why apps can use maps, payments, or weather data without building those systems themselves, and why a change inside one program does not have to break the other.' },
+  workout: { sprout: 'Day 1: Squats, push-ups, glute bridges, 3x10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3x10.', canopy: 'Day 1: Squats, push-ups, glute bridges, 3x10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3x10. Rest 60s between sets, keep form clean, and add reps weekly.', forest: 'Day 1: Squats, push-ups, glute bridges, 3x10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3x10. Rest 60s between sets, keep form clean, and add reps weekly. Start lighter than you think you need to, stop a set if your form breaks down, and repeat the same three days next week before adding weight or reps.' },
+  backup: { sprout: 'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time.', canopy: 'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site.', forest: 'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site. The key word is tested: a backup you have never restored from is a hope, not a plan, so restore a file now and then to prove it works.' },
+  firewall: { sprout: 'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions.', canopy: 'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean.', forest: 'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean. When something is at risk, it explains the risk in plain English. For a small business, that means catching one outdated, exploitable program before it becomes a breach, without hiring a full security team.' },
+  dns: { sprout: 'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it.', canopy: 'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers.', forest: 'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers. If DNS cannot find a name, the site will not load even when your connection is fine, which is why a DNS problem can look like the whole internet is down.' }
+};
+function greenAnswer(topic, topicText, mode) {
+  if (topic && TEMPLATES[topic]) return TEMPLATES[topic][mode];
+  var cleaned = topicText.replace(/\s+/g, ' ').trim();
+  var topicName = cleaned.length > 80 ? cleaned.slice(0, 80).trim() + '...' : cleaned;
+  var base = 'No template covers that topic yet, so this is not a specific answer to: "' + topicName + '". In general, pin down three things first: what it is, why it matters, and one next step.';
+  if (mode === 'sprout') return base;
+  if (mode === 'canopy') return base + ' Start by narrowing the question to one part (what it is, or what to do first) and ask for just that part.';
+  return base + ' Start by narrowing the question to one part (what it is, or what to do first) and ask for just that part. These templates only cover email, APIs, workouts, backups, firewalls/Portcullis, and DNS, so anything else needs a source that actually covers it.';
+}
+var CO2_PER_TOKEN_G = 0.0018;
+function estTokens(text) { return Math.max(1, Math.round(text.trim().split(/\s+/).length * 1.33)); }
+function integrateChat(raw, cache) {
+  var shrunk = shrinkPrompt(raw);
+  var key = cacheKey(shrunk);
+  var origIn = estTokens(raw);
+  var shrunkIn = estTokens(shrunk);
+  var prose = stripCodeFences(shrunk);
+  var topic = detectTopic(shrunk);
+  var forestAnswer = greenAnswer(topic, prose, 'forest');
+  var forestOut = estTokens(forestAnswer);
+  var baselineTotal = origIn + forestOut;
+  if (!raw.trim() || !shrunk) return { empty: true, shrunk: shrunk };
+  var route, mode, answer, outTokens, cacheHit = false;
+  if (cache && key && Object.prototype.hasOwnProperty.call(cache, key)) {
+    cacheHit = true; route = 'Cache hit'; mode = cache[key].mode; answer = cache[key].answer; outTokens = 0;
+  } else {
+    mode = routeMode(shrunk); route = mode.charAt(0).toUpperCase() + mode.slice(1); answer = greenAnswer(topic, prose, mode); outTokens = estTokens(answer);
+    if (cache && key) cache[key] = { mode: mode, answer: answer };
+  }
+  var integratedTotal = shrunkIn + outTokens;
+  var savingPct = baselineTotal ? Math.round((1 - integratedTotal / baselineTotal) * 100) : 0;
+  return { raw: raw, shrunk: shrunk, topic: topic, route: route, mode: mode, answer: answer, cacheHit: cacheHit, empty: false, origIn: origIn, shrunkIn: shrunkIn, forestOut: forestOut, outTokens: outTokens, baselineTotal: baselineTotal, integratedTotal: integratedTotal, tokensSaved: baselineTotal - integratedTotal, savingPct: savingPct, baseCO2: +(baselineTotal * CO2_PER_TOKEN_G).toFixed(2), intCO2: +(integratedTotal * CO2_PER_TOKEN_G).toFixed(2), savedCO2: +((baselineTotal - integratedTotal) * CO2_PER_TOKEN_G).toFixed(2) };
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { shrinkPrompt: shrinkPrompt, routeMode: routeMode, detectTopic: detectTopic, greenAnswer: greenAnswer, estTokens: estTokens, integrateChat: integrateChat };
+}
+
+/* DOM wiring, browser only */
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', function () {
+    var cache = {};
+    var totals = { calls: 0, base: 0, green: 0, saved: 0, co2: 0 };
+    var chatEl = document.getElementById('chat');
+    var inputEl = document.getElementById('chat-input');
+    var formEl = document.getElementById('chat-form');
+    function renderTotals() {
+      document.getElementById('t-calls').textContent = totals.calls;
+      document.getElementById('t-base').textContent = totals.base;
+      document.getElementById('t-green').textContent = totals.green;
+      document.getElementById('t-saved').textContent = totals.saved;
+      document.getElementById('t-co2').textContent = totals.co2.toFixed(2) + ' g';
+    }
+    function addMsg(text, cls, meta) {
+      var div = document.createElement('div');
+      div.className = 'msg ' + cls;
+      div.textContent = text;
+      if (meta) {
+        var m = document.createElement('div');
+        m.className = 'meta';
+        m.textContent = meta;
+        div.appendChild(m);
+      }
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+    function send(raw) {
+      if (!raw.trim()) return;
+      var r = integrateChat(raw, cache);
+      if (r.empty) { addMsg('Type a question first.', 'bot'); return; }
+      addMsg(raw, 'user');
+      var meta = 'PromptShrink: ' + r.origIn + ' to ' + r.shrunkIn + ' tokens. Route: ' + r.route + (r.cacheHit ? ' (answer reused, 0 new answer tokens)' : '') + '. Baseline: ' + r.baselineTotal + ' tokens, ' + r.baseCO2 + ' g CO2e (est.). GreenSearch: ' + r.integratedTotal + ' tokens, ' + r.intCO2 + ' g CO2e (est.). Saved: ' + r.savingPct + '% / ' + r.savedCO2 + ' g CO2e (est.).';
+      if (r.shrunk !== raw) meta += ' Trimmed question: "' + r.shrunk + '"';
+      addMsg(r.answer, 'bot', meta);
+      totals.calls += 1; totals.base += r.baselineTotal; totals.green += r.integratedTotal; totals.saved += r.tokensSaved; totals.co2 += r.savedCO2;
+      renderTotals();
+    }
+    formEl.addEventListener('submit', function (e) { e.preventDefault(); var v = inputEl.value; inputEl.value = ''; send(v); inputEl.focus(); });
+    document.getElementById('clear-btn').addEventListener('click', function () { chatEl.innerHTML = ''; cache = {}; totals = { calls: 0, base: 0, green: 0, saved: 0, co2: 0 }; renderTotals(); addMsg('Hi, I am GreenSearch. Ask me about DNS, APIs, backups, workouts, email follow-ups, or Portcullis firewalls.', 'bot'); });
+    var samples = ['Explain DNS simply', 'Explain APIs', 'Write a follow-up email about our missed call', 'Why do backups matter?', 'Give me a workout plan for beginners', 'Explain the Portcullis firewall'];
+    var chipsEl = document.getElementById('chips');
+    samples.forEach(function (s) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'secondary'; b.textContent = s;
+      b.addEventListener('click', function () { send(s); });
+      chipsEl.appendChild(b);
+    });
+    addMsg('Hi, I am GreenSearch. Ask me about DNS, APIs, backups, workouts, email follow-ups, or Portcullis firewalls.', 'bot');
+    renderTotals();
+  });
+}
+</script>
+</body>
+</html>

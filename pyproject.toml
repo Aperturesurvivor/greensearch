@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "greensearch"
+version = "0.4.0"
+description = "GreenSearch: a low-carbon GPT-wrapper harness — concise answers with estimated footprint"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Grant O'Brien" },
+]
+keywords = ["ai", "llm", "brevity", "carbon", "cli"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+]
+
+[project.scripts]
+greensearch = "greensearch.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["greensearch*"]

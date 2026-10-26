@@ -1,0 +1,110 @@
+"""Session savings tracker: records calls and exports a markdown report.
+
+A Session is in-memory by default. Pass a JSON file to the CLI with
+``--session-file`` and calls persist across runs, so totals accumulate
+instead of resetting to one call per invocation (the pre-Step-2
+behaviour). The file format is ``{"version": 1, "calls": [...]}``; a
+missing file means an empty session, while a present-but-invalid file
+is an error, not silently discarded data.
+"""
+
+import datetime
+import json
+
+_REQUIRED_CALL_KEYS = (
+    "prompt",
+    "answer",
+    "mode",
+    "eco_tokens",
+    "standard_tokens",
+    "saved_pct",
+    "saved_co2_g",
+)
+
+
+class Session:
+    """Accumulates one wrapper session's calls and footprint totals."""
+
+    def __init__(self, calls=None):
+        self.calls = list(calls) if calls else []
+
+    def record(self, prompt, answer, mode, footprint):
+        self.calls.append(
+            {"prompt": prompt, "answer": answer, "mode": mode, **footprint}
+        )
+
+    @property
+    def totals(self):
+        return {
+            "calls": len(self.calls),
+            "eco_tokens": sum(c["eco_tokens"] for c in self.calls),
+            "standard_tokens": sum(c["standard_tokens"] for c in self.calls),
+            "saved_co2_g": round(sum(c["saved_co2_g"] for c in self.calls), 2),
+        }
+
+    def to_dict(self):
+        return {"version": 1, "calls": self.calls}
+
+    @classmethod
+    def from_dict(cls, data, path="<session>"):
+        if not isinstance(data, dict) or not isinstance(data.get("calls"), list):
+            raise ValueError(
+                f"Session file {path} is not valid: expected an object "
+                f"with a 'calls' list."
+            )
+        for i, call in enumerate(data["calls"]):
+            if not isinstance(call, dict) or any(
+                key not in call for key in _REQUIRED_CALL_KEYS
+            ):
+                raise ValueError(
+                    f"Session file {path} is not valid: call {i + 1} is "
+                    f"missing required fields."
+                )
+        return cls(calls=data["calls"])
+
+    def save(self, path):
+        """Write this session to a JSON file. Raises OSError on failure."""
+        with open(path, "w") as handle:
+            json.dump(self.to_dict(), handle, indent=2)
+
+    @classmethod
+    def load(cls, path):
+        """Load a session from a JSON file, or return an empty session
+        if the file does not exist. Raises ValueError for invalid content
+        and OSError for unreadable files."""
+        try:
+            with open(path) as handle:
+                data = json.load(handle)
+        except FileNotFoundError:
+            return cls()
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"Session file {path} is not valid JSON: {exc}"
+            ) from exc
+        return cls.from_dict(data, path=path)
+
+    def markdown_report(self):
+        totals = self.totals
+        lines = [
+            "# GreenSearch session report",
+            "",
+            f"Generated: {datetime.datetime.now().isoformat(timespec='seconds')}",
+            "",
+            f"Calls: {totals['calls']} | Eco tokens: {totals['eco_tokens']} | "
+            f"Standard tokens (est.): {totals['standard_tokens']} | "
+            f"CO2e saved (est.): {totals['saved_co2_g']} g",
+            "",
+        ]
+        for i, call in enumerate(self.calls, 1):
+            lines += [
+                f"## Call {i} (mode: {call['mode']})",
+                f"Prompt: {call['prompt']}",
+                "",
+                f"Answer: {call['answer']}",
+                "",
+                f"Tokens: {call['eco_tokens']} vs {call['standard_tokens']} "
+                f"standard (est.), saved {call['saved_pct']}% / "
+                f"{call['saved_co2_g']} g CO2e (est.)",
+                "",
+            ]
+        return "\n".join(lines)
