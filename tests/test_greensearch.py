@@ -1,6 +1,6 @@
 """Tests for the GreenSearch harness (stdlib unittest only).
 
-Run from the eco-wrapper directory:
+Run from the repository root:
     python -m unittest discover -s tests -v
 
 These tests cover Step 1's fixes specifically: the empty-prompt crash,

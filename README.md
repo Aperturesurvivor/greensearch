@@ -1,217 +1,141 @@
-# GreenSearch — low-carbon GPT-wrapper harness
+# GreenSearch
 
-A real, runnable wrapper harness (not just a website demo). It takes a
-prompt, gets a draft answer from a provider, trims it through a brevity
-layer to a sentence budget, and reports token and CO2e estimates against
-an estimated verbose baseline.
+A small, runnable harness for answering questions concisely and estimating
+the footprint of the shorter answer, plus a browser demo of the same idea.
+Standard library only, Python 3.9+.
 
-## Vision, restated 2026-10-26
+**Vision.** An eco-friendly AI chat that runs on very low-carbon electricity
+(reference point: Google Cloud europe-north1 in Finland, cited in
+`website/README.md`), with PromptShrink trimming prompts before they reach a
+model. **This repository is not that yet.** There is no Finland hosting, no
+live chat service and no measured per-model energy use. The harness shows
+the mechanics honestly; the numbers it prints are estimates.
 
-GreenSearch is meant to be an eco-friendly AI chat, in the spirit of an
-EcoGPT clone, that uses almost carbon-free electricity so environmentally
-conscious people can use AI models with less impact. The reference point
-is Google Cloud in Finland: europe-north1 at 98% carbon-free energy.
-PromptShrink is the token-saving utility that works with it, trimming
-prompts before they reach a model.
-
-This harness is not that full vision yet. It has no Finland hosting, no
-live chat website, and no measured per-model energy use. The chat-style
-website demo that moves toward the vision is in `website/index.html`
-in this repo, and it says so plainly: it runs locally, with canned
-answers, and its savings come from fewer tokens, not from Finland
-hosting. Do not describe this harness as Finland-hosted or as a
-measured ChatGPT/Gemini comparison until a live version actually is.
-
-## Website demo
-
-Open `website/index.html` in a browser. No server, no backend, no API
-call. It is a ChatGPT-style chat with PromptShrink trimming, session
-cache reuse, Sprout/Canopy/Forest routing, per-answer and session
-savings, and a Finland panel that keeps clean-energy hosting separate
-from token savings. See `website/README.md` for its baseline, formulas,
-and limits.
-
-> **Name.** Renamed from the EcoGPT concept to GreenSearch on 2026-10-24
-> following business research (the real EcoGPT at ecogpt.com publishes no
-> per-query energy figure — measured, open methodology is this project's
-> opening). The harness was renamed in Step 3 (2026-10-26) from
-> `eco-wrapper` / `ecowrapper` to `greensearch` / `greensearch`. The old
-> folder is gone; a moved-note README is left at the old location only
-> if one was created during the move. The live-provider key is now
-> `GREENSEARCH_API_KEY`; `ECOWRAPPER_API_KEY` still works as a
-> one-version fallback.
-
-## Install (standalone program)
-
-No dependencies beyond Python 3.9+ (standard library only). From this
-folder:
+## Quickstart (offline, no key)
 
 ```bash
 pip install -e .
-greensearch "explain DNS simply" --mode sprout
-# Or without installing:
-python -m greensearch "explain DNS simply" --mode sprout
-python cli.py "explain DNS simply" --mode sprout   # legacy entry point
-```
-
-## Demo (no key, no network)
-
-The fastest way to show the work — one command, offline, all six
-topics plus the honest generic fallback, with session totals at the end:
-
-```bash
-greensearch --demo
-greensearch --demo --mode canopy --report-out demo-report.md
-```
-
-## Quickstart (no key, no network)
-
-```bash
-greensearch "explain DNS simply" --mode sprout
-greensearch "write a follow-up email" --mode canopy --report-out report.md
+greensearch --demo                          # all topics, with totals
+greensearch "explain DNS simply" --mode auto
 greensearch "explain DNS simply" --session-file session.json
-greensearch "explain APIs" --session-file session.json
-# The second run prints "Session totals: 2 calls" — without
-# --session-file, each run is a single-call session.
+python -m greensearch "explain DNS simply"  # without installing
 ```
 
-## Modes
+Modes: `sprout` (about 2 sentences), `canopy` (4), `full` (6, default), or
+`auto`, which picks one from the prompt (length, complexity phrases, number
+of questions). The offline provider returns canned answers for six topics
+(email, API, workout, backup, firewall/Portcullis, DNS) and says plainly when
+a topic is not covered.
 
-- `sprout` — shortest, ~2 sentences
-- `canopy` — medium, ~4 sentences
-- `full` — fuller, ~6 sentences (default)
+Open `website/index.html` in a browser for the chat-style demo: no server,
+no network, same canned topics.
 
-## Live provider mode
+## How the numbers work
+
+```
+tokens   = words x 1.33                       (an estimate, not a tokenizer)
+CO2e (g) = tokens x wh_per_token / 1000 x grid_g_per_kwh
+```
+
+Defaults are 0.0045 Wh/token and 400 g CO2e/kWh, which multiply to the
+0.0018 g/token this project has always used. They are illustrative, not
+sourced. For scale, Google reports about 0.24 Wh and 0.03 g CO2e for a median
+Gemini text prompt (its 2025 methodology paper), and earlier public estimates
+ranged far higher, so published figures differ by more than 10x. Override
+both factors to run your own scenario:
+
+```bash
+greensearch "explain DNS simply" --grid-g-per-kwh 30   # a low-carbon grid
+greensearch "explain DNS simply" --wh-per-token 0.001
+```
+
+Changing the grid factor changes CO2e only; token savings are unaffected.
+That is the point of keeping the two levers separate.
+
+**The baseline matters more than the factors.**
+
+- *Assumed* (default): the verbose reply is the concise reply times 3.4 / 2.6
+  / 1.9 for sprout / canopy / full. The saved percentage then depends only on
+  the mode (71 / 62 / roughly 47 to 50), never on the content. It demonstrates the
+  arithmetic and proves nothing, and the output says so.
+- *Measured* (`--measure-baseline`): compares against a real unconstrained
+  reply. With `--provider live` this makes one extra API call and uses the
+  token counts the provider reports. Energy and grid factors remain
+  assumptions, but the token saving is then real.
+
+## Live mode
 
 ```bash
 export GREENSEARCH_API_KEY="your-key"
-greensearch "explain DNS simply" --provider live --base-url https://api.openai.com/v1
+greensearch "explain DNS simply" --provider live --base-url https://api.openai.com/v1 --mode sprout
 ```
 
-Any OpenAI-compatible `/chat/completions` endpoint works. Without a key,
-live mode refuses to run — it never pretends a demo answer came from a
-model.
+Any OpenAI-compatible `/chat/completions` endpoint works. Plain `http` base
+URLs are refused except for localhost, because the key travels in a header.
 
-## Site demo vs harness — shared spec
-
-The portfolio site demo and this harness are two implementations of the
-same idea, and they must not drift apart silently. This table is the
-spec both are checked against (Step 1, 2026-10-24).
-
-| | Site demo | This harness |
-|---|---|---|
-| Topics | email, API, workout, backup, firewall/Portcullis, DNS | Same six topics |
-| Modes | Sprout / Canopy / Forest, Canopy preselected | Sprout / Canopy / Full, Full is the CLI default |
-| Sentence budgets | 2 / 4 / 6 | 2 / 4 / 6 |
-| How modes shorten | Authored mode-specific variants | One full draft, trimmed by `apply_brevity` |
-| Token estimate | Words × 1.33, minimum 1 | Same (`tokens.py`) |
-| Footprint | Standard = output × 3.4 / 2.6 / 1.9; CO2e = tokens × 0.0018 g, illustrative only | Same (`footprint.py`) |
-| Generic prompt | Honest fallback: no template covers that topic yet | Same honest fallback (full version, trimmed by mode) |
-| Empty input | Shows a "type a prompt first" hint | CLI exits 2 with `Error: Empty prompt: type a prompt first.` |
-| Routing | Word-boundary matching, plural-aware (`apis?`, `backups?`, etc.), fixed in Step 3 | Word-boundary matching, plural-aware (`\bapi\b` does not match "capital") |
-| Changelog claim | v1.2 entry corrected in Step 3 to "mode-specific templates, honest generic fallback, assumed footprint math" | n/a |
-
-Known divergences left, not hidden: mode names (Forest on the site
-vs Full in the harness). The site's substring routing and its
-live-preview/session-tracker changelog claim are both fixed as of
-Step 3, and Grant confirmed on 2026-10-26 that the most recent site
-changes (hero, doors, résumé, featured cards) are good to go.
+Brevity only saves compute if it happens during generation. By default the
+harness asks the model for a short answer (system prompt) and caps its output
+(`max_tokens`), then trims at sentence boundaries as a safety net. With
+`--no-constrain` it generates in full and trims afterwards, and the footprint
+then uses the provider-reported generated tokens, which shows that trimming
+after the fact saves nothing.
 
 ## Tests
-
-Stdlib unittest only, no extra dependencies:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-37 tests cover: empty/whitespace prompts, single-character prompts,
-all six topics, substring traps ("capital", "rapid", "scraping"),
-mode budgets and monotonic token counts, email paragraph shape, filler
-stripping, footprint bounds, CLI exit codes, session save/load
-round-trips, corrupt session files, live-provider HTTP/connection/
-malformed-response failures, entry points, and `--demo` mode.
+71 tests, standard library only. The website check needs Node and is skipped
+without it. `spec/routing_cases.json` holds hand-written routing expectations
+that both the Python router and the website's `routeMode()` must satisfy, so
+the two implementations cannot drift silently.
 
-## Changelog
+## Known differences from the site
 
-- **0.4.0 (2026-10-26, standalone program):** packaged as an
-  installable program — `pyproject.toml` with a `greensearch`
-  console script, `python -m greensearch` entry point, legacy
-  `python cli.py` shim, MIT LICENSE; new offline `--demo` mode
-  (all six topics plus the generic fallback, with demo totals, no
-  key or network required); CLI refactored into the package
-  (`greensearch/cli.py`) with shared session/report handling.
-- **0.3.0 (2026-10-26, Step 3, harness part):** renamed
-  `eco-wrapper` / `ecowrapper` to `greensearch` / `greensearch`
-  (folder, package, imports, CLI description, session report header);
-  live-provider key is now `GREENSEARCH_API_KEY`, with
-  `ECOWRAPPER_API_KEY` as a one-version fallback; cascade scope
-  decided and documented — no cascade, confidence gating, caching,
-  or per-model energy measurement is implemented, and those are
-  listed as future work with prerequisites, not current features.
-  Site part of Step 3 (panel routing + changelog claim) is complete:
-  site routing is now word-boundary and plural-aware, the v1.2
-  changelog claim is corrected, and Grant confirmed on 2026-10-26
-  that the concurrent site changes in that build are good to go.
-- **0.2.0 (2026-10-24, Step 2):** sessions persist with
-  `--session-file` (JSON, `{"version": 1, "calls": [...]}`; missing file
-  starts empty, corrupt file exits 2 with a readable error instead of
-  discarding data); live-provider failures become a single
-  `ProviderError` — HTTP status + provider message, connection failure,
-  timeout, or malformed response — and the CLI exits 2 with an
-  `Error:` line, never a traceback; report/session write failures also
-  exit 2 cleanly. Test suite grows to 29 tests.
-- **0.1.1 (2026-10-24, Step 1):** empty-prompt crash fixed (CLI now
-  exits 2 with a readable error, no traceback); routing switched from
-  substring to word-boundary matching; workout, firewall, and DNS
-  templates added to the demo provider, matching the site's content;
-  generic fallback made honest instead of echoing the prompt as an
-  answer; test suite added (18 tests).
-- **0.1.0:** initial harness — brevity layer, token/footprint
-  estimation, demo + live providers, session reports.
+| | Site demo | Harness |
+|---|---|---|
+| Mode names | Sprout / Canopy / Forest | Sprout / Canopy / Full |
+| Prompt trimming (PromptShrink) | Yes | Not yet (see roadmap) |
+| Session cache | Yes | No |
+| Mode selection | Automatic | Manual or `--mode auto` |
+| Answers | Authored per mode | One draft, trimmed |
 
-## Layout
+## Roadmap, in order
 
-- `greensearch/brevity.py` — clause-level filler stripping + sentence budgets
-- `greensearch/tokens.py` — word-based token estimation (words × 1.33)
-- `greensearch/footprint.py` — CO2e estimates (tokens × 0.0018 g) vs verbose baseline
-- `greensearch/providers.py` — offline demo provider + OpenAI-compatible live provider
-- `greensearch/session.py` — per-session savings totals + markdown report export + JSON persistence (`--session-file`)
-- `cli.py` — command-line entry point
-
-## What this harness does NOT do yet — cascade scope decision (Step 3)
-
-The business case pitches a small-model-first cascade with
-confidence-gated escalation, response caching, and per-answer
-energy-source labeling. This harness does **none** of those yet, and
-Step 3 deliberately does not ship a fake version of them:
-
-- No cascade: there is one live provider at a time, with one model
-  (default `gpt-4o-mini`). A fallback-on-error cascade would be real
-  but is not confidence gating, and a heuristic "confidence" score
-  invented from answer length or keywords would be a fabrication.
-- No confidence gating: OpenAI-compatible endpoints do not reliably
-  expose a confidence signal, and this harness has no judge model.
-  Real gating would need logprobs or a judge, plus a stated threshold,
-  plus tests showing it escalates when it should and does not when it
-  should not.
-- No response caching, no per-model energy measurement, no real
-  tokenizer. The footprint figures remain token-count arithmetic, not
-  measurements, and are labeled as such everywhere they appear.
-
-Those items are future work with those prerequisites, not current
-features. Do not describe them as implemented in the site, the README,
-or a resume.
+1. Port PromptShrink into the harness. Today the footprint counts output
+   tokens only, so the input-side saving exists only on the site.
+2. Measure, don't assume: run `--measure-baseline` over a fixed corpus of
+   prompts on two or more real models and publish the method and results.
+   This is the opening the project names: no one else publishes an open
+   methodology.
+3. Replace words x 1.33 with a real tokenizer as an optional extra (it
+   currently reports 1 token for unspaced scripts such as Chinese).
+4. Source the energy and grid factors, with ranges and region presets.
+5. Response caching, then confidence-gated model cascades. Both need a
+   stated threshold and tests showing they escalate when they should; a
+   heuristic "confidence" invented from answer length would be a fabrication.
 
 ## Honest limits
 
-- Token counts are estimates (words × 1.33), not a real tokenizer.
-- CO2e figures are arithmetic from those estimates, not measurements.
-  The verbose-baseline multipliers (3.4 / 2.6 / 1.9 by mode) are
-  assumptions, disclosed here and in the code.
-- The demo provider's answers are canned keyword responses. It exists so
-  the harness runs anywhere; it is not an AI model.
-- The brevity layer trims at sentence boundaries only. It never deletes
-  words from inside a clause — that garbles meaning (the exact bug that
-  bit PromptShrink v1.2 on the portfolio site, and the reason this
-  layer is clause-level by design).
+- Token counts are estimates; CO2e figures are arithmetic from them.
+- The default verbose baseline is an assumption. Only `--measure-baseline`
+  measures anything, and only tokens.
+- The offline provider is canned keyword answers, not a model. Routing is a
+  heuristic on prompt text.
+- Brevity trims at sentence boundaries and never deletes words inside a
+  sentence. Abbreviation handling is a heuristic and can misjudge edge cases.
+- Session files store prompts and answers in plain text.
+
+## Layout
+
+- `greensearch/brevity.py`: sentence budgets; keeps lists, code, subject and sign-off
+- `greensearch/router.py`: `--mode auto` rules, shared with the site
+- `greensearch/tokens.py`, `footprint.py`: estimates and the CO2e formula
+- `greensearch/providers.py`: offline provider and OpenAI-compatible provider
+- `greensearch/session.py`: totals, markdown report, atomic JSON persistence
+- `spec/routing_cases.json`, `tests/`: shared spec and tests
+- `website/`: browser demo and its README
+- `CHANGELOG.md`: history, including the rename from EcoGPT
+
+MIT licensed. See `LICENSE`.

@@ -18,8 +18,12 @@ mistaken for a live model response:
 import json
 import os
 import re
+import socket
 import urllib.error
+import urllib.parse
 import urllib.request
+from dataclasses import dataclass
+from typing import Optional
 
 
 class ProviderError(Exception):
@@ -29,6 +33,26 @@ class ProviderError(Exception):
     connection failures, timeouts, and malformed responses all become
     this one readable error type.
     """
+
+
+@dataclass
+class Completion:
+    """A provider reply plus whatever usage the provider reported."""
+
+    text: str
+    completion_tokens: Optional[int] = None  # tokens actually generated
+    prompt_tokens: Optional[int] = None
+
+
+# Generation-side brevity: asking the model for a short answer (and capping
+# its length) is what saves compute. Trimming a long answer afterwards only
+# changes what is displayed; the tokens were already generated.
+BREVITY_SYSTEM = {
+    "sprout": "Answer in at most 2 short sentences.",
+    "canopy": "Answer in at most 4 short sentences.",
+    "full": "Answer in at most 6 short sentences.",
+}
+MAX_TOKENS = {"sprout": 120, "canopy": 240, "full": 400}
 
 
 def _matches(prompt, *patterns):
@@ -45,10 +69,18 @@ class DemoProvider:
     """Offline canned answers. No network, no model."""
 
     name = "demo (offline)"
+    live = False
 
     def complete(self, prompt):
+        return self.complete_ex(prompt).text
+
+    def complete_ex(self, prompt, system=None, max_tokens=None):
+        """Offline provider ignores system/max_tokens: it has no model."""
         if prompt is None or not prompt.strip():
             raise ValueError("Empty prompt: type a prompt first.")
+        return Completion(text=self._answer(prompt))
+
+    def _answer(self, prompt):
         p = prompt.lower()
         if _matches(p, r"\bemail\b", r"\bfollow-up\b", r"\bfollow up\b"):
             return (
@@ -124,13 +156,19 @@ class OpenAICompatibleProvider:
     """Live provider via an OpenAI-compatible /chat/completions endpoint."""
 
     name = "openai-compatible (live)"
+    live = True
 
     def __init__(self, base_url, api_key=None, model="gpt-4o-mini"):
         self.base_url = base_url.rstrip("/")
+        parsed = urllib.parse.urlparse(self.base_url)
+        local = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+        if parsed.scheme != "https" and not (parsed.scheme == "http" and local):
+            raise ValueError(
+                "base URL must use https (plain http is only allowed for "
+                "localhost), because the API key is sent in a header."
+            )
         # GREENSEARCH_API_KEY is canonical since the 0.3.0 rename.
-        # ECOWRAPPER_API_KEY is accepted as a one-version fallback so
-        # existing local setups do not break silently; it will be
-        # removed in a later release.
+        # ECOWRAPPER_API_KEY is accepted as a one-version fallback.
         self.api_key = (
             api_key
             or os.environ.get("GREENSEARCH_API_KEY", "")
@@ -143,15 +181,21 @@ class OpenAICompatibleProvider:
         self.model = model
 
     def complete(self, prompt):
+        return self.complete_ex(prompt).text
+
+    def complete_ex(self, prompt, system=None, max_tokens=None):
         if prompt is None or not prompt.strip():
             raise ValueError("Empty prompt: type a prompt first.")
-        body = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-        }).encode()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        payload = {"model": self.model, "messages": messages}
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
         request = urllib.request.Request(
             self.base_url + "/chat/completions",
-            data=body,
+            data=json.dumps(payload).encode(),
             headers={
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + self.api_key,
@@ -170,7 +214,7 @@ class OpenAICompatibleProvider:
                     detail = f": {error['message']}"
                 elif raw:
                     detail = f": {raw}"
-            except (json.JSONDecodeError, ValueError):
+            except ValueError:
                 detail = ""
             raise ProviderError(
                 f"Live provider returned HTTP {exc.code}{detail}"
@@ -179,17 +223,33 @@ class OpenAICompatibleProvider:
             raise ProviderError(
                 f"Could not reach live provider at {self.base_url}: {exc.reason}"
             ) from exc
-        except TimeoutError as exc:
-            raise ProviderError(
-                "Live provider timed out after 60s."
-            ) from exc
-        except json.JSONDecodeError as exc:
+        except (TimeoutError, socket.timeout) as exc:
+            # socket.timeout is a separate class before Python 3.10.
+            raise ProviderError("Live provider timed out after 60s.") from exc
+        except OSError as exc:
+            raise ProviderError(f"Connection to live provider failed: {exc}") from exc
+        except ValueError as exc:  # JSONDecodeError and UnicodeDecodeError
             raise ProviderError(
                 f"Live provider returned a response that is not valid JSON: {exc}"
             ) from exc
         try:
-            return data["choices"][0]["message"]["content"]
+            text = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError, AttributeError) as exc:
             raise ProviderError(
                 f"Live provider returned an unexpected response shape: {exc}"
             ) from exc
+        if not isinstance(text, str) or not text.strip():
+            raise ProviderError(
+                "Live provider returned no text content (null or empty message)."
+            )
+        usage = data.get("usage") if isinstance(data, dict) else None
+        usage = usage if isinstance(usage, dict) else {}
+        return Completion(
+            text=text,
+            completion_tokens=_int_or_none(usage.get("completion_tokens")),
+            prompt_tokens=_int_or_none(usage.get("prompt_tokens")),
+        )
+
+
+def _int_or_none(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None

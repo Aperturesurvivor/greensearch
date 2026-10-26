@@ -1,0 +1,83 @@
+{
+  "note": "Fixed test corpus for measuring PromptShrink input saving and output brevity. Each prompt has a hand-verified shrunk form and the topic it should route to. Running this corpus with --measure-baseline (using a real model) produces numbers that are actual measurements, not arithmetic from assumptions. Commit the results alongside the corpus so changes in saving over time are visible.",
+  "prompts": [
+    {
+      "id": "dns-plain",
+      "raw": "Explain DNS simply",
+      "shrunk": "Explain DNS simply",
+      "topic": "dns",
+      "note": "no filler \u2014 shrink should make no change"
+    },
+    {
+      "id": "dns-polite",
+      "raw": "Could you please explain how DNS works?",
+      "shrunk": "Explain how DNS works?",
+      "topic": "dns"
+    },
+    {
+      "id": "dns-verbose",
+      "raw": "I was just wondering if you could possibly help me understand why DNS matters for a small business in this day and age.",
+      "shrunk": "Help me understand why DNS matters for a small business.",
+      "topic": "dns"
+    },
+    {
+      "id": "api-plain",
+      "raw": "Explain APIs to a 10-year-old",
+      "shrunk": "Explain APIs to a 10-year-old",
+      "topic": "api",
+      "note": "no filler"
+    },
+    {
+      "id": "api-polite",
+      "raw": "Could you please explain to me in detail how APIs actually work, and also just tell me basically what the main key differences are between them?",
+      "shrunk": "Explain to me in detail how APIs work, and tell me what the main key differences are between them?",
+      "topic": "api"
+    },
+    {
+      "id": "api-verbose",
+      "raw": "I was just wondering if you could possibly give me a very simple and brief summary of what APIs are, in other words the essentials, if at all possible.",
+      "shrunk": "Give me a simple and brief summary of what APIs are, the essentials.",
+      "topic": "api"
+    },
+    {
+      "id": "backup-plain",
+      "raw": "Why do backups matter for a small office?",
+      "shrunk": "Why do backups matter for a small office?",
+      "topic": "backup",
+      "note": "no filler"
+    },
+    {
+      "id": "backup-polite",
+      "raw": "Please kindly note that I would really like a very simple and brief summary of why regular backups are important for a small business.",
+      "shrunk": "I would like a simple and brief summary of why regular backups are important for a small business.",
+      "topic": "backup"
+    },
+    {
+      "id": "email-plain",
+      "raw": "Write a follow-up email to a client who missed our call",
+      "shrunk": "Write a follow-up email to a client who missed our call",
+      "topic": "email",
+      "note": "no filler"
+    },
+    {
+      "id": "email-verbose",
+      "raw": "I was hoping you could write me a polite follow-up email to send to a client who missed our scheduled call, thank you so much in advance.\n\nThanks,\nGrant",
+      "shrunk": "Write me a polite follow-up email to send to a client who missed our scheduled call.",
+      "topic": "email"
+    },
+    {
+      "id": "workout-plain",
+      "raw": "Give me a 3-day workout plan for beginners at home",
+      "shrunk": "Give me a 3-day workout plan for beginners at home",
+      "topic": "workout",
+      "note": "no filler"
+    },
+    {
+      "id": "firewall-plain",
+      "raw": "Explain what a Portcullis firewall does in plain English",
+      "shrunk": "Explain what a Portcullis firewall does in plain English",
+      "topic": "firewall",
+      "note": "no filler"
+    }
+  ]
+}

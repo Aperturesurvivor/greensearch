@@ -1,0 +1,91 @@
+{
+  "note": "Hand-written expectations for auto-routing. The Python router and the website's routeMode() must both satisfy every case. The site calls 'full' 'forest'.",
+  "cases": [
+    {
+      "prompt": "",
+      "mode": "sprout"
+    },
+    {
+      "prompt": "Explain DNS simply",
+      "mode": "sprout"
+    },
+    {
+      "prompt": "What is a firewall?",
+      "mode": "sprout"
+    },
+    {
+      "prompt": "one two three four five six seven eight nine ten eleven twelve",
+      "mode": "sprout"
+    },
+    {
+      "prompt": "one two three four five six seven eight nine ten eleven twelve thirteen",
+      "mode": "canopy"
+    },
+    {
+      "prompt": "Please explain how a firewall protects a small office network from outside attacks today",
+      "mode": "canopy"
+    },
+    {
+      "prompt": "Compare REST and GraphQL",
+      "mode": "full"
+    },
+    {
+      "prompt": "Give me the pros and cons of electric cars",
+      "mode": "full"
+    },
+    {
+      "prompt": "What is DNS? Why does it matter?",
+      "mode": "full"
+    },
+    {
+      "prompt": "Walk me through it step by step",
+      "mode": "full"
+    },
+    {
+      "prompt": "alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha",
+      "mode": "canopy"
+    },
+    {
+      "prompt": "alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha alpha",
+      "mode": "full"
+    },
+    {
+      "prompt": "Fix this:\n```\nline one of code\nline two of code that goes on and on and on and on and on and on and on and on and on and on and on and on\n```",
+      "mode": "sprout"
+    }
+  ],
+  "shrink_cases_site_only": [
+    {
+      "in": "Explain DNS simply",
+      "out": "Explain DNS simply"
+    },
+    {
+      "in": "Explain it clearly",
+      "out": "Explain it clearly"
+    },
+    {
+      "in": "Give me a simple explanation",
+      "out": "Give me a simple explanation"
+    },
+    {
+      "in": "Explain in detail how DNS works",
+      "out": "Explain in detail how DNS works"
+    },
+    {
+      "in": "Please explain clearly why that that happens",
+      "out": "Explain clearly why that that happens"
+    },
+    {
+      "in": "What is 10 10 times 3",
+      "out": "What is 10 10 times 3"
+    },
+    {
+      "in": "I had had enough of it",
+      "out": "I had had enough of it"
+    },
+    {
+      "in": "Could you please summarize this",
+      "out": "Summarize this"
+    }
+  ]
+}

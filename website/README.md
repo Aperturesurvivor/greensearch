@@ -26,14 +26,14 @@ Tokens: words x 1.33, minimum 1. CO2e: tokens x 0.0018 g. Both are estimates, no
 
 ## Test
 
-Run the checks in /tmp or with node by extracting the inline script and calling integrateChat:
+The inline script is checked from the repo root by `tests/site_conformance.js` (run through `python -m unittest discover -s tests`). Manual checks worth repeating after edits:
 
 - "Explain DNS simply" routes Sprout, topic dns, and saves vs its Forest baseline.
 - The bloated DNS sample from the integration corpus shrinks and saves more than the concise version.
 - A repeated DNS question, trimmed to the same core, is a cache hit with 0 new answer tokens.
 - "capital" does not route to API, and an empty question returns empty, with no invented answer.
 
-Existing suites were not changed by this demo: the Python harness tests and the integration Node tests still pass separately (see the summary in chat).
+PromptShrink keeps words that carry instructions ("simply", "clearly") and does not collapse repeated numbers or words.
 
 ## Sources for Finland numbers
 

@@ -5,4 +5,4 @@ draft answers to a sentence budget; token and CO2e figures are ESTIMATES
 from token counts, not measurements. See README.md for the honest limits.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.6.0"

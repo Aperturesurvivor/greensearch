@@ -10,6 +10,8 @@ is an error, not silently discarded data.
 
 import datetime
 import json
+import os
+import tempfile
 
 _REQUIRED_CALL_KEYS = (
     "prompt",
@@ -37,9 +39,10 @@ class Session:
     def totals(self):
         return {
             "calls": len(self.calls),
+            "input_saved_tokens": sum(c.get("shrink_saved_tokens", 0) for c in self.calls),
             "eco_tokens": sum(c["eco_tokens"] for c in self.calls),
             "standard_tokens": sum(c["standard_tokens"] for c in self.calls),
-            "saved_co2_g": round(sum(c["saved_co2_g"] for c in self.calls), 2),
+            "saved_co2_g": round(sum(c["saved_co2_g"] for c in self.calls), 4),
         }
 
     def to_dict(self):
@@ -64,8 +67,20 @@ class Session:
 
     def save(self, path):
         """Write this session to a JSON file. Raises OSError on failure."""
-        with open(path, "w") as handle:
-            json.dump(self.to_dict(), handle, indent=2)
+        # Write to a temp file in the same folder, then swap it in, so a
+        # crash mid-write cannot leave a half-written session file.
+        directory = os.path.dirname(os.path.abspath(path))
+        fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".session-", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as handle:
+                json.dump(self.to_dict(), handle, indent=2)
+            os.replace(tmp_path, path)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
     @classmethod
     def load(cls, path):
@@ -90,8 +105,10 @@ class Session:
             "",
             f"Generated: {datetime.datetime.now().isoformat(timespec='seconds')}",
             "",
-            f"Calls: {totals['calls']} | Eco tokens: {totals['eco_tokens']} | "
-            f"Standard tokens (est.): {totals['standard_tokens']} | "
+            f"Calls: {totals['calls']} | "
+            f"Input tokens saved by PromptShrink: {totals['input_saved_tokens']} | "
+            f"Output eco tokens: {totals['eco_tokens']} | "
+            f"Output standard tokens (est.): {totals['standard_tokens']} | "
             f"CO2e saved (est.): {totals['saved_co2_g']} g",
             "",
         ]
@@ -102,8 +119,10 @@ class Session:
                 "",
                 f"Answer: {call['answer']}",
                 "",
-                f"Tokens: {call['eco_tokens']} vs {call['standard_tokens']} "
-                f"standard (est.), saved {call['saved_pct']}% / "
+                (f"PromptShrink: saved {call['shrink_saved_tokens']} input tokens" 
+                if call.get("shrink_saved_tokens") else "PromptShrink: no change"),
+                f"Output: {call['eco_tokens']} vs {call['standard_tokens']} "
+                f"standard ({call.get('baseline_kind', 'assumed')}), saved {call['saved_pct']}% / "
                 f"{call['saved_co2_g']} g CO2e (est.)",
                 "",
             ]

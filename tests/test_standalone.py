@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TestEntryPoints(unittest.TestCase):
     def test_version_matches_pyproject(self):
-        self.assertEqual(greensearch.__version__, "0.4.0")
+        self.assertEqual(greensearch.__version__, "0.6.0")
 
     def test_demo_prompts_cover_all_six_topics_plus_generic(self):
         topics = [topic for topic, _prompt in DEMO_PROMPTS]

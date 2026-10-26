@@ -1,6 +1,6 @@
 """Step 2 tests: persistent sessions and clean live-provider errors.
 
-Run from the eco-wrapper directory:
+Run from the repository root:
     python -m unittest discover -s tests -v
 """
 

@@ -21,9 +21,13 @@ import argparse
 import sys
 
 from greensearch.brevity import apply_brevity
+from greensearch.shrink import shrink
 from greensearch.tokens import est_tokens
-from greensearch.footprint import footprint
+from greensearch.footprint import GRID_G_PER_KWH, WH_PER_TOKEN, footprint
+from greensearch.router import route_mode
 from greensearch.providers import (
+    BREVITY_SYSTEM,
+    MAX_TOKENS,
     DemoProvider,
     OpenAICompatibleProvider,
     ProviderError,
@@ -79,29 +83,93 @@ def _write_report(session, report_out):
     return None
 
 
-def _run_one(provider, session, prompt, mode):
+def _run_one(provider, session, prompt, mode_arg, opts=None):
     """Run one prompt through a provider, record it, and print it.
 
     Returns an error message or None.
+
+    Two-sided accounting:
+      Input side:  PromptShrink trims the prompt; saved_input_tokens is the
+                   difference, credited before any model call.
+      Output side: the model receives the shrunk prompt. If live and
+                   constrained (default), a system-prompt + max_tokens cap
+                   limits generation. The footprint uses provider-reported
+                   token counts when available.
     """
+    opts = opts or {}
+
+    # --- Input side: shrink the prompt ---
+    sr = shrink(prompt)
+    shrunk_prompt = sr.text
+    mode = route_mode(shrunk_prompt) if mode_arg == "auto" else mode_arg
+    mode_label = f"{mode} (auto)" if mode_arg == "auto" else mode
+    live = getattr(provider, "live", False)
+    constrain = live and not opts.get("no_constrain")
+
+    # --- Output side: call the model ---
     try:
-        raw = provider.complete(prompt)
+        comp = provider.complete_ex(
+            shrunk_prompt,
+            system=BREVITY_SYSTEM[mode] if constrain else None,
+            max_tokens=MAX_TOKENS[mode] if constrain else None,
+        )
+        base = None
+        if opts.get("measure_baseline"):
+            base = provider.complete_ex(prompt) if live else provider.complete_ex(prompt)
     except (ValueError, ProviderError) as exc:
         return str(exc)
-    answer = apply_brevity(raw, mode)
-    fp = footprint(est_tokens(answer), mode)
+
+    answer = apply_brevity(comp.text, mode)
+
+    # Token accounting: use provider counts when available; fall back to estimates.
+    # Never mix counted and estimated in the same comparison.
+    out_tokens = est_tokens(answer)
+    baseline_tokens = None
+    if comp.completion_tokens is not None:
+        out_tokens = comp.completion_tokens
+    if base is not None:
+        if base.completion_tokens is not None and comp.completion_tokens is not None:
+            baseline_tokens = base.completion_tokens
+        else:
+            out_tokens = est_tokens(answer)
+            baseline_tokens = est_tokens(base.text)
+
+    fp = footprint(
+        out_tokens, mode,
+        baseline_tokens=baseline_tokens,
+        wh_per_token=opts.get("wh_per_token", WH_PER_TOKEN),
+        grid_g_per_kwh=opts.get("grid_g_per_kwh", GRID_G_PER_KWH),
+    )
+    # Attach input-side saving to the footprint dict so it travels to the report.
+    fp["shrink_saved_tokens"] = sr.saved_tokens
+    fp["shrink_original_tokens"] = sr.original_tokens
+    fp["shrink_changed"] = sr.changed
+
     session.record(prompt, answer, mode, fp)
-    print(f"[{provider.name} | mode: {mode}]\n")
+    print(f"[{provider.name} | mode: {mode_label}]\n")
     print(answer)
+
+    # Print a clear two-line breakdown: input side then output side.
+    if sr.changed:
+        print(
+            f"\nPromptShrink: {sr.original_tokens} → {sr.shrunk_tokens} input tokens "
+            f"(saved {sr.saved_tokens})"
+        )
+    else:
+        print(f"\nPromptShrink: no change ({sr.original_tokens} input tokens)")
     print(
-        f"\nTokens: {fp['eco_tokens']} vs {fp['standard_tokens']} standard (est.) | "
+        f"Output: {fp['eco_tokens']} vs {fp['standard_tokens']} standard "
+        f"({fp['baseline_kind']} baseline) | "
         f"CO2e: {fp['eco_co2_g']}g vs {fp['standard_co2_g']}g (est.) | "
         f"Saved: {fp['saved_pct']}% / {fp['saved_co2_g']}g (est.)"
     )
+    if fp["baseline_kind"] == "assumed":
+        print("  (assumed baseline: saved % depends only on mode, not content;",
+              "use --measure-baseline for a real comparison)")
     return None
 
 
-def _run_demo(session, mode):
+def _run_demo(session, mode, opts=None):
     """Run the offline demo: all six topics plus a generic fallback."""
     provider = DemoProvider()
     print("[demo (offline) | GreenSearch demo]\n")
@@ -111,7 +179,7 @@ def _run_demo(session, mode):
     )
     for topic, prompt in DEMO_PROMPTS:
         print(f"--- {topic}: {prompt}")
-        error = _run_one(provider, session, prompt, mode)
+        error = _run_one(provider, session, prompt, mode, opts)
         if error:
             return error
         print()
@@ -129,7 +197,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="GreenSearch: concise answers, estimated footprint.")
     parser.add_argument("prompt", nargs="?", default=None,
                         help="Prompt to answer (omit with --demo)")
-    parser.add_argument("--mode", choices=["sprout", "canopy", "full"], default="full")
+    parser.add_argument("--mode", choices=["sprout", "canopy", "full", "auto"], default="full",
+                        help="Answer length; auto picks one from the prompt")
     parser.add_argument("--provider", choices=["demo", "live"], default="demo")
     parser.add_argument("--base-url", default="https://api.openai.com/v1")
     parser.add_argument("--model", default="gpt-4o-mini")
@@ -137,16 +206,35 @@ def main(argv=None):
                         help="Write a markdown session report to this path")
     parser.add_argument("--session-file", default=None,
                         help="JSON file to persist session calls across runs")
+    parser.add_argument("--measure-baseline", action="store_true",
+                        help="Compare against a real unconstrained reply (live: one extra API call)")
+    parser.add_argument("--no-constrain", action="store_true",
+                        help="Live: do not ask for a short answer; generate in full, then trim")
+    parser.add_argument("--wh-per-token", type=float, default=WH_PER_TOKEN,
+                        help="Assumed energy per generated token, in Wh (default %(default)s)")
+    parser.add_argument("--grid-g-per-kwh", type=float, default=GRID_G_PER_KWH,
+                        help="Assumed grid intensity, g CO2e per kWh (default %(default)s)")
     parser.add_argument("--demo", action="store_true",
                         help="Run the offline demo (all topics, no key needed)")
     args = parser.parse_args(argv)
+    if args.wh_per_token <= 0 or args.grid_g_per_kwh <= 0:
+        print("Error: --wh-per-token and --grid-g-per-kwh must be positive", file=sys.stderr)
+        return 2
+    opts = {
+        "measure_baseline": args.measure_baseline,
+        "no_constrain": args.no_constrain,
+        "wh_per_token": args.wh_per_token,
+        "grid_g_per_kwh": args.grid_g_per_kwh,
+    }
 
     if args.demo:
         session, error = _load_session(args.session_file)
         if error:
             print(f"Error: {error}", file=sys.stderr)
             return 2
-        error = _run_demo(session, args.mode)
+        if args.prompt:
+            print("Note: --demo ignores the prompt you gave.", file=sys.stderr)
+        error = _run_demo(session, args.mode, opts)
         if error:
             print(f"Error: {error}", file=sys.stderr)
             return 2
@@ -180,7 +268,7 @@ def main(argv=None):
     if error:
         print(f"Error: {error}", file=sys.stderr)
         return 2
-    error = _run_one(provider, session, args.prompt, args.mode)
+    error = _run_one(provider, session, args.prompt, args.mode, opts)
     if error:
         print(f"Error: {error}", file=sys.stderr)
         return 2

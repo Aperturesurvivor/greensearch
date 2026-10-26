@@ -1,259 +1,818 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GreenSearch - a lower-impact AI chat demo</title>
+<title>GreenSearch — lower-carbon AI chat demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #f4efe6; color: #1d2b3a; }
-  header { background: #0f2a44; color: #fff; padding: 20px 24px; border-bottom: 4px solid #e8a317; }
-  header h1 { margin: 0 0 6px; font-size: 28px; }
-  header p { margin: 4px 0; max-width: 760px; line-height: 1.5; }
-  .demo-label { display: inline-block; background: #e8a317; color: #0f2a44; font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 13px; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 18px; }
-  .totals { background: #fff; border: 1px solid #d8d0c0; border-radius: 10px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 18px; }
-  .totals b { font-size: 20px; }
-  .totals span { display: block; font-size: 13px; color: #5a6b7d; }
-  .grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 18px; margin-top: 18px; align-items: start; }
-  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
-  .chat-box { background: #fff; border: 1px solid #d8d0c0; border-radius: 10px; padding: 16px; min-height: 420px; }
-  #chat { display: flex; flex-direction: column; gap: 12px; min-height: 300px; }
-  .msg { max-width: 88%; padding: 10px 12px; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; }
-  .user { align-self: flex-end; background: #0f2a44; color: #fff; }
-  .bot { align-self: flex-start; background: #eef3f7; }
-  .meta { font-size: 12px; color: #5a6b7d; margin-top: 6px; white-space: normal; }
-  .bot .meta { color: #43566b; }
-  form { display: flex; gap: 8px; margin-top: 14px; }
-  input[type="text"] { flex: 1; padding: 11px; font-size: 16px; border: 1px solid #b9c2cc; border-radius: 8px; }
-  button { background: #e8a317; color: #0f2a44; border: 0; border-radius: 8px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
-  button.secondary { background: #eef3f7; color: #0f2a44; border: 1px solid #b9c2cc; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .chips button { padding: 7px 10px; font-size: 14px; }
-  .panel { background: #fff; border: 1px solid #d8d0c0; border-radius: 10px; padding: 16px; }
-  .panel h2 { margin-top: 0; font-size: 19px; }
-  .panel h3 { font-size: 16px; margin-bottom: 4px; }
-  .panel p, .panel li { line-height: 1.55; }
-  .callout { background: #fff7e0; border-left: 4px solid #e8a317; padding: 10px 12px; margin: 12px 0; }
-  details { margin-top: 12px; }
-  summary { cursor: pointer; font-weight: 700; }
-  footer { color: #5a6b7d; font-size: 13px; line-height: 1.5; padding: 10px 0 24px; }
-  a { color: #0f5a8a; }
+/* ── Tokens ── */
+:root {
+  --bg:#0d1117; --surface:#161b22; --surface2:#21262d;
+  --border:#30363d; --border2:#444c56;
+  --ink:#e6edf3; --ink2:#8b949e; --ink3:#6e7681;
+  --teal:#3fb950; --teal-dim:#0d2818; --teal-glow:rgba(63,185,80,.18);
+  --amber:#e3b341; --amber-dim:#2a1f00;
+  --red:#f47067; --blue:#58a6ff; --purple:#d2a8ff;
+  --user-bg:#1c2233; --user-border:#264380;
+  --bot-bg:#161b22;
+  --sp-bg:#0d2818; --sp-fg:#3fb950;
+  --ca-bg:#2a1f00; --ca-fg:#e3b341;
+  --fo-bg:#2a1218; --fo-fg:#f47067;
+  --ch-bg:#0d1f38; --ch-fg:#58a6ff;
+  --font-body:"Inter",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  --r:12px; --rs:8px;
+}
+[data-theme="light"] {
+  --bg:#f6f8fa; --surface:#ffffff; --surface2:#f0f2f5;
+  --border:#d0d7de; --border2:#b0b7c0;
+  --ink:#1f2328; --ink2:#57606a; --ink3:#848d97;
+  --teal:#1a7f37; --teal-dim:#d8f3e0; --teal-glow:rgba(26,127,55,.12);
+  --amber:#9a6700; --amber-dim:#fff3c6;
+  --red:#cf222e; --blue:#0969da; --purple:#8250df;
+  --user-bg:#e8f0fe; --user-border:#4f80c8;
+  --bot-bg:#ffffff;
+  --sp-bg:#d8f3e0; --sp-fg:#1a7f37;
+  --ca-bg:#fff3c6; --ca-fg:#9a6700;
+  --fo-bg:#ffd7d7; --fo-fg:#cf222e;
+  --ch-bg:#ddf4ff; --ch-fg:#0969da;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+[data-theme="light"] html{color-scheme:light}
+body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.6;min-height:100vh}
+
+/* ── Header ── */
+.hd{border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:20;backdrop-filter:blur(8px)}
+.hd-l{display:flex;align-items:center;gap:12px}
+.logo{font-size:19px;font-weight:700;letter-spacing:-.4px;color:var(--ink);display:flex;align-items:center;gap:8px}
+.logo-icon{width:26px;height:26px;background:var(--teal-dim);border:1.5px solid var(--teal);border-radius:50% 50% 50% 6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.demo-pill{font-size:11px;font-weight:600;font-family:var(--font-mono);padding:2px 8px;border-radius:999px;background:var(--amber-dim);color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 35%,transparent);letter-spacing:.04em}
+.hd-r{display:flex;gap:8px;align-items:center}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--ink2);border-radius:var(--rs);padding:5px 9px;cursor:pointer;font-size:15px;line-height:1;transition:background .15s}
+.icon-btn:hover{background:var(--border);color:var(--ink)}
+
+/* ── Totals ── */
+.totals{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface)}
+.ti{flex:1;min-width:110px;padding:12px 18px;border-right:1px solid var(--border);text-align:center}
+.ti:last-child{border-right:none}
+.tn{font-size:24px;font-weight:700;font-family:var(--font-mono);color:var(--teal);display:block;line-height:1.1;transition:color .25s}
+.tn.pop{color:var(--amber)}
+.tl{font-size:11.5px;color:var(--ink3);margin-top:2px;display:block}
+.te{font-size:10.5px;color:var(--teal);display:block;font-family:var(--font-mono);margin-top:1px;min-height:14px;opacity:.85}
+
+/* ── Layout ── */
+.main{display:grid;grid-template-columns:1fr 320px;height:calc(100vh - 107px);min-height:460px}
+@media(max-width:820px){.main{grid-template-columns:1fr;height:auto}.sidebar{order:-1;border-right:none;border-bottom:1px solid var(--border);max-height:240px}}
+
+/* ── Chat panel ── */
+.cp{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden}
+.cs{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+.cs::-webkit-scrollbar{width:5px}
+.cs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* Messages */
+.mr{display:flex;flex-direction:column;gap:3px}
+.mr.user{align-items:flex-end}
+.mr.bot{align-items:flex-start}
+.bubble{max-width:76%;padding:10px 14px;border-radius:var(--r);line-height:1.55;white-space:pre-wrap;word-break:break-word;font-size:14.5px}
+.mr.user .bubble{background:var(--user-bg);border:1px solid var(--user-border);border-radius:var(--r) var(--r) 4px var(--r);color:var(--ink)}
+.mr.bot .bubble{background:var(--bot-bg);border:1px solid var(--border);border-radius:var(--r) var(--r) var(--r) 4px}
+.mr.bot .bubble.typing::after{content:'▋';animation:blink .7s steps(1) infinite;color:var(--teal)}
+@keyframes blink{50%{opacity:0}}
+
+/* Typing dots indicator */
+.dots-bubble{background:var(--bot-bg);border:1px solid var(--border);border-radius:var(--r) var(--r) var(--r) 4px;padding:12px 16px;display:inline-flex;gap:5px;align-items:center}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ink3);animation:dotpulse 1.2s infinite ease-in-out}
+.dot:nth-child(2){animation-delay:.2s}
+.dot:nth-child(3){animation-delay:.4s}
+@keyframes dotpulse{0%,80%,100%{transform:scale(.7);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* Diff display */
+.diff-row{font-size:12px;font-family:var(--font-mono);color:var(--ink3);margin:1px 0 4px;max-width:76%;line-height:1.7;padding:4px 8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border)}
+.dr{color:var(--red);text-decoration:line-through;opacity:.8}
+.dk{color:var(--ink2)}
+.da{color:var(--amber);font-style:italic}  /* added/substituted */
+.diff-arrow{color:var(--ink3);margin:0 4px;font-style:normal}
+
+/* Meta */
+.mm{display:flex;flex-wrap:wrap;gap:5px;align-items:center;max-width:76%}
+.tag{font-size:11px;font-weight:600;font-family:var(--font-mono);padding:2px 7px;border-radius:999px;white-space:nowrap;letter-spacing:.02em}
+.ts{background:var(--sp-bg);color:var(--sp-fg)}
+.tc{background:var(--ca-bg);color:var(--ca-fg)}
+.tf{background:var(--fo-bg);color:var(--fo-fg)}
+.tx{background:var(--ch-bg);color:var(--ch-fg)}
+.spill{font-size:11px;font-weight:600;font-family:var(--font-mono);padding:2px 7px;border-radius:999px;background:var(--teal-dim);color:var(--teal);border:1px solid color-mix(in srgb,var(--teal) 28%,transparent)}
+.spill.mid{background:var(--amber-dim);color:var(--amber);border-color:color-mix(in srgb,var(--amber) 28%,transparent)}
+.tok-tag{background:var(--surface2);border:1px solid var(--border);color:var(--ink3)}
+.tag[title]{cursor:help;position:relative}
+.tag[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);color:var(--ink);font-size:11px;font-family:var(--font-mono);font-weight:400;padding:5px 9px;border-radius:6px;white-space:nowrap;z-index:50;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.tag[title]:hover::before{content:'';position:absolute;bottom:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--border2);z-index:51;pointer-events:none}
+
+/* Input area */
+.ia{padding:12px 18px;border-top:1px solid var(--border);background:var(--surface)}
+.ip-bar{display:flex;align-items:center;justify-content:space-between;min-height:18px;margin-bottom:7px}
+.ip-preview{font-size:12px;font-family:var(--font-mono);color:var(--ink3);transition:color .2s;flex:1}
+.ip-preview.active{color:var(--teal)}
+.ip-preview .px{color:var(--red);text-decoration:line-through;opacity:.75}
+.ip-count{font-size:11px;font-family:var(--font-mono);color:var(--ink3);white-space:nowrap;margin-left:10px}
+.ir{display:flex;gap:7px}
+.ir input{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--ink);border-radius:var(--rs);padding:9px 13px;font-size:14px;font-family:var(--font-body);outline:none;transition:border-color .15s,box-shadow .15s}
+.ir input::placeholder{color:var(--ink3)}
+.ir input:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-glow)}
+.btn-s{background:var(--teal);color:#0d1117;border:none;border-radius:var(--rs);padding:9px 16px;font-weight:700;font-size:14px;cursor:pointer;font-family:var(--font-body);transition:filter .15s,transform .1s;white-space:nowrap}
+.btn-s:hover{filter:brightness(1.1)}
+.btn-s:active{transform:scale(.97)}
+.btn-cl{background:var(--surface2);border:1px solid var(--border);color:var(--ink2);border-radius:var(--rs);padding:9px 12px;font-size:14px;cursor:pointer;font-family:var(--font-body);transition:background .15s}
+.btn-cl:hover{background:var(--border)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:var(--surface2);border:1px solid var(--border);color:var(--ink2);border-radius:999px;padding:4px 11px;font-size:12.5px;cursor:pointer;font-family:var(--font-body);transition:border-color .15s,color .15s;white-space:nowrap}
+.chip:hover{border-color:var(--teal);color:var(--teal)}
+.hint{font-size:11px;color:var(--ink3);margin-top:6px;font-family:var(--font-mono)}
+.shrink-bar{height:3px;border-radius:2px;background:var(--border);margin-top:7px;overflow:hidden;opacity:0;transition:opacity .3s}
+.shrink-bar.active{opacity:1}
+.shrink-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--teal),var(--amber));width:0%;transition:width .35s cubic-bezier(.4,0,.2,1)}
+
+/* ── Sidebar ── */
+.sidebar{overflow-y:auto;background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:14px}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.panel{border:1px solid var(--border);border-radius:var(--r);padding:14px;background:var(--bg)}
+.pt{font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--teal);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.panel p,.panel li{font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:5px}
+.panel ul{padding-left:15px}
+.panel li{margin-bottom:3px}
+.panel b{color:var(--ink);font-weight:600}
+.callout{background:var(--amber-dim);border:1px solid color-mix(in srgb,var(--amber) 30%,transparent);border-radius:var(--rs);padding:9px 11px;font-size:12.5px;color:var(--ink2);line-height:1.5;margin:7px 0}
+.callout b{color:var(--amber)}
+details{margin-top:6px}
+summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink2);list-style:none;display:flex;align-items:center;gap:5px;user-select:none}
+summary::before{content:'▶';font-size:9px;transition:transform .2s;color:var(--ink3)}
+details[open] summary::before{transform:rotate(90deg)}
+details p{margin-top:7px}
+.sr{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.sr:last-child{border-bottom:none}
+.sv{font-family:var(--font-mono);color:var(--teal);font-weight:600}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* History accordion */
+.hist-item{border-top:1px solid var(--border);padding:6px 0;cursor:pointer;font-size:12px}
+.hist-item .hi{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.hist-q{color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;font-size:12px}
+.hist-pct{font-family:var(--font-mono);color:var(--teal);font-size:11px;font-weight:600;white-space:nowrap}
+.hist-meta{font-size:11px;color:var(--ink3);font-family:var(--font-mono);margin-top:3px;display:none}
+.hist-item.open .hist-meta{display:block}
+
+/* ── Footer ── */
+.ft{border-top:1px solid var(--border);padding:8px 20px;font-size:11.5px;color:var(--ink3);display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;background:var(--surface)}
+
+/* ── Cache flash ── */
+.cf{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.88);background:var(--ch-bg);border:1.5px solid var(--blue);color:var(--blue);border-radius:var(--r);padding:9px 18px;font-family:var(--font-mono);font-weight:700;font-size:14px;pointer-events:none;opacity:0;transition:opacity .18s,transform .22s;z-index:200;white-space:nowrap}
+.cf.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+/* ── Copy toast ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--surface2);border:1px solid var(--border2);color:var(--ink);border-radius:var(--rs);padding:8px 16px;font-size:13px;opacity:0;transition:opacity .2s,transform .2s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:540px){
+  .ti{min-width:80px;padding:8px 10px}
+  .tn{font-size:19px}
+  .bubble{max-width:92%}
+  .mm{max-width:92%}
+  .diff-row{max-width:92%}
+  .hd{padding:10px 14px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
 </style>
 </head>
 <body>
-<header>
-  <h1>GreenSearch</h1>
-  <p><span class="demo-label">Demo, not a live AI service</span></p>
-  <p>Chat like you would with ChatGPT or Gemini, but shorter by design. GreenSearch trims your question with PromptShrink, reuses an answer you already asked for when it can, and picks the shortest answer that still does the job.</p>
-  <p>Under each answer you see what that saved, compared with a regular verbose answer. The numbers are estimates, not measurements.</p>
+
+<header class="hd">
+  <div class="hd-l">
+    <div class="logo"><div class="logo-icon" aria-hidden="true">🌿</div>GreenSearch</div>
+    <span class="demo-pill">DEMO</span>
+  </div>
+  <div class="hd-r">
+    <button class="icon-btn" id="copy-btn" title="Copy session stats">📋</button>
+    <button class="icon-btn" id="theme-btn" aria-label="Toggle theme" title="Toggle light/dark">🌙</button>
+  </div>
 </header>
 
-<div class="wrap">
-  <div class="totals" id="totals">
-    <div><b id="t-calls">0</b><span>Messages in this session</span></div>
-    <div><b id="t-base">0</b><span>Baseline tokens (est.)</span></div>
-    <div><b id="t-green">0</b><span>GreenSearch tokens (est.)</span></div>
-    <div><b id="t-saved">0</b><span>Tokens saved (est.)</span></div>
-    <div><b id="t-co2">0 g</b><span>CO2e saved (est.)</span></div>
-  </div>
-
-  <div class="grid">
-    <div class="chat-box">
-      <div id="chat"></div>
-      <form id="chat-form">
-        <input id="chat-input" type="text" placeholder="Ask something, for example: Explain DNS simply" autocomplete="off">
-        <button type="submit">Send</button>
-        <button type="button" class="secondary" id="clear-btn">Clear chat</button>
-      </form>
-      <div class="chips" id="chips"></div>
-      <p style="font-size:13px;color:#5a6b7d;line-height:1.5;">Try the 6 topics this demo actually covers: email follow-ups, APIs, workouts, backups, firewalls and Portcullis, and DNS. Anything else gets an honest fallback, not a made-up specific answer.</p>
-    </div>
-
-    <div>
-      <div class="panel">
-        <h2>Why Finland matters, and what it does not change here</h2>
-        <p>GreenSearch is meant to run where electricity is almost carbon-free. The reference point Grant chose is Google Cloud in Finland.</p>
-        <ul>
-          <li><b>Google Cloud Finland (europe-north1): 98% carbon-free energy</b>, grid intensity 30 gCO2eq/kWh.</li>
-          <li><b>Google Hamina site: 97% carbon-free energy.</b></li>
-          <li><b>Google data centers globally: 65% carbon-free energy in 2025</b>, for contrast.</li>
-        </ul>
-        <div class="callout"><b>Important split:</b> This demo runs in your browser, not in Finland, and it has no live model behind it. So the Finland numbers do <b>not</b> change the CO2 numbers under each answer. The savings you see here come only from fewer tokens. Clean-energy hosting is a second, separate lever for a live version, and it is not added on top here, to avoid double counting.</div>
-        <p>Sources: <a href="https://cloud.google.com/sustainability/region-carbon">Google Cloud region carbon data</a> and <a href="https://sustainability.google/files/google-2026-environmental-report/">Google 2026 Environmental Report</a>.</p>
-        <details>
-          <summary>How the numbers are worked out</summary>
-          <p>Tokens: words x 1.33, minimum 1. CO2e: tokens x 0.0018 g.</p>
-          <p>Baseline for each message: your original question plus the full (Forest) answer for the same topic, with no trimming, no routing, and no reuse.</p>
-          <p>GreenSearch for each message: your trimmed question plus the routed answer (Sprout, Canopy, or Forest), or just the trimmed question on a cache hit, when an answer was already given in this session.</p>
-          <p>PromptShrink trims filler and verbose phrases from your question. It protects text inside code fences. Routing: Sprout if the trimmed question is 12 words or fewer, Forest if it is 35 words or more, has a complexity marker like "in detail" or "compare", or has 2 or more question marks, otherwise Canopy.</p>
-        </details>
-        <details>
-          <summary>Honest limits</summary>
-          <p>No live model, no backend, and nothing leaves this page. Answers are pre-written templates for the 6 topics above. Token and CO2 figures are arithmetic from those estimates, not measured energy use and not a bill. A regular LLM baseline here means the verbose/full version of the same answer, not a measured ChatGPT or Gemini query.</p>
-        </details>
-      </div>
-    </div>
-  </div>
-
-  <footer>
-    Built from the existing GreenSearch harness and PromptShrink + GreenSearch integration demo, with the same formulas and the same 6 templates. Mode names: the chat uses Sprout / Canopy / Forest, matching the site demo. The Python harness calls Forest "Full" - that name difference is still open, not hidden.
-  </footer>
+<div class="totals" id="totals" aria-label="Session totals">
+  <div class="ti"><span class="tn" id="t-calls">0</span><span class="tl">messages</span></div>
+  <div class="ti"><span class="tn" id="t-base">0</span><span class="tl">baseline tokens</span></div>
+  <div class="ti"><span class="tn" id="t-green">0</span><span class="tl">GreenSearch tokens</span></div>
+  <div class="ti"><span class="tn" id="t-saved">0</span><span class="tl">tokens saved</span></div>
+  <div class="ti"><span class="tn" id="t-co2">0.00g</span><span class="tl">CO₂e saved (est.)</span><span class="te" id="t-eq"></span></div>
 </div>
 
+<div class="main">
+  <div class="cp">
+    <div class="cs" id="chat" role="log" aria-live="polite"></div>
+    <div class="ia">
+      <div class="ip-bar">
+        <div class="ip-preview" id="ip-prev"></div>
+        <div class="ip-count" id="ip-cnt"></div>
+      </div>
+      <div class="ir">
+        <input id="ci" type="text" placeholder="Ask something — try: Explain DNS simply" autocomplete="off" aria-label="Your question">
+        <button class="btn-s" id="sb" type="button">Send</button>
+        <button class="btn-cl" id="cb" type="button" title="Clear chat">✕</button>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Sample questions"></div>
+      <div class="shrink-bar" id="shrink-bar"><div class="shrink-bar-fill" id="shrink-bar-fill"></div></div>
+      <p class="hint">↵ to send · 6 topics: DNS · APIs · backups · workouts · email · Portcullis</p>
+    </div>
+  </div>
+
+  <aside class="sidebar" aria-label="About GreenSearch">
+    <div class="panel">
+      <div class="pt">⚡ How it works</div>
+      <p>Every message runs through three steps before answering:</p>
+      <ul>
+        <li><b>PromptShrink</b> — strips filler from your question (watch the preview as you type)</li>
+        <li><b>Session cache</b> — reuses a previous answer if you asked before</li>
+        <li><b>Routing</b> — picks the shortest sufficient answer length</li>
+      </ul>
+      <details>
+        <summary>Routing thresholds</summary>
+        <p><b>🌱 Sprout</b> ≤12 words → ~2 sentences<br>
+        <b>🌿 Canopy</b> 13–34 words → ~4 sentences<br>
+        <b>🌲 Forest</b> 35+ words, complexity marker, or 2+ questions → ~6 sentences</p>
+      </details>
+    </div>
+
+    <div class="panel">
+      <div class="pt">🌍 Finland &amp; carbon</div>
+      <p>Designed to run on nearly carbon-free electricity. Reference: <b>Google Cloud Finland — 98% carbon-free, 30 gCO₂eq/kWh.</b></p>
+      <div class="callout"><b>Note:</b> this demo runs in your browser, not in Finland. Savings shown come from fewer tokens only. Clean-energy hosting is a separate lever for a live version.</div>
+      <p style="font-size:12px"><a href="https://cloud.google.com/sustainability/region-carbon" target="_blank" rel="noopener">Google Cloud region carbon data ↗</a></p>
+      <details>
+        <summary>How numbers are calculated</summary>
+        <p><b>Tokens:</b> words × 1.33, min 1.<br><b>CO₂e:</b> tokens × 0.0018 g.<br>
+        <b>Baseline:</b> original question + Forest answer, no trimming or routing.<br>
+        <b>GreenSearch:</b> shrunk question + routed answer (0 on cache hit).<br>
+        Published per-prompt figures for real models differ by 10× or more.</p>
+      </details>
+      <details>
+        <summary>Honest limits</summary>
+        <p>No live model. Answers are pre-written for 6 topics. Anything else gets an honest fallback, not a made-up answer.</p>
+      </details>
+    </div>
+
+    <div class="panel" id="stats-panel" style="display:none">
+      <div class="pt">📊 This session</div>
+      <div id="live-stats"></div>
+    </div>
+
+    <div class="panel" id="hist-panel" style="display:none">
+      <div class="pt">🕑 Message history</div>
+      <div id="hist-list"></div>
+    </div>
+  </aside>
+</div>
+
+<div class="ft">
+  <span>GreenSearch · portfolio demo · nothing leaves your browser</span>
+  <span>Grant O'Brien · <a href="https://github.com/succulentsdev" target="_blank" rel="noopener">succulentsdev</a></span>
+</div>
+
+<div class="cf" id="cache-flash" aria-live="assertive">⚡ Cache hit — 0 new tokens</div>
+<div class="toast" id="toast"></div>
+
 <script>
-/* Pure logic first, so it can be tested outside a browser. DOM wiring is at the bottom. */
+/* ═══════════════════════════════════════════════
+   Pure logic — same module.exports contract
+═══════════════════════════════════════════════ */
 function shrinkSegment(raw) {
   var s = ' ' + raw + ' ';
-  var fillers = ['i was just wondering if', 'just wondering if', "i hope you're doing well", 'i hope you are doing well', 'what i really need is for you to', 'help me out with something', 'i would like you to', 'i would appreciate it if you could', 'i was hoping you could', 'you could please kindly', 'you could please', 'could you please kindly', 'could you please', 'can you please', 'please kindly', 'please', 'thank you so much in advance', 'thanks so much', 'it is important to note that', 'please note that', 'in my opinion', 'i think that', 'i believe that', 'as mentioned before', 'as i mentioned earlier', 'to be honest', 'frankly speaking', 'in summary', 'to summarize', 'hi there', 'hello', 'basically', 'in other words', 'actually', 'simply', 'honestly', 'obviously', 'clearly'];
-  fillers.forEach(function (p) {
-    var re = new RegExp('\\b' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+') + '\\b', 'gi');
-    s = s.replace(re, '');
+  var fillers = [
+    'i was just wondering if you could possibly','i was just wondering if','just wondering if',
+    "i hope you're doing well",'i hope you are doing well',
+    'i would appreciate it if you could','i would like you to','i was hoping you could',
+    'could you please kindly','could you please','would you please','can you please','please kindly',
+    'thank you so much in advance','thanks so much',
+    'it is important to note that','please note that','note that',
+    'in my opinion','i think that','i believe that',
+    'as mentioned before','as i mentioned earlier',
+    'to be honest','frankly speaking','in summary','to summarize',
+    'hi there','hello','and also','in other words',
+    'basically','actually','honestly','obviously','really','very','please','just'
+  ];
+  fillers.forEach(function(p){
+    var re=new RegExp('\\b'+p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/ /g,'\\s+')+'\\b','gi');
+    s=s.replace(re,'');
   });
-  var verbose = [['due to the fact that', 'because'], ['in order to', 'to'], ['at this point in time', 'now'], ['in the event that', 'if'], ['for the purpose of', 'for'], ['a large number of', 'many'], ['has the ability to', 'can'], ['is able to', 'can'], ['each and every', 'each'], ['first and foremost', 'first']];
-  verbose.forEach(function (pair) {
-    var re = new RegExp('\\b' + pair[0].replace(/ /g, '\\s+') + '\\b', 'gi');
-    s = s.replace(re, pair[1]);
+  var verbose=[
+    ['due to the fact that','because'],['in spite of the fact that','although'],
+    ['in order to','to'],['at this point in time','now'],['at the present time','now'],
+    ['in the event that','if'],['for the purpose of','for'],
+    ['a large number of','many'],['has the ability to','can'],['is able to','can'],
+    ['each and every','each'],['first and foremost','first'],
+    ['prior to','before'],['subsequent to','after'],
+    ['with regard to','about'],['with respect to','about'],
+    ['in the near future','soon'],['on a regular basis','regularly']
+  ];
+  verbose.forEach(function(pair){
+    var re=new RegExp('\\b'+pair[0].replace(/ /g,'\\s+')+'\\b','gi');
+    s=s.replace(re,pair[1]);
   });
-  s = s.replace(/\s+/g, ' ').trim(); s = s.replace(/\s+([.,!?;:])/g, '$1');
-  s = s.replace(/([.!?])[.!?]+/g, '$1'); s = s.replace(/([.!?])\s*,/g, '$1'); s = s.replace(/,\s*([.!?])/g, '$1'); s = s.replace(/,\s*,/g, ','); s = s.replace(/^[^A-Za-z0-9]+/, '');
-  s = s.replace(/\b(\w+)(\s+\1\b)+/gi, '$1');
-  var parts = s.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []; var seen = {}, kept = [];
-  parts.forEach(function (part) {
-    var t = part.trim(); if (!/[A-Za-z0-9]/.test(t)) return;
-    var key = t.toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9 ]/g, '');
-    if (seen[key]) return; seen[key] = true; kept.push(t);
-  });
-  s = kept.join(' '); s = s.replace(/\s+/g, ' ').trim(); s = s.replace(/\s+([.,!?;:])/g, '$1'); s = s.replace(/([.!?])[.!?]+/g, '$1'); s = s.replace(/^[^A-Za-z0-9]+/, '');
-  if (s) s = s.replace(/(^|[.!?]\s+)([a-z])/g, function (m, p, c) { return p + c.toUpperCase(); });
+  s=s.replace(/\s+/g,' ').trim();
+  s=s.replace(/\s+([.,!?;:])/g,'$1');
+  s=s.replace(/,([.!?])/g,'$1');
+  s=s.replace(/,\s*$/,'');
+  s=s.replace(/([.!?])[.!?]+/g,'$1');
+  s=s.replace(/^[^A-Za-z0-9]+/,'');
+  if(s) s=s.replace(/(^|[.!?]\s+)([a-z])/g,function(m,p,c){return p+c.toUpperCase();});
   return s;
 }
-function shrinkPrompt(raw) {
-  var lines = raw.split('\n');
-  while (lines.length > 1) {
-    var last = lines[lines.length - 1].trim();
-    if (!last) { lines.pop(); continue; }
-    if (/^(best regards|kind regards|regards|cheers|sincerely|thanks|thank you)(,?\s+[A-Za-z ]*)?\.?$/i.test(last)) { lines.pop(); } else break;
+function shrinkPrompt(raw){
+  var lines=raw.split('\n');
+  // Strip trailing blank lines, then a sign-off line, then a bare name line above it.
+  while(lines.length&&!lines[lines.length-1].trim())lines.pop();
+  var soRe=/^(best regards|kind regards|regards|cheers|sincerely|thanks|thank you)[,.]?(\s+[A-Za-z][A-Za-z .\-]{0,39})?\s*$/i;
+  var nameRe=/^[A-Za-z][A-Za-z .\-]{0,39}$/;
+  if(lines.length>=2){
+    var last=lines[lines.length-1].trim(),prev=lines[lines.length-2].trim();
+    if(soRe.test(prev)&&nameRe.test(last)&&last.split(/\s+/).length<=4){
+      lines.pop();lines.pop();
+    } else if(soRe.test(last)){
+      lines.pop();
+    }
+  } else if(lines.length===1&&soRe.test(lines[0].trim())){
+    lines.pop();
   }
-  var cleaned = lines.join('\n');
-  return cleaned.split(/(```[\s\S]*?```)/g).map(function (p) { return p.startsWith('```') ? p : shrinkSegment(p); }).join(' ').replace(/[ \t]+\n/g, '\n').trim();
-}
-function stripCodeFences(text) { return text.replace(/```[\s\S]*?```/g, ' '); }
-function proseWordCount(text) { var prose = stripCodeFences(text).trim(); return prose ? prose.split(/\s+/).length : 0; }
-var SPROUT_MAX_WORDS = 12, FOREST_MIN_WORDS = 35;
-var COMPLEXITY_MARKERS = ['compare', 'pros and cons', 'versus', 'in detail', 'step by step', 'trade-off', 'trade-offs', 'explain both'];
-function routeMode(shrunk) {
-  var prose = stripCodeFences(shrunk); var p = prose.toLowerCase(); var words = proseWordCount(shrunk);
-  var hasMarker = COMPLEXITY_MARKERS.some(function (m) { return p.indexOf(m) > -1; });
-  var qCount = (prose.match(/\?/g) || []).length;
-  if (hasMarker || qCount >= 2 || words >= FOREST_MIN_WORDS) return 'forest';
-  if (words <= SPROUT_MAX_WORDS) return 'sprout';
-  return 'canopy';
-}
-function detectTopic(shrunk) {
-  var p = stripCodeFences(shrunk).toLowerCase();
-  var tests = [['email', /\b(emails?|follow-ups?|follow ups?)\b/], ['api', /\bapis?\b/], ['workout', /\b(workouts?|exercises?)\b/], ['backup', /\bbackups?\b/], ['firewall', /\b(firewalls?|portcullis)\b/], ['dns', /\b(dns|domain name)\b/]];
-  for (var i = 0; i < tests.length; i++) { if (tests[i][1].test(p)) return tests[i][0]; }
-  return null;
-}
-function cacheKey(shrunk) { return shrunk.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); }
-var TEMPLATES = {
-  email: { sprout: 'Subject: Quick follow-up\n\nHi, just circling back on our missed call. Happy to reschedule at your convenience.\n\nThanks,\nGrant', canopy: 'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you?\n\nThanks,\nGrant', forest: 'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you? If mornings are tight, an afternoon slot works just as well. Just let me know a day that suits you.\n\nThanks,\nGrant' },
-  api: { sprout: 'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for.', canopy: 'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result.', forest: 'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result. That separation is why apps can use maps, payments, or weather data without building those systems themselves, and why a change inside one program does not have to break the other.' },
-  workout: { sprout: 'Day 1: Squats, push-ups, glute bridges, 3x10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3x10.', canopy: 'Day 1: Squats, push-ups, glute bridges, 3x10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3x10. Rest 60s between sets, keep form clean, and add reps weekly.', forest: 'Day 1: Squats, push-ups, glute bridges, 3x10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3x10. Rest 60s between sets, keep form clean, and add reps weekly. Start lighter than you think you need to, stop a set if your form breaks down, and repeat the same three days next week before adding weight or reps.' },
-  backup: { sprout: 'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time.', canopy: 'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site.', forest: 'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site. The key word is tested: a backup you have never restored from is a hope, not a plan, so restore a file now and then to prove it works.' },
-  firewall: { sprout: 'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions.', canopy: 'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean.', forest: 'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean. When something is at risk, it explains the risk in plain English. For a small business, that means catching one outdated, exploitable program before it becomes a breach, without hiring a full security team.' },
-  dns: { sprout: 'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it.', canopy: 'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers.', forest: 'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers. If DNS cannot find a name, the site will not load even when your connection is fine, which is why a DNS problem can look like the whole internet is down.' }
-};
-function greenAnswer(topic, topicText, mode) {
-  if (topic && TEMPLATES[topic]) return TEMPLATES[topic][mode];
-  var cleaned = topicText.replace(/\s+/g, ' ').trim();
-  var topicName = cleaned.length > 80 ? cleaned.slice(0, 80).trim() + '...' : cleaned;
-  var base = 'No template covers that topic yet, so this is not a specific answer to: "' + topicName + '". In general, pin down three things first: what it is, why it matters, and one next step.';
-  if (mode === 'sprout') return base;
-  if (mode === 'canopy') return base + ' Start by narrowing the question to one part (what it is, or what to do first) and ask for just that part.';
-  return base + ' Start by narrowing the question to one part (what it is, or what to do first) and ask for just that part. These templates only cover email, APIs, workouts, backups, firewalls/Portcullis, and DNS, so anything else needs a source that actually covers it.';
-}
-var CO2_PER_TOKEN_G = 0.0018;
-function estTokens(text) { return Math.max(1, Math.round(text.trim().split(/\s+/).length * 1.33)); }
-function integrateChat(raw, cache) {
-  var shrunk = shrinkPrompt(raw);
-  var key = cacheKey(shrunk);
-  var origIn = estTokens(raw);
-  var shrunkIn = estTokens(shrunk);
-  var prose = stripCodeFences(shrunk);
-  var topic = detectTopic(shrunk);
-  var forestAnswer = greenAnswer(topic, prose, 'forest');
-  var forestOut = estTokens(forestAnswer);
-  var baselineTotal = origIn + forestOut;
-  if (!raw.trim() || !shrunk) return { empty: true, shrunk: shrunk };
-  var route, mode, answer, outTokens, cacheHit = false;
-  if (cache && key && Object.prototype.hasOwnProperty.call(cache, key)) {
-    cacheHit = true; route = 'Cache hit'; mode = cache[key].mode; answer = cache[key].answer; outTokens = 0;
-  } else {
-    mode = routeMode(shrunk); route = mode.charAt(0).toUpperCase() + mode.slice(1); answer = greenAnswer(topic, prose, mode); outTokens = estTokens(answer);
-    if (cache && key) cache[key] = { mode: mode, answer: answer };
-  }
-  var integratedTotal = shrunkIn + outTokens;
-  var savingPct = baselineTotal ? Math.round((1 - integratedTotal / baselineTotal) * 100) : 0;
-  return { raw: raw, shrunk: shrunk, topic: topic, route: route, mode: mode, answer: answer, cacheHit: cacheHit, empty: false, origIn: origIn, shrunkIn: shrunkIn, forestOut: forestOut, outTokens: outTokens, baselineTotal: baselineTotal, integratedTotal: integratedTotal, tokensSaved: baselineTotal - integratedTotal, savingPct: savingPct, baseCO2: +(baselineTotal * CO2_PER_TOKEN_G).toFixed(2), intCO2: +(integratedTotal * CO2_PER_TOKEN_G).toFixed(2), savedCO2: +((baselineTotal - integratedTotal) * CO2_PER_TOKEN_G).toFixed(2) };
-}
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { shrinkPrompt: shrinkPrompt, routeMode: routeMode, detectTopic: detectTopic, greenAnswer: greenAnswer, estTokens: estTokens, integrateChat: integrateChat };
+  while(lines.length&&!lines[lines.length-1].trim())lines.pop();
+  var cleaned=lines.join('\n');
+  return cleaned.split(/(```[\s\S]*?```)/g).map(function(p){return p.startsWith('```')?p:shrinkSegment(p);}).join('').replace(/[ \t]+\n/g,'\n').trim();
 }
 
-/* DOM wiring, browser only */
-if (typeof document !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', function () {
-    var cache = {};
-    var totals = { calls: 0, base: 0, green: 0, saved: 0, co2: 0 };
-    var chatEl = document.getElementById('chat');
-    var inputEl = document.getElementById('chat-input');
-    var formEl = document.getElementById('chat-form');
-    function renderTotals() {
-      document.getElementById('t-calls').textContent = totals.calls;
-      document.getElementById('t-base').textContent = totals.base;
-      document.getElementById('t-green').textContent = totals.green;
-      document.getElementById('t-saved').textContent = totals.saved;
-      document.getElementById('t-co2').textContent = totals.co2.toFixed(2) + ' g';
-    }
-    function addMsg(text, cls, meta) {
-      var div = document.createElement('div');
-      div.className = 'msg ' + cls;
-      div.textContent = text;
-      if (meta) {
-        var m = document.createElement('div');
-        m.className = 'meta';
-        m.textContent = meta;
-        div.appendChild(m);
-      }
-      chatEl.appendChild(div);
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
-    function send(raw) {
-      if (!raw.trim()) return;
-      var r = integrateChat(raw, cache);
-      if (r.empty) { addMsg('Type a question first.', 'bot'); return; }
-      addMsg(raw, 'user');
-      var meta = 'PromptShrink: ' + r.origIn + ' to ' + r.shrunkIn + ' tokens. Route: ' + r.route + (r.cacheHit ? ' (answer reused, 0 new answer tokens)' : '') + '. Baseline: ' + r.baselineTotal + ' tokens, ' + r.baseCO2 + ' g CO2e (est.). GreenSearch: ' + r.integratedTotal + ' tokens, ' + r.intCO2 + ' g CO2e (est.). Saved: ' + r.savingPct + '% / ' + r.savedCO2 + ' g CO2e (est.).';
-      if (r.shrunk !== raw) meta += ' Trimmed question: "' + r.shrunk + '"';
-      addMsg(r.answer, 'bot', meta);
-      totals.calls += 1; totals.base += r.baselineTotal; totals.green += r.integratedTotal; totals.saved += r.tokensSaved; totals.co2 += r.savedCO2;
-      renderTotals();
-    }
-    formEl.addEventListener('submit', function (e) { e.preventDefault(); var v = inputEl.value; inputEl.value = ''; send(v); inputEl.focus(); });
-    document.getElementById('clear-btn').addEventListener('click', function () { chatEl.innerHTML = ''; cache = {}; totals = { calls: 0, base: 0, green: 0, saved: 0, co2: 0 }; renderTotals(); addMsg('Hi, I am GreenSearch. Ask me about DNS, APIs, backups, workouts, email follow-ups, or Portcullis firewalls.', 'bot'); });
-    var samples = ['Explain DNS simply', 'Explain APIs', 'Write a follow-up email about our missed call', 'Why do backups matter?', 'Give me a workout plan for beginners', 'Explain the Portcullis firewall'];
-    var chipsEl = document.getElementById('chips');
-    samples.forEach(function (s) {
-      var b = document.createElement('button');
-      b.type = 'button'; b.className = 'secondary'; b.textContent = s;
-      b.addEventListener('click', function () { send(s); });
-      chipsEl.appendChild(b);
-    });
-    addMsg('Hi, I am GreenSearch. Ask me about DNS, APIs, backups, workouts, email follow-ups, or Portcullis firewalls.', 'bot');
-    renderTotals();
+/* LCS-based word diff with punctuation-normalised matching */
+function normWord(w){return w.toLowerCase().replace(/[^a-z0-9]/g,'');}
+function wordDiff(raw,shrunk){
+  if(raw===shrunk)return null;
+  var a=raw.split(/\s+/),b=shrunk.split(/\s+/);
+  var na=a.map(normWord),nb=b.map(normWord);
+  var m=a.length,n=b.length;
+  var dp=[];
+  for(var i=0;i<=m;i++){dp[i]=new Array(n+1).fill(0);}
+  for(var i=1;i<=m;i++)for(var j=1;j<=n;j++)
+    dp[i][j]=na[i-1]===nb[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+  var tokens=[],i=m,j=n;
+  while(i>0&&j>0){
+    if(na[i-1]===nb[j-1]){tokens.unshift({w:a[i-1],t:'k'});i--;j--;}
+    else if(dp[i-1][j]>=dp[i][j-1]){tokens.unshift({w:a[i-1],t:'r'});i--;}
+    else j--;
+  }
+  while(i>0){tokens.unshift({w:a[i-1],t:'r'});i--;}
+  /* words in shrunk not matched in raw = substitutions */
+  var rawNorm=new Set(na);
+  var added=b.filter(function(w){return!rawNorm.has(normWord(w));});
+  return{tokens:tokens,added:added};
+}
+
+function stripCodeFences(text){return text.replace(/```[\s\S]*?```/g,' ');}
+function proseWordCount(text){var p=stripCodeFences(text).trim();return p?p.split(/\s+/).length:0;}
+var SPROUT_MAX=12,FOREST_MIN=35;
+var COMPLEXITY_MARKERS=['compare','pros and cons','versus','in detail','step by step','trade-off','trade-offs','explain both'];
+function routeMode(shrunk){
+  var prose=stripCodeFences(shrunk),p=prose.toLowerCase(),words=proseWordCount(shrunk);
+  var hasMarker=COMPLEXITY_MARKERS.some(function(m){return p.indexOf(m)>-1;});
+  var qCount=(prose.match(/\?/g)||[]).length;
+  if(hasMarker||qCount>=2||words>=FOREST_MIN)return'forest';
+  if(words<=SPROUT_MAX)return'sprout';
+  return'canopy';
+}
+function detectTopic(shrunk){
+  var p=stripCodeFences(shrunk).toLowerCase();
+  var tests=[['email',/\b(emails?|follow-ups?|follow ups?)\b/],['api',/\bapis?\b/],['workout',/\b(workouts?|exercises?)\b/],['backup',/\bbackups?\b/],['firewall',/\b(firewalls?|portcullis)\b/],['dns',/\b(dns|domain name)\b/]];
+  for(var i=0;i<tests.length;i++){if(tests[i][1].test(p))return tests[i][0];}
+  return null;
+}
+function cacheKey(shrunk){return shrunk.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();}
+var TEMPLATES={
+  email:{
+    sprout:'Subject: Quick follow-up\n\nHi, just circling back on our missed call. Happy to reschedule at your convenience.\n\nThanks,\nGrant',
+    canopy:'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you?\n\nThanks,\nGrant',
+    forest:'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you? If mornings are tight, an afternoon slot works just as well. Just let me know a day that suits you.\n\nThanks,\nGrant'
+  },
+  api:{
+    sprout:'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for.',
+    canopy:'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result.',
+    forest:'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result. That separation is why apps can use maps, payments, or weather data without building those systems themselves, and why a change inside one program does not have to break the other.'
+  },
+  workout:{
+    sprout:'Day 1: Squats, push-ups, glute bridges, 3×10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3×10.',
+    canopy:'Day 1: Squats, push-ups, glute bridges, 3×10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3×10. Rest 60s between sets, keep form clean, and add reps weekly.',
+    forest:'Day 1: Squats, push-ups, glute bridges, 3×10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3×10. Rest 60s between sets, keep form clean, and add reps weekly. Start lighter than you think you need to, stop a set if your form breaks down, and repeat the same three days next week before adding weight or reps.'
+  },
+  backup:{
+    sprout:'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time.',
+    canopy:'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site.',
+    forest:'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site. The key word is tested: a backup you have never restored from is a hope, not a plan, so restore a file now and then to prove it works.'
+  },
+  firewall:{
+    sprout:'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions.',
+    canopy:'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean.',
+    forest:'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean. When something is at risk, it explains the risk in plain English. For a small business, that means catching one outdated, exploitable program before it becomes a breach, without hiring a full security team.'
+  },
+  dns:{
+    sprout:'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it.',
+    canopy:'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers.',
+    forest:'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers. If DNS cannot find a name, the site will not load even when your connection is fine, which is why a DNS problem can look like the whole internet is down.'
+  }
+};
+function greenAnswer(topic,topicText,mode){
+  if(topic&&TEMPLATES[topic])return TEMPLATES[topic][mode];
+  var cleaned=topicText.replace(/\s+/g,' ').trim();
+  var name=cleaned.length>80?cleaned.slice(0,80).trim()+'...':cleaned;
+  var base='No template covers that topic yet — this is not a specific answer to: "'+name+'". Pin down three things: what it is, why it matters, and one next step.';
+  if(mode==='sprout')return base;
+  if(mode==='canopy')return base+' Start by narrowing the question to one part and ask just that.';
+  return base+' Start by narrowing the question to one part and ask just that. Templates cover: email, APIs, workouts, backups, firewalls/Portcullis, DNS.';
+}
+var CO2G=0.0018;
+function estTokens(text){return Math.max(1,Math.round(text.trim().split(/\s+/).length*1.33));}
+function integrateChat(raw,cache){
+  var shrunk=shrinkPrompt(raw);
+  var key=cacheKey(shrunk);
+  var origIn=estTokens(raw),shrunkIn=estTokens(shrunk);
+  var prose=stripCodeFences(shrunk);
+  var topic=detectTopic(shrunk);
+  var forestAnswer=greenAnswer(topic,prose,'forest');
+  var forestOut=estTokens(forestAnswer);
+  var baselineTotal=origIn+forestOut;
+  if(!raw.trim()||!shrunk)return{empty:true,shrunk:shrunk};
+  var route,mode,answer,outTokens,cacheHit=false;
+  if(cache&&key&&Object.prototype.hasOwnProperty.call(cache,key)){
+    cacheHit=true;route='Cache hit';mode=cache[key].mode;answer=cache[key].answer;outTokens=0;
+  } else {
+    mode=routeMode(shrunk);route=mode.charAt(0).toUpperCase()+mode.slice(1);
+    answer=greenAnswer(topic,prose,mode);outTokens=estTokens(answer);
+    if(cache&&key)cache[key]={mode:mode,answer:answer};
+  }
+  var integratedTotal=shrunkIn+outTokens;
+  var savingPct=baselineTotal?Math.round((1-integratedTotal/baselineTotal)*100):0;
+  return{raw:raw,shrunk:shrunk,diff:wordDiff(raw,shrunk),
+    topic:topic,route:route,mode:mode,answer:answer,cacheHit:cacheHit,empty:false,
+    origIn:origIn,shrunkIn:shrunkIn,forestOut:forestOut,outTokens:outTokens,
+    baselineTotal:baselineTotal,integratedTotal:integratedTotal,
+    tokensSaved:baselineTotal-integratedTotal,savingPct:savingPct,
+    baseCO2:+(baselineTotal*CO2G).toFixed(4),
+    intCO2:+(integratedTotal*CO2G).toFixed(4),
+    savedCO2:+((baselineTotal-integratedTotal)*CO2G).toFixed(4)};
+}
+if(typeof module!=='undefined'&&module.exports){
+  module.exports={shrinkPrompt,routeMode,detectTopic,greenAnswer,estTokens,integrateChat};
+}
+
+/* ═══════════════════════════════════════════════
+   DOM
+═══════════════════════════════════════════════ */
+if(typeof document!=='undefined'){
+document.addEventListener('DOMContentLoaded',function(){
+
+/* Theme */
+var themeBtn=document.getElementById('theme-btn');
+(function(){
+  var dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  themeBtn.textContent=dark?'☀️':'🌙';
+})();
+themeBtn.addEventListener('click',function(){
+  var isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',isDark?'light':'dark');
+  themeBtn.textContent=isDark?'🌙':'☀️';
+});
+
+/* State */
+var cache={},totals={calls:0,base:0,green:0,saved:0,co2:0},history=[];
+var chatEl=document.getElementById('chat');
+var inputEl=document.getElementById('ci');
+var prevEl=document.getElementById('ip-prev');
+var cntEl=document.getElementById('ip-cnt');
+
+/* ── Animated counter ── */
+var _ctimers={};
+function animNum(id,target,fmt){
+  if(_ctimers[id])cancelAnimationFrame(_ctimers[id]);
+  var el=document.getElementById(id);if(!el)return;
+  var from=parseFloat(el.dataset.v||0)||0,diff=target-from;
+  if(Math.abs(diff)<0.0001){el.textContent=fmt(target);el.dataset.v=target;return;}
+  var dur=550,t0=null;
+  el.classList.add('pop');
+  function step(ts){
+    if(!t0)t0=ts;
+    var p=Math.min((ts-t0)/dur,1),ease=1-Math.pow(1-p,3);
+    el.textContent=fmt(from+diff*ease);
+    if(p<1){_ctimers[id]=requestAnimationFrame(step);}
+    else{el.textContent=fmt(target);el.dataset.v=target;el.classList.remove('pop');}
+  }
+  _ctimers[id]=requestAnimationFrame(step);
+}
+function fmtInt(v){return Math.round(v).toString();}
+function fmtCO2(v){return v.toFixed(2)+'g';}
+
+/* ── CO₂ equivalence ── */
+function co2eq(g){
+  if(g<0.001)return'';
+  var ph=g/0.005;
+  if(ph>=0.1)return'≈'+(ph<1?ph.toFixed(1):Math.round(ph))+' phone charge'+(ph>=2?'s':'');
+  var led=g/((9/1000)*400/3600);
+  return led>=1?'≈'+Math.round(led)+'s LED':'<1s LED';
+}
+
+/* ── Render totals ── */
+function renderTotals(){
+  animNum('t-calls',totals.calls,fmtInt);
+  animNum('t-base',totals.base,fmtInt);
+  animNum('t-green',totals.green,fmtInt);
+  animNum('t-saved',totals.saved,fmtInt);
+  animNum('t-co2',totals.co2,fmtCO2);
+  var eq=document.getElementById('t-eq');
+  if(eq)eq.textContent=co2eq(totals.co2);
+  if(totals.calls>0){
+    document.getElementById('stats-panel').style.display='';
+    var pct=totals.base?Math.round((1-totals.green/totals.base)*100):0;
+    document.getElementById('live-stats').innerHTML=
+      '<div class="sr"><span>Token reduction</span><span class="sv">'+pct+'%</span></div>'+
+      '<div class="sr"><span>Avg saved / msg</span><span class="sv">'+Math.round(totals.saved/totals.calls)+' tokens</span></div>'+
+      '<div class="sr"><span>Avg CO₂e / msg</span><span class="sv">'+(totals.co2/totals.calls).toFixed(4)+'g</span></div>';
+  }
+}
+
+/* ── History panel ── */
+function renderHistory(){
+  var panel=document.getElementById('hist-panel');
+  var list=document.getElementById('hist-list');
+  if(!history.length){panel.style.display='none';return;}
+  panel.style.display='';
+  list.innerHTML='';
+  history.slice().reverse().forEach(function(h,idx){
+    var item=document.createElement('div');
+    item.className='hist-item';
+    item.innerHTML='<div class="hi"><span class="hist-q">'+h.q.slice(0,42)+(h.q.length>42?'…':'')+'</span>'+
+      '<span class="hist-pct">-'+h.pct+'%</span></div>'+
+      '<div class="hist-meta">mode: '+h.mode+' · saved '+h.tok+' tokens · '+h.co2.toFixed(4)+'g CO₂e</div>';
+    item.addEventListener('click',function(){item.classList.toggle('open');});
+    list.appendChild(item);
   });
+}
+
+/* ── Smart scroll: only auto-scroll when user is already near the bottom ── */
+function nearBottom(){return chatEl.scrollHeight-chatEl.scrollTop-chatEl.clientHeight<90;}
+function scrollBottom(){if(nearBottom())chatEl.scrollTop=chatEl.scrollHeight;}
+
+/* ── Typing indicator ── */
+function addTypingIndicator(){
+  var row=document.createElement('div');row.className='mr bot';row.id='typing-ind';
+  var b=document.createElement('div');b.className='dots-bubble';
+  b.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  row.appendChild(b);chatEl.appendChild(row);scrollBottom();
+  return row;
+}
+
+/* ── Typewriter ── */
+function typewrite(text,onDone){
+  var SPEED=14;
+  var row=document.createElement('div');row.className='mr bot';
+  var bubble=document.createElement('div');bubble.className='bubble typing';
+  row.appendChild(bubble);chatEl.appendChild(row);chatEl.scrollTop=chatEl.scrollHeight;
+  var i=0;
+  function tick(){
+    if(i<text.length){
+      bubble.textContent=text.slice(0,++i);
+      scrollBottom();
+      setTimeout(tick,i===1?0:SPEED);
+    } else {
+      bubble.classList.remove('typing');
+      if(onDone)onDone(row,bubble);
+    }
+  }
+  tick();return row;
+}
+
+/* ── Cache flash ── */
+var cfEl=document.getElementById('cache-flash');
+function showCacheFlash(){
+  cfEl.classList.add('show');
+  setTimeout(function(){cfEl.classList.remove('show');},1400);
+}
+
+/* ── Toast ── */
+var toastEl=document.getElementById('toast');
+var _toastTimer;
+function showToast(msg){
+  toastEl.textContent=msg;toastEl.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){toastEl.classList.remove('show');},2200);
+}
+
+/* ── Diff row ── */
+function makeDiffRow(diff,shrunk,raw){
+  if(!diff||raw===shrunk)return null;
+  var el=document.createElement('div');el.className='diff-row';
+  var hasChange=diff.tokens.some(function(t){return t.t==='r';});
+  if(!hasChange&&!diff.added.length)return null;
+  diff.tokens.forEach(function(tok){
+    var s=document.createElement('span');
+    s.className=tok.t==='r'?'dr':'dk';
+    s.textContent=tok.w+' ';
+    el.appendChild(s);
+  });
+  if(diff.added.length){
+    var arr=document.createElement('span');arr.className='diff-arrow';arr.textContent='→';el.appendChild(arr);
+    diff.added.forEach(function(w){
+      var s=document.createElement('span');s.className='da';s.textContent=' '+w;el.appendChild(s);
+    });
+  }
+  return el;
+}
+
+/* ── Tags ── */
+function modeTag(mode,cacheHit,routeReason){
+  var t=document.createElement('span');
+  if(cacheHit){
+    t.className='tag tx';t.textContent='⚡ cache hit';
+    t.title='Answer reused from earlier in this session — 0 new tokens generated';
+  } else {
+    var cls={sprout:'ts',canopy:'tc',forest:'tf'};
+    var lbl={sprout:'🌱 Sprout',canopy:'🌿 Canopy',forest:'🌲 Forest'};
+    t.className='tag '+(cls[mode]||'');t.textContent=lbl[mode]||mode;
+    if(routeReason)t.title=routeReason;
+  }
+  return t;
+}
+function makeRouteReason(shrunk,mode){
+  var words=proseWordCount(shrunk);
+  var qCount=(shrunk.match(/\?/g)||[]).length;
+  var marker=COMPLEXITY_MARKERS.find(function(m){return shrunk.toLowerCase().indexOf(m)>-1;});
+  if(mode==='sprout')return'Sprout: '+words+' word'+(words!==1?'s':'')+' (≤12) → ~2 sentences';
+  if(mode==='canopy')return'Canopy: '+words+' words (13–34) → ~4 sentences';
+  if(marker)return'Forest: complexity marker "'+marker+'" → ~6 sentences';
+  if(qCount>=2)return'Forest: '+qCount+' questions → ~6 sentences';
+  return'Forest: '+words+' words (≥35) → ~6 sentences';
+}
+function savePill(pct,co2){
+  var el=document.createElement('span');
+  el.className='spill'+(pct<40?' mid':'');
+  el.textContent='−'+pct+'% · '+(co2*1000).toFixed(1)+'mg CO₂e';
+  return el;
+}
+function tokTag(orig,shrunk){
+  if(orig===shrunk)return null;
+  var el=document.createElement('span');
+  el.className='tag tok-tag';
+  el.textContent=orig+'→'+shrunk+' tokens';
+  return el;
+}
+
+/* ── Add user bubble ── */
+function addUser(text){
+  var row=document.createElement('div');row.className='mr user';
+  var b=document.createElement('div');b.className='bubble';b.textContent=text;
+  row.appendChild(b);chatEl.appendChild(row);chatEl.scrollTop=chatEl.scrollHeight;
+}
+
+/* ── Welcome ── */
+function addWelcome(){
+  var row=document.createElement('div');row.className='mr bot';
+  var b=document.createElement('div');b.className='bubble';
+  b.textContent='Hi — I\'m GreenSearch. Ask me anything about DNS, APIs, backups, workouts, email follow-ups, or Portcullis firewalls. Watch the token counter above update as we chat, and watch the input bar for live PromptShrink previews as you type.';
+  row.appendChild(b);chatEl.appendChild(row);
+}
+
+/* ── Copy stats ── */
+document.getElementById('copy-btn').addEventListener('click',function(){
+  if(!totals.calls){showToast('No messages yet.');return;}
+  var pct=totals.base?Math.round((1-totals.green/totals.base)*100):0;
+  var txt='GreenSearch session stats\n'+
+    'Messages: '+totals.calls+'\n'+
+    'Token reduction: '+pct+'%\n'+
+    'Tokens saved: '+totals.saved+'\n'+
+    'CO₂e saved: '+totals.co2.toFixed(4)+'g\n'+
+    '(estimates, not measurements)\n'+
+    'greensearch demo by Grant O\'Brien — github.com/succulentsdev';
+  navigator.clipboard.writeText(txt).then(function(){showToast('Stats copied!');},function(){showToast('Copy failed.');});
+});
+
+/* ── Send ── */
+function send(raw){
+  if(!raw.trim())return;
+  var r=integrateChat(raw,cache);
+  if(r.empty)return;
+
+  addUser(raw);
+
+  var diffRow=makeDiffRow(r.diff,r.shrunk,r.raw);
+  if(diffRow)chatEl.appendChild(diffRow);
+
+  if(r.cacheHit)showCacheFlash();
+
+  /* Typing indicator then typewriter */
+  var ind=addTypingIndicator();
+  var delay=r.cacheHit?180:420;
+  setTimeout(function(){
+    ind.remove();
+    typewrite(r.answer,function(row,bubble){
+      var mm=document.createElement('div');mm.className='mm';
+      mm.appendChild(modeTag(r.mode,r.cacheHit,r.cacheHit?null:makeRouteReason(r.shrunk,r.mode)));
+      mm.appendChild(savePill(r.savingPct,r.savedCO2));
+      var tt=tokTag(r.origIn,r.shrunkIn);if(tt)mm.appendChild(tt);
+      chatEl.appendChild(mm);
+      scrollBottom();
+    });
+  },delay);
+
+  totals.calls++;totals.base+=r.baselineTotal;totals.green+=r.integratedTotal;
+  totals.saved+=r.tokensSaved;totals.co2+=r.savedCO2;
+  history.push({q:raw,pct:r.savingPct,mode:r.mode,tok:r.tokensSaved,co2:r.savedCO2});
+  renderTotals();renderHistory();
+}
+
+/* ── Live input preview ── */
+var _previewDebounce;
+inputEl.addEventListener('input',function(){
+  clearTimeout(_previewDebounce);
+  _previewDebounce=setTimeout(function(){
+    var raw=inputEl.value;
+    var wc=raw.trim()?raw.trim().split(/\s+/).length:0;
+    cntEl.textContent=wc?wc+' word'+(wc!==1?'s':''):'';
+    if(!raw.trim()){prevEl.innerHTML='';prevEl.className='ip-preview';var be=document.getElementById('shrink-bar');if(be)be.classList.remove('active');return;}
+    var shrunk=shrinkPrompt(raw);
+    if(shrunk===raw||!shrunk){
+      prevEl.innerHTML='PromptShrink: no change';
+      prevEl.className='ip-preview';
+      var barEl=document.getElementById('shrink-bar');
+      if(barEl)barEl.classList.remove('active');
+    } else {
+      var diff=wordDiff(raw,shrunk);
+      var removed=diff?diff.tokens.filter(function(t){return t.t==='r';}).map(function(t){return t.w;}):[]; 
+      var saved=estTokens(raw)-estTokens(shrunk);
+      prevEl.className='ip-preview active';
+      var html='PromptShrink: ';
+      if(removed.length)html+='<span class="px">'+removed.join(' ')+'</span> ';
+      if(diff&&diff.added.length)html+='<span style="color:var(--amber);font-style:italic">→ '+diff.added.join(' ')+'</span> ';
+      html+='<span style="opacity:.7">'+saved+' token'+(saved!==1?'s':'')+' saved</span>';
+      prevEl.innerHTML=html;
+      var pct=Math.min(100,Math.round(saved/estTokens(raw)*100));
+      var barEl=document.getElementById('shrink-bar');
+      var fillEl=document.getElementById('shrink-bar-fill');
+      if(barEl)barEl.classList.add('active');
+      if(fillEl)fillEl.style.width=pct+'%';
+    }
+  },80);
+});
+inputEl.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){doSend();}
+});
+document.getElementById('sb').addEventListener('click',doSend);
+function doSend(){
+  var v=inputEl.value;inputEl.value='';
+  prevEl.innerHTML='';prevEl.className='ip-preview';cntEl.textContent='';
+  send(v);
+}
+
+/* ── Clear ── */
+document.getElementById('cb').addEventListener('click',function(){
+  chatEl.innerHTML='';cache={};totals={calls:0,base:0,green:0,saved:0,co2:0};history=[];
+  ['t-calls','t-base','t-green','t-saved'].forEach(function(id){
+    var el=document.getElementById(id);if(el){el.textContent='0';el.dataset.v='0';}
+  });
+  var c2=document.getElementById('t-co2');if(c2){c2.textContent='0.00g';c2.dataset.v='0';}
+  var eq=document.getElementById('t-eq');if(eq)eq.textContent='';
+  document.getElementById('stats-panel').style.display='none';
+  document.getElementById('hist-panel').style.display='none';
+  document.getElementById('hist-list').innerHTML='';
+  addWelcome();
+});
+
+/* ── Chips ── */
+var SAMPLES=[
+  'Explain DNS simply',
+  'Could you please explain APIs to a 10-year-old?',
+  'Write a follow-up email about our missed call',
+  'Why do backups matter for a small office?',
+  'Give me a 3-day workout plan for beginners',
+  'Explain the Portcullis firewall in plain English'
+];
+var chipsEl=document.getElementById('chips');
+SAMPLES.forEach(function(s){
+  var b=document.createElement('button');
+  b.className='chip';b.textContent=s;
+  b.addEventListener('click',function(){inputEl.value='';send(s);inputEl.focus();});
+  chipsEl.appendChild(b);
+});
+
+addWelcome();
+renderTotals();
+});
 }
 </script>
 </body>
