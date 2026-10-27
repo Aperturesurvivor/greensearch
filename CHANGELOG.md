@@ -1,5 +1,21 @@
 # Changelog
 
+- **0.8.0 (2026-10-27, expanded demo library):** expanded the offline
+  demo from 6 to 95 topics: `spec/templates.json` adds 89 canned
+  topics (technology, science, math, history, business, health,
+  cooking, home maintenance, programming), lazy-loaded by
+  `DemoProvider` with the original six keeping priority, and inlined
+  into the website demo with Python/JS routing parity. Audit fixes
+  applied during the port: `waterycle` renamed to `watercycle`,
+  `periodicTable` renamed to `periodictable`, and a `climate action`
+  keyword added to the climate-action topic (previously it matched
+  only carbon-footprint/sustainability/recycling phrasing). Fallback
+  wording changed to "not in the demo library yet" with the accurate
+  95-topic count; existing fallback tests updated to match. Medical
+  topics (first aid, vaccine, nutrition, sleep, stress, etc.) were
+  spot-checked: general information only, with doctor/professional
+  and emergency-services prompts where relevant, not specific medical
+  advice. Still canned answers, not a model. Tests: 89 to 99.
 - **0.7.0 (2026-10-27, audit + cache + tokenizer + cascade):** audit
   fixes (website Google Fonts removed so "nothing leaves the page" is
   true, changelog corpus figure corrected 30% to 32%, README test

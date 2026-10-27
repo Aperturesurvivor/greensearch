@@ -4,7 +4,7 @@ A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no b
 
 ## What it does
 
-- Chat input, multi-turn in one session, with sample chips for the 6 covered topics.
+- Chat input, multi-turn in one session, with sample chips for the original 6 covered topics, plus 89 more templated topics (95 total).
 - PromptShrink first: trims filler and verbose phrases from the question, protecting code fences.
 - Session cache: a repeated question (after trimming, to the same core) reuses the earlier answer, with 0 new answer tokens.
 - GreenSearch routing: Sprout (12 words or fewer), Canopy, or Forest (35 words or more, complexity markers, or 2+ question marks).
@@ -19,7 +19,7 @@ Tokens: words x 1.33, minimum 1. CO2e: tokens x 0.0018 g. Both are estimates, no
 
 ## What it does not do
 
-- No live model. Answers are the same pre-written templates as the integration demo, for email, APIs, workouts, backups, firewalls/Portcullis, and DNS. Anything else gets the honest generic fallback.
+- No live model. Answers are pre-written templates: the original six (email, APIs, workouts, backups, firewalls/Portcullis, DNS) plus 89 more from spec/templates.json, inlined into this page. Anything else gets the honest generic fallback.
 - No cascade, confidence gating, per-model energy measurement, or real tokenizer.
 - No measured ChatGPT or Gemini comparison. "Regular LLM" in the demo means the verbose/full version of the same answer, as defined above.
 - No Finland hosting yet. A live version would need an explicit model, key, and region choice from Grant.

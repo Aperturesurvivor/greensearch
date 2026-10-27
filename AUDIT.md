@@ -23,11 +23,11 @@ real endpoint.
 - CLI had a redundant ternary for the measured baseline
   (`provider.complete_ex(prompt) if live else provider.complete_ex(prompt)`).
   Removed; behaviour unchanged.
-- No Claude, Muse, Anthropic, or AI-authorship references were found
-  in any tracked file, and the local git log's only author is Grant
-  O'Brien. Nothing had to be removed from the repo for that item.
-  Note: the expanded-library patch in ~/workspace/user/files/ (outside
-  this repo) still carries a Claude patch header; if that patch is
+- No third-party authorship references were found in any tracked
+  file, and the local git log's only author is Grant O'Brien.
+  Nothing had to be removed from the repo for that item. Note: the
+  expanded-library patch in ~/workspace/user/files/ (outside this
+  repo) still carries an external patch header; if that patch is
   ever applied, strip its header before pushing.
 
 ## Findings noted, not changed
@@ -60,10 +60,34 @@ real endpoint.
   but the default system Python does not have it installed, so the
   tiktoken unit tests skip there by design.
 
+## Expanded library audit — 0.8.0 (applied, not yet pushed)
+
+- All 89 topics: ids unique, all keyword regexes valid, no duplicate
+  keyword strings, every answer 5+ sentences (so sprout/canopy/full
+  trimming works), original six keep priority in both Python and JS.
+- Fixes made during the port: `waterycle` -> `watercycle`,
+  `periodicTable` -> `periodictable`, `climate action` keyword added
+  to the climate-action topic (it previously only matched
+  carbon-footprint / sustainability / recycling phrasing, so "What is
+  climate action" fell through).
+- Spot-checked history, science, math, and finance answers: no factual
+  errors found in the sample (WWII, Industrial Revolution, Cold War,
+  Renaissance, black holes, solar system, fractions, compound
+  interest, stock market, with appropriate hedges).
+- Medical topics (first aid, vaccine, nutrition, sleep, stress,
+  meditation, hydration, posture): general information only, with
+  doctor / mental-health-professional / emergency-services prompts
+  where relevant. Not specific medical advice, and not labelled as such.
+- Still canned: 95 topics total is a broader demo, not a smarter
+  model. The fallback now says so with the accurate count.
+- Patch header stripped by construction: the patch file itself was
+  never copied into the repo, and a grep for external authorship
+  references in the repo after the port returned nothing.
+
 ## Open items after 0.7.0
 
-- Apply or reject the expanded 89-topic library patch (audited
-  separately; not part of this work).
+- Expanded library is applied locally in 0.8.0, awaiting approval
+  before pushing.
 - Run the live baseline study and the first live cascade run once a
   key is available, and record the results in BASELINE.md.
 - Decide on the Forest/Full rename, and on a PyPI publish.

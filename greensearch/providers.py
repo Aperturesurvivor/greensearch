@@ -5,10 +5,13 @@ mistaken for a live model response:
 
 - DemoProvider: offline, keyword canned answers covering the same six
   topics as the portfolio site demo (email, API, workout, backup,
-  firewall/Portcullis, DNS). No network, no key, no model. For trying
-  the harness. Note one deliberate difference from the site: the site
-  uses authored mode-specific variants, while this provider returns one
-  full draft and the brevity layer trims it to the mode budget.
+  firewall/Portcullis, DNS), plus 89 more from spec/templates.json
+  (technology, science, math, history, business, health, cooking,
+  home maintenance, programming). No network, no key, no model. For
+  trying the harness. Note one deliberate difference from the site:
+  the site uses authored mode-specific variants, while this provider
+  returns one full draft and the brevity layer trims it to the mode
+  budget.
 - OpenAICompatibleProvider: POSTs to a /chat/completions endpoint with a
   bearer key from the environment (GREENSEARCH_API_KEY). Only used when
   the user explicitly asks for live mode and supplies a key and base URL.
@@ -17,6 +20,7 @@ mistaken for a live model response:
 
 import json
 import os
+import pathlib
 import re
 import socket
 import urllib.error
@@ -67,6 +71,45 @@ def _matches(prompt, *patterns):
     "api" as a substring. ``\\bapi\\b`` does not match inside those words.
     """
     return any(re.search(pattern, prompt, flags=re.IGNORECASE) for pattern in patterns)
+
+
+# ---------------------------------------------------------------------------
+# Expanded template library loaded from spec/templates.json
+# ---------------------------------------------------------------------------
+
+_EXPANDED_TEMPLATES = None  # lazy-loaded list of {"id", "keywords", "answer"}
+
+
+def _load_templates():
+    """Load the expanded template library once, on first use."""
+    global _EXPANDED_TEMPLATES
+    if _EXPANDED_TEMPLATES is not None:
+        return _EXPANDED_TEMPLATES
+
+    # Resolve path relative to the package: ../spec/templates.json
+    spec_path = pathlib.Path(__file__).resolve().parent.parent / "spec" / "templates.json"
+    try:
+        with open(spec_path, encoding="utf-8") as f:
+            data = json.load(f)
+        _EXPANDED_TEMPLATES = data.get("topics", [])
+    except (OSError, json.JSONDecodeError):
+        _EXPANDED_TEMPLATES = []
+    return _EXPANDED_TEMPLATES
+
+
+def _match_expanded(prompt):
+    """Return the answer from the expanded library, or None.
+
+    Iterates through all expanded topics and returns the first match.
+    The original six hardcoded topics in DemoProvider._answer take
+    priority over this function.
+    """
+    templates = _load_templates()
+    for topic in templates:
+        keywords = topic.get("keywords", [])
+        if _matches(prompt, *keywords):
+            return topic.get("answer")
+    return None
 
 
 class DemoProvider:
@@ -146,17 +189,21 @@ class DemoProvider:
                 "even when your connection is fine, which is why a DNS problem "
                 "can look like the whole internet is down."
             )
+        # --- Expanded template library (89 topics) ---
+        expanded = _match_expanded(p)
+        if expanded:
+            return expanded
+        # --- Fallback for truly unrecognized prompts ---
         cleaned = " ".join(prompt.split())
         topic = cleaned[:80].strip() + "…" if len(cleaned) > 80 else cleaned
         return (
-            f"No template covers that topic yet, so this is not a specific "
-            f"answer to: “{topic}”. In general, pin down three things first: "
-            f"what it is, why it matters, and one next step. Start by "
-            f"narrowing the question to one part — for example, what it is, "
-            f"or what to do first — and ask for just that part. These "
-            f"templates only cover email, APIs, workouts, backups, "
-            f"firewalls/Portcullis, and DNS, so anything else needs a source "
-            f"that actually covers it."
+            f"That topic is not in the demo library yet. You asked about: "
+            f"'{topic}'. Try rephrasing with a clearer keyword, or switch "
+            f"to live mode for a real model response. The demo covers 95 "
+            f"topics: the original six (email, APIs, workouts, backups, "
+            f"firewalls/Portcullis, DNS) plus 89 more across technology, "
+            f"science, math, history, business, health, cooking, home "
+            f"maintenance, and programming."
         )
 
 

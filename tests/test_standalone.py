@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TestEntryPoints(unittest.TestCase):
     def test_version_matches_pyproject(self):
-        self.assertEqual(greensearch.__version__, "0.7.0")
+        self.assertEqual(greensearch.__version__, "0.8.0")
 
     def test_demo_prompts_cover_all_six_topics_plus_generic(self):
         topics = [topic for topic, _prompt in DEMO_PROMPTS]
@@ -62,7 +62,7 @@ class TestDemoMode(unittest.TestCase):
         self.assertIn("GreenSearch demo", output)
         self.assertIn("internet phone book", output)
         self.assertIn("Demo totals: 7 calls", output)
-        self.assertIn("No template covers that topic yet", output)
+        self.assertIn("not in the demo library yet", output)
 
     def test_demo_with_session_file_and_report(self):
         with tempfile.TemporaryDirectory() as tmp:

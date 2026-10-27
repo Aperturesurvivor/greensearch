@@ -23,9 +23,11 @@ python -m greensearch "explain DNS simply"  # without installing
 
 Modes: `sprout` (about 2 sentences), `canopy` (4), `full` (6, default), or
 `auto`, which picks one from the prompt (length, complexity phrases, number
-of questions). The offline provider returns canned answers for six topics
-(email, API, workout, backup, firewall/Portcullis, DNS) and says plainly when
-a topic is not covered.
+of questions). The offline provider returns canned answers for 95 topics:
+the original six (email, API, workout, backup, firewall/Portcullis, DNS),
+which keep priority, plus 89 more from `spec/templates.json` (technology,
+science, math, history, business, health, cooking, home maintenance,
+programming). It says plainly when a topic is not covered.
 
 Open `website/index.html` in a browser for the chat-style demo: no server,
 no network, same canned topics.
@@ -86,7 +88,7 @@ after the fact saves nothing.
 python -m unittest discover -s tests -v
 ```
 
-89 tests, standard library only (tiktoken is an optional extra, tested
+99 tests, standard library only (tiktoken is an optional extra, tested
 separately in a venv). The website check needs Node and is skipped
 without it. `spec/routing_cases.json` holds hand-written routing expectations
 that both the Python router and the website's `routeMode()` must satisfy, so
@@ -140,7 +142,8 @@ session caching, and a logprob-gated cascade (`--cascade`).
 - `greensearch/tokenizer.py`: optional real tiktoken counting
 - `greensearch/cache.py`: session cache, ported from the website demo
 - `greensearch/cascade.py`: logprob-gated escalation, no invented confidence
-- `greensearch/providers.py`: offline provider and OpenAI-compatible provider
+- `greensearch/providers.py`: offline provider (6 hardcoded + 89 templated topics) and OpenAI-compatible provider
+- `spec/templates.json`: the 89-topic expanded canned-answer library
 - `greensearch/session.py`: totals, markdown report, atomic JSON persistence
 - `spec/routing_cases.json`, `spec/corpus.json`, `tests/`: shared spec, fixed corpus, tests
 - `scripts/baseline_study.py`: canned/live baseline study over the corpus

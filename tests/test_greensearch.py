@@ -51,7 +51,7 @@ class TestDemoProvider(unittest.TestCase):
 
     def test_single_character_prompt_does_not_crash(self):
         answer = self.provider.complete("a")
-        self.assertIn("No template covers", answer)
+        self.assertIn("not in the demo library yet", answer)
 
     def test_each_topic_routes_to_its_template(self):
         for _name, (prompt, expected) in TOPICS.items():
@@ -67,7 +67,7 @@ class TestDemoProvider(unittest.TestCase):
 
     def test_generic_fallback_is_honest_not_an_answer(self):
         answer = self.provider.complete("Explain quantum computing simply")
-        self.assertIn("No template covers that topic yet", answer)
+        self.assertIn("not in the demo library yet", answer)
         self.assertNotIn("covered in the essentials", answer)
 
     def test_long_generic_prompt_topic_is_truncated(self):
