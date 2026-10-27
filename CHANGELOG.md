@@ -1,10 +1,28 @@
 # Changelog
 
+- **0.7.0 (2026-10-27, audit + cache + tokenizer + cascade):** audit
+  fixes (website Google Fonts removed so "nothing leaves the page" is
+  true, changelog corpus figure corrected 30% to 32%, README test
+  count and PromptShrink table corrected, redundant baseline ternary
+  removed); baseline study script (`scripts/baseline_study.py`) and
+  BASELINE.md with a canned 12-prompt canopy study (input 32%, total
+  11% saved) — the live study is blocked only on an API key and the
+  script exits 2 without one rather than fabricating results;
+  website session cache ported to the harness (`greensearch/cache.py`,
+  persisted in the session file, mode-aware key, `--no-cache` to
+  bypass, cache runs bypassed when `--cascade` is on); real tokenizer
+  as an optional extra (`--tokenizer tiktoken`, `greensearch[tokenizer]`,
+  verified: "Hello world" 2 vs estimate 3, Chinese 5 vs estimate 1);
+  confidence-gated cascade (`greensearch/cascade.py`, `--cascade`,
+  `--escalation-model`, `--cascade-threshold` default -1.0) that
+  escalates only on a real mean logprob below threshold, never
+  escalates when logprobs are unavailable, and refuses cascade in
+  demo mode. Tests: 75 to 89.
 - **0.6.0 (2026-10-26, PromptShrink + corpus):** PromptShrink is now a
   first-class module (`greensearch/shrink.py`) wired into the CLI and session
   report; the footprint now accounts for both input and output tokens; a fixed
   test corpus (`spec/corpus.json`, 12 prompts) verifies shrunk forms and
-  measures input saving (30% across the corpus with canned answers); site
+  measures input saving (32% across the corpus with canned answers: 80 of 247 tokens); site
   PromptShrink spec extended to cover previously-broken cases ("simply",
   "clearly", "in detail", repeated numbers/words). Tests: 71 to 75.
 - **0.5.0 (2026-10-26, review pass):** fixed filler stripping that could

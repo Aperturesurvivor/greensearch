@@ -42,6 +42,10 @@ class Completion:
     text: str
     completion_tokens: Optional[int] = None  # tokens actually generated
     prompt_tokens: Optional[int] = None
+    # Mean log-probability of the generated tokens, when the provider
+    # reported logprobs. None means "no confidence signal available" --
+    # never invent one from answer length or any other proxy.
+    avg_logprob: Optional[float] = None
 
 
 # Generation-side brevity: asking the model for a short answer (and capping
@@ -74,8 +78,12 @@ class DemoProvider:
     def complete(self, prompt):
         return self.complete_ex(prompt).text
 
-    def complete_ex(self, prompt, system=None, max_tokens=None):
-        """Offline provider ignores system/max_tokens: it has no model."""
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
+        """Offline provider ignores system/max_tokens: it has no model.
+
+        It also has no logprobs: avg_logprob stays None, so a cascade
+        must not escalate (or claim confidence) from a demo answer.
+        """
         if prompt is None or not prompt.strip():
             raise ValueError("Empty prompt: type a prompt first.")
         return Completion(text=self._answer(prompt))
@@ -183,7 +191,7 @@ class OpenAICompatibleProvider:
     def complete(self, prompt):
         return self.complete_ex(prompt).text
 
-    def complete_ex(self, prompt, system=None, max_tokens=None):
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
         if prompt is None or not prompt.strip():
             raise ValueError("Empty prompt: type a prompt first.")
         messages = []
@@ -193,6 +201,9 @@ class OpenAICompatibleProvider:
         payload = {"model": self.model, "messages": messages}
         if max_tokens:
             payload["max_tokens"] = max_tokens
+        if logprobs:
+            payload["logprobs"] = True
+            payload["top_logprobs"] = 1
         request = urllib.request.Request(
             self.base_url + "/chat/completions",
             data=json.dumps(payload).encode(),
@@ -248,7 +259,30 @@ class OpenAICompatibleProvider:
             text=text,
             completion_tokens=_int_or_none(usage.get("completion_tokens")),
             prompt_tokens=_int_or_none(usage.get("prompt_tokens")),
+            avg_logprob=_avg_logprob(data),
         )
+
+
+def _avg_logprob(data):
+    """Mean logprob of generated tokens, or None if not reported.
+
+    Chat-completions logprobs live at choices[0].logprobs.content[i].logprob.
+    A missing, empty, or non-numeric list is not a confidence signal --
+    it is None, and callers must treat it as "no signal".
+    """
+    try:
+        content = data["choices"][0]["logprobs"]["content"]
+    except (KeyError, IndexError, TypeError):
+        return None
+    if not isinstance(content, list) or not content:
+        return None
+    values = []
+    for item in content:
+        if isinstance(item, dict) and isinstance(item.get("logprob"), (int, float)):
+            values.append(float(item["logprob"]))
+    if not values:
+        return None
+    return sum(values) / len(values)
 
 
 def _int_or_none(value):

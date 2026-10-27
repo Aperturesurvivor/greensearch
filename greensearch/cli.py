@@ -21,7 +21,9 @@ import argparse
 import sys
 
 from greensearch.brevity import apply_brevity
+from greensearch.cache import cache_key
 from greensearch.shrink import shrink
+from greensearch.tokenizer import TokenizerError, count_tokens
 from greensearch.tokens import est_tokens
 from greensearch.footprint import GRID_G_PER_KWH, WH_PER_TOKEN, footprint
 from greensearch.router import route_mode
@@ -98,32 +100,94 @@ def _run_one(provider, session, prompt, mode_arg, opts=None):
     """
     opts = opts or {}
 
+    def _count(text):
+        return count_tokens(text, backend=opts.get("tokenizer", "estimate"))
+
     # --- Input side: shrink the prompt ---
-    sr = shrink(prompt)
+    try:
+        sr = shrink(prompt, count_fn=_count)
+    except TokenizerError as exc:
+        return str(exc)
     shrunk_prompt = sr.text
     mode = route_mode(shrunk_prompt) if mode_arg == "auto" else mode_arg
     mode_label = f"{mode} (auto)" if mode_arg == "auto" else mode
     live = getattr(provider, "live", False)
     constrain = live and not opts.get("no_constrain")
 
+    # --- Session cache (ported from the website demo) ---
+    # Cascade runs bypass the cache: a cached answer would hide whether
+    # escalation happened, and which model produced the answer.
+    effective_no_cache = opts.get("no_cache") or opts.get("cascade")
+    key = cache_key(shrunk_prompt, mode)
+    if not effective_no_cache:
+        entry = session.cache.lookup(key)
+        if entry is not None:
+            answer = entry["answer"]
+            fp = footprint(
+                0, mode,
+                baseline_tokens=entry["standard_tokens"],
+                wh_per_token=opts.get("wh_per_token", WH_PER_TOKEN),
+                grid_g_per_kwh=opts.get("grid_g_per_kwh", GRID_G_PER_KWH),
+            )
+            fp["baseline_kind"] = "cache-hit"
+            fp["cache_hit"] = True
+            fp["shrink_saved_tokens"] = sr.saved_tokens
+            fp["shrink_original_tokens"] = sr.original_tokens
+            fp["shrink_changed"] = sr.changed
+            session.record(prompt, answer, mode, fp)
+            print(f"[{provider.name} | mode: {mode_label}]\n")
+            print("Cache hit — 0 new output tokens, reused answer.\n")
+            print(answer)
+            if sr.changed:
+                print(
+                    f"\nPromptShrink: {sr.original_tokens} → {sr.shrunk_tokens} input tokens "
+                    f"(saved {sr.saved_tokens})"
+                )
+            else:
+                print(f"\nPromptShrink: no change ({sr.original_tokens} input tokens)")
+            print(
+                f"Output: 0 vs {fp['standard_tokens']} standard (cache-hit baseline) | "
+                f"CO2e: 0g vs {fp['standard_co2_g']}g (est.) | "
+                f"Saved: 100% / {fp['saved_co2_g']}g (est.)"
+            )
+            return None
+
     # --- Output side: call the model ---
+    cascade_result = None
     try:
-        comp = provider.complete_ex(
-            shrunk_prompt,
-            system=BREVITY_SYSTEM[mode] if constrain else None,
-            max_tokens=MAX_TOKENS[mode] if constrain else None,
-        )
+        if opts.get("cascade"):
+            if not live:
+                return "Cascade requires a live provider with logprobs; the demo provider has no confidence signal."
+            from greensearch.cascade import run_cascade
+            escalation = OpenAICompatibleProvider(
+                provider.base_url, api_key=provider.api_key,
+                model=opts.get("escalation_model", "gpt-4o"),
+            )
+            cascade_result = run_cascade(
+                provider, escalation, shrunk_prompt,
+                system=BREVITY_SYSTEM[mode] if constrain else None,
+                max_tokens=MAX_TOKENS[mode] if constrain else None,
+                threshold=opts.get("cascade_threshold", -1.0),
+            )
+            comp = cascade_result.completion
+        else:
+            comp = provider.complete_ex(
+                shrunk_prompt,
+                system=BREVITY_SYSTEM[mode] if constrain else None,
+                max_tokens=MAX_TOKENS[mode] if constrain else None,
+            )
         base = None
         if opts.get("measure_baseline"):
-            base = provider.complete_ex(prompt) if live else provider.complete_ex(prompt)
+            base = provider.complete_ex(prompt)
     except (ValueError, ProviderError) as exc:
         return str(exc)
 
     answer = apply_brevity(comp.text, mode)
 
-    # Token accounting: use provider counts when available; fall back to estimates.
+    # Token accounting: use provider counts when available; fall back to
+    # the selected tokenizer (estimate by default, real if requested).
     # Never mix counted and estimated in the same comparison.
-    out_tokens = est_tokens(answer)
+    out_tokens = _count(answer)
     baseline_tokens = None
     if comp.completion_tokens is not None:
         out_tokens = comp.completion_tokens
@@ -131,8 +195,8 @@ def _run_one(provider, session, prompt, mode_arg, opts=None):
         if base.completion_tokens is not None and comp.completion_tokens is not None:
             baseline_tokens = base.completion_tokens
         else:
-            out_tokens = est_tokens(answer)
-            baseline_tokens = est_tokens(base.text)
+            out_tokens = _count(answer)
+            baseline_tokens = _count(base.text)
 
     fp = footprint(
         out_tokens, mode,
@@ -145,8 +209,14 @@ def _run_one(provider, session, prompt, mode_arg, opts=None):
     fp["shrink_original_tokens"] = sr.original_tokens
     fp["shrink_changed"] = sr.changed
 
+    if not effective_no_cache:
+        session.cache.store(key, mode, answer, fp["standard_tokens"])
     session.record(prompt, answer, mode, fp)
     print(f"[{provider.name} | mode: {mode_label}]\n")
+    if cascade_result is not None:
+        print(f"Cascade: {cascade_result.reason} "
+              f"(primary {cascade_result.primary_model}, "
+              f"escalation {cascade_result.escalation_model})\n")
     print(answer)
 
     # Print a clear two-line breakdown: input side then output side.
@@ -214,17 +284,35 @@ def main(argv=None):
                         help="Assumed energy per generated token, in Wh (default %(default)s)")
     parser.add_argument("--grid-g-per-kwh", type=float, default=GRID_G_PER_KWH,
                         help="Assumed grid intensity, g CO2e per kWh (default %(default)s)")
+    parser.add_argument("--cascade", action="store_true",
+                        help="Live only: escalate to --escalation-model when the primary model's mean logprob is below --cascade-threshold")
+    parser.add_argument("--escalation-model", default="gpt-4o",
+                        help="Model to escalate to with --cascade (default %(default)s)")
+    parser.add_argument("--cascade-threshold", type=float, default=-1.0,
+                        help="Mean logprob below which --cascade escalates (default %(default)s; must be <= 0)")
+    parser.add_argument("--tokenizer", choices=["estimate", "tiktoken"], default="estimate",
+                        help="Token counter: word estimate (default) or real tiktoken count (requires pip install 'greensearch[tokenizer]')")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Bypass the session cache (cached answers are reused verbatim and may be stale)")
     parser.add_argument("--demo", action="store_true",
                         help="Run the offline demo (all topics, no key needed)")
     args = parser.parse_args(argv)
     if args.wh_per_token <= 0 or args.grid_g_per_kwh <= 0:
         print("Error: --wh-per-token and --grid-g-per-kwh must be positive", file=sys.stderr)
         return 2
+    if args.cascade_threshold > 0:
+        print("Error: --cascade-threshold must be <= 0 (logprobs are negative or zero)", file=sys.stderr)
+        return 2
     opts = {
         "measure_baseline": args.measure_baseline,
         "no_constrain": args.no_constrain,
         "wh_per_token": args.wh_per_token,
         "grid_g_per_kwh": args.grid_g_per_kwh,
+        "no_cache": args.no_cache,
+        "tokenizer": args.tokenizer,
+        "cascade": args.cascade,
+        "escalation_model": args.escalation_model,
+        "cascade_threshold": args.cascade_threshold,
     }
 
     if args.demo:

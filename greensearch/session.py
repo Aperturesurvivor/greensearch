@@ -13,6 +13,8 @@ import json
 import os
 import tempfile
 
+from greensearch.cache import SessionCache
+
 _REQUIRED_CALL_KEYS = (
     "prompt",
     "answer",
@@ -27,8 +29,9 @@ _REQUIRED_CALL_KEYS = (
 class Session:
     """Accumulates one wrapper session's calls and footprint totals."""
 
-    def __init__(self, calls=None):
+    def __init__(self, calls=None, cache=None):
         self.calls = list(calls) if calls else []
+        self.cache = cache if cache is not None else SessionCache()
 
     def record(self, prompt, answer, mode, footprint):
         self.calls.append(
@@ -39,6 +42,7 @@ class Session:
     def totals(self):
         return {
             "calls": len(self.calls),
+            "cache_hits": sum(1 for c in self.calls if c.get("cache_hit")),
             "input_saved_tokens": sum(c.get("shrink_saved_tokens", 0) for c in self.calls),
             "eco_tokens": sum(c["eco_tokens"] for c in self.calls),
             "standard_tokens": sum(c["standard_tokens"] for c in self.calls),
@@ -46,7 +50,9 @@ class Session:
         }
 
     def to_dict(self):
-        return {"version": 1, "calls": self.calls}
+        # "cache" is new in this version; old readers ignore unknown keys,
+        # and from_dict treats a missing cache as empty, so old files load.
+        return {"version": 1, "calls": self.calls, "cache": self.cache.to_dict()}
 
     @classmethod
     def from_dict(cls, data, path="<session>"):
@@ -63,7 +69,7 @@ class Session:
                     f"Session file {path} is not valid: call {i + 1} is "
                     f"missing required fields."
                 )
-        return cls(calls=data["calls"])
+        return cls(calls=data["calls"], cache=SessionCache.from_dict(data.get("cache")))
 
     def save(self, path):
         """Write this session to a JSON file. Raises OSError on failure."""
@@ -105,7 +111,7 @@ class Session:
             "",
             f"Generated: {datetime.datetime.now().isoformat(timespec='seconds')}",
             "",
-            f"Calls: {totals['calls']} | "
+            f"Calls: {totals['calls']} (cache hits: {totals['cache_hits']}) | "
             f"Input tokens saved by PromptShrink: {totals['input_saved_tokens']} | "
             f"Output eco tokens: {totals['eco_tokens']} | "
             f"Output standard tokens (est.): {totals['standard_tokens']} | "
@@ -114,7 +120,7 @@ class Session:
         ]
         for i, call in enumerate(self.calls, 1):
             lines += [
-                f"## Call {i} (mode: {call['mode']})",
+                f"## Call {i} (mode: {call['mode']}{' , cache hit' if call.get('cache_hit') else ''})",
                 f"Prompt: {call['prompt']}",
                 "",
                 f"Answer: {call['answer']}",

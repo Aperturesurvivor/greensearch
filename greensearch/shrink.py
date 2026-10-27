@@ -131,15 +131,19 @@ class ShrinkResult:
     changed: bool        # True when text != original
 
 
-def shrink(prompt: str) -> "ShrinkResult":
+def shrink(prompt: str, count_fn=None) -> "ShrinkResult":
     """Clean a prompt and return a ShrinkResult.
 
     Empty or whitespace-only input is returned unchanged with zero saving.
+    count_fn, if given, counts tokens (e.g. a real tokenizer); by
+    default it is the word estimate from tokens.py.
     """
-    from greensearch.tokens import est_tokens  # deferred to avoid circular import
+    if count_fn is None:
+        from greensearch.tokens import est_tokens  # deferred to avoid circular import
+        count_fn = est_tokens
 
     if not prompt or not prompt.strip():
-        t = est_tokens(prompt)
+        t = count_fn(prompt)
         return ShrinkResult(
             text=prompt, original=prompt,
             original_tokens=t, shrunk_tokens=t, saved_tokens=0, changed=False,
@@ -147,8 +151,8 @@ def shrink(prompt: str) -> "ShrinkResult":
 
     result = _process(prompt)
 
-    original_t = est_tokens(prompt)
-    shrunk_t   = est_tokens(result)
+    original_t = count_fn(prompt)
+    shrunk_t   = count_fn(result)
     return ShrinkResult(
         text=result,
         original=prompt,

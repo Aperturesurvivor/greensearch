@@ -86,7 +86,8 @@ after the fact saves nothing.
 python -m unittest discover -s tests -v
 ```
 
-71 tests, standard library only. The website check needs Node and is skipped
+89 tests, standard library only (tiktoken is an optional extra, tested
+separately in a venv). The website check needs Node and is skipped
 without it. `spec/routing_cases.json` holds hand-written routing expectations
 that both the Python router and the website's `routeMode()` must satisfy, so
 the two implementations cannot drift silently.
@@ -96,29 +97,33 @@ the two implementations cannot drift silently.
 | | Site demo | Harness |
 |---|---|---|
 | Mode names | Sprout / Canopy / Forest | Sprout / Canopy / Full |
-| Prompt trimming (PromptShrink) | Yes | Not yet (see roadmap) |
-| Session cache | Yes | No |
+| Prompt trimming (PromptShrink) | Yes | Yes, since 0.6.0 (shrink.py, input-side accounting) |
+| Session cache | Yes | Yes, since 0.7.0 (cache.py, persisted in the session file, `--no-cache` to bypass) |
 | Mode selection | Automatic | Manual or `--mode auto` |
 | Answers | Authored per mode | One draft, trimmed |
 
 ## Roadmap, in order
 
-1. Port PromptShrink into the harness. Today the footprint counts output
-   tokens only, so the input-side saving exists only on the site.
-2. Measure, don't assume: run `--measure-baseline` over a fixed corpus of
-   prompts on two or more real models and publish the method and results.
-   This is the opening the project names: no one else publishes an open
-   methodology.
-3. Replace words x 1.33 with a real tokenizer as an optional extra (it
-   currently reports 1 token for unspaced scripts such as Chinese).
-4. Source the energy and grid factors, with ranges and region presets.
-5. Response caching, then confidence-gated model cascades. Both need a
-   stated threshold and tests showing they escalate when they should; a
-   heuristic "confidence" invented from answer length would be a fabrication.
+1. Measure, don't assume, on real models: run `scripts/baseline_study.py`
+   with `--provider live` over the fixed corpus on two or more real
+   models and publish the method and results. The canned study in
+   BASELINE.md is not that; the live study is blocked only on an API
+   key. This is the opening the project names: no one else publishes
+   an open methodology.
+2. Source the energy and grid factors, with ranges and region presets.
+3. A judge-model cascade as an alternative to the logprob cascade
+   (separate design: judge prompt plus a threshold for the judge's
+   score, with tests).
+
+Done in 0.6.0-0.7.0, previously on this list: PromptShrink in the
+harness, a real tokenizer as an optional extra (`--tokenizer tiktoken`),
+session caching, and a logprob-gated cascade (`--cascade`).
 
 ## Honest limits
 
-- Token counts are estimates; CO2e figures are arithmetic from them.
+- Token counts are estimates by default; `--tokenizer tiktoken` counts
+  real subword tokens. CO2e figures are arithmetic from them, never
+  measurements.
 - The default verbose baseline is an assumption. Only `--measure-baseline`
   measures anything, and only tokens.
 - The offline provider is canned keyword answers, not a model. Routing is a
@@ -132,9 +137,14 @@ the two implementations cannot drift silently.
 - `greensearch/brevity.py`: sentence budgets; keeps lists, code, subject and sign-off
 - `greensearch/router.py`: `--mode auto` rules, shared with the site
 - `greensearch/tokens.py`, `footprint.py`: estimates and the CO2e formula
+- `greensearch/tokenizer.py`: optional real tiktoken counting
+- `greensearch/cache.py`: session cache, ported from the website demo
+- `greensearch/cascade.py`: logprob-gated escalation, no invented confidence
 - `greensearch/providers.py`: offline provider and OpenAI-compatible provider
 - `greensearch/session.py`: totals, markdown report, atomic JSON persistence
-- `spec/routing_cases.json`, `tests/`: shared spec and tests
+- `spec/routing_cases.json`, `spec/corpus.json`, `tests/`: shared spec, fixed corpus, tests
+- `scripts/baseline_study.py`: canned/live baseline study over the corpus
+- `BASELINE.md`: baseline study results (canned until a live run is done)
 - `website/`: browser demo and its README
 - `CHANGELOG.md`: history, including the rename from EcoGPT
 
