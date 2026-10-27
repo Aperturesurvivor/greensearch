@@ -43,14 +43,19 @@ html{color-scheme:dark}
 body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.6;min-height:100vh}
 
 /* ── Header ── */
-.hd{border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:20;backdrop-filter:blur(8px)}
+.hd{border-bottom:1px solid var(--border);padding:8px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:20;backdrop-filter:blur(8px)}
 .hd-l{display:flex;align-items:center;gap:12px}
 .logo{font-size:19px;font-weight:700;letter-spacing:-.4px;color:var(--ink);display:flex;align-items:center;gap:8px}
 .logo-icon{width:26px;height:26px;background:var(--teal-dim);border:1.5px solid var(--teal);border-radius:50% 50% 50% 6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
 .demo-pill{font-size:11px;font-weight:600;font-family:var(--font-mono);padding:2px 8px;border-radius:999px;background:var(--amber-dim);color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 35%,transparent);letter-spacing:.04em}
 .hd-r{display:flex;gap:8px;align-items:center}
-.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--ink2);border-radius:var(--rs);padding:5px 9px;cursor:pointer;font-size:15px;line-height:1;transition:background .15s}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--ink2);border-radius:var(--rs);padding:5px 11px;cursor:pointer;font-size:15px;line-height:1;transition:background .15s;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:var(--font-body)}
 .icon-btn:hover{background:var(--border);color:var(--ink)}
+.icon-btn .lbl{font-size:13px;font-weight:600}
+
+/* ── Focus + screen-reader helpers ── */
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 /* ── Totals ── */
 .totals{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--surface)}
@@ -62,8 +67,19 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-siz
 .te{font-size:10.5px;color:var(--teal);display:block;font-family:var(--font-mono);margin-top:1px;min-height:14px;opacity:.85}
 
 /* ── Layout ── */
-.main{display:grid;grid-template-columns:1fr 320px;height:calc(100vh - 107px);min-height:460px}
-@media(max-width:820px){.main{grid-template-columns:1fr;height:auto}.sidebar{order:-1;border-right:none;border-bottom:1px solid var(--border);max-height:240px}}
+.main{display:grid;grid-template-columns:1fr 320px;height:calc(100vh - 120px);min-height:460px}
+.side-toggle{display:none}
+@media(min-width:821px){body{display:flex;flex-direction:column;height:100vh}.main{flex:1 1 auto;height:auto}}
+@media(max-width:820px){
+  .main{grid-template-columns:1fr;height:auto}
+  .side-toggle{display:flex;order:-2;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:48px;padding:10px 18px;background:var(--surface);color:var(--ink);border:none;border-bottom:1px solid var(--border);font:600 14px var(--font-body);cursor:pointer;text-align:left}
+  .side-toggle .chev{transition:transform .2s;color:var(--ink2)}
+  .side-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  .sidebar{order:-1;border-right:none;border-bottom:1px solid var(--border);display:none}
+  .sidebar.open{display:flex}
+  .cs{min-height:55vh}
+  .tb-list{max-height:50vh}
+}
 
 /* ── Chat panel ── */
 .cp{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden}
@@ -132,6 +148,45 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-siz
 .shrink-bar{height:3px;border-radius:2px;background:var(--border);margin-top:7px;overflow:hidden;opacity:0;transition:opacity .3s}
 .shrink-bar.active{opacity:1}
 .shrink-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--teal),var(--amber));width:0%;transition:width .35s cubic-bezier(.4,0,.2,1)}
+.btn-s,.btn-cl{min-height:44px;min-width:44px}
+.chip{min-height:44px;padding:6px 14px}
+
+/* Turns + per-message actions */
+.turn{display:flex;flex-direction:column;gap:14px}
+.acts{display:flex;flex-wrap:wrap;gap:4px}
+.act{min-height:44px;min-width:44px;padding:0 12px;background:transparent;border:1px solid transparent;color:var(--ink2);border-radius:var(--rs);font-size:12.5px;font-family:var(--font-body);cursor:pointer;transition:background .15s,border-color .15s}
+.act:hover{background:var(--surface2);border-color:var(--border);color:var(--ink)}
+.mm .act{margin-left:2px}
+.edit-box{display:flex;flex-direction:column;gap:6px;width:min(560px,92%)}
+.edit-box textarea{background:var(--surface2);border:1px solid var(--teal);color:var(--ink);border-radius:var(--rs);padding:9px 12px;font:14px/1.5 var(--font-body);resize:vertical;min-height:80px}
+.edit-box .acts{justify-content:flex-end}
+.edit-box .act.save{background:var(--teal);color:#0d1117;font-weight:700}
+.restore-note{align-self:center;font-size:12px;font-family:var(--font-mono);color:var(--ink2);background:var(--surface2);border:1px dashed var(--border2);border-radius:999px;padding:4px 12px}
+
+/* Topic browser */
+.tb-search{width:100%;min-height:44px;background:var(--surface2);border:1px solid var(--border);color:var(--ink);border-radius:var(--rs);padding:8px 12px;font:14px var(--font-body)}
+.tb-search:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-glow);outline:none}
+.tb-count{font-size:11.5px;font-family:var(--font-mono);color:var(--ink2);margin:6px 0 4px}
+.tb-list{max-height:340px;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.tb-cat{font-size:11.5px;font-weight:700;font-family:var(--font-mono);color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px;display:flex;justify-content:space-between}
+.tb-group ul{list-style:none;padding:0}
+.panel .tb-group li{margin:0}
+.tb-item{display:block;width:100%;min-height:44px;text-align:left;background:transparent;border:1px solid transparent;border-radius:var(--rs);padding:5px 8px;cursor:pointer;color:var(--ink);font-family:var(--font-body)}
+.tb-item:hover{background:var(--surface2);border-color:var(--border)}
+.tb-name{display:block;font-size:13px;font-weight:600}
+.tb-q{display:block;font-size:12px;color:var(--ink2)}
+
+/* How-this-demo-works overlay */
+dialog.how{margin:auto;max-width:640px;width:calc(100% - 32px);max-height:88vh;background:var(--surface);color:var(--ink);border:1px solid var(--border2);border-radius:var(--r);padding:0;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+dialog.how::backdrop{background:rgba(0,0,0,.6)}
+.how-in{padding:20px 22px;overflow-y:auto;max-height:88vh}
+.how-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+.how h2{font-size:18px}
+.how h3{font-size:14px;color:var(--teal);margin:16px 0 4px}
+.how p,.how li{font-size:14px;color:var(--ink2);line-height:1.6}
+.how ul{padding-left:18px}
+.how b,.how code{color:var(--ink)}
+.how code{font-family:var(--font-mono);font-size:12.5px;background:var(--surface2);padding:1px 5px;border-radius:4px}
 
 /* ── Sidebar ── */
 .sidebar{overflow-y:auto;background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:14px}
@@ -157,7 +212,7 @@ a{color:var(--blue);text-decoration:none}
 a:hover{text-decoration:underline}
 
 /* History accordion */
-.hist-item{border-top:1px solid var(--border);padding:6px 0;cursor:pointer;font-size:12px}
+.hist-item{border-top:1px solid var(--border);padding:6px 0;cursor:pointer;font-size:12px;display:block;width:100%;min-height:44px;background:none;border-left:none;border-right:none;border-bottom:none;text-align:left;color:inherit;font-family:var(--font-body)}
 .hist-item .hi{display:flex;justify-content:space-between;align-items:center;gap:6px}
 .hist-q{color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;font-size:12px}
 .hist-pct{font-family:var(--font-mono);color:var(--teal);font-size:11px;font-weight:600;white-space:nowrap}
@@ -181,7 +236,9 @@ a:hover{text-decoration:underline}
   .bubble{max-width:92%}
   .mm{max-width:92%}
   .diff-row{max-width:92%}
-  .hd{padding:10px 14px}
+  .hd{padding:8px 14px}
+  .hd .lbl{display:none}
+  .edit-box{width:100%}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
@@ -196,8 +253,10 @@ a:hover{text-decoration:underline}
     <span class="demo-pill">DEMO</span>
   </div>
   <div class="hd-r">
-    <button class="icon-btn" id="copy-btn" title="Copy session stats">📋</button>
-    <button class="icon-btn" id="theme-btn" aria-label="Toggle theme" title="Toggle light/dark">🌙</button>
+    <button class="icon-btn" id="how-btn" type="button" aria-label="How this demo works" aria-haspopup="dialog" title="How this demo works"><span aria-hidden="true">ⓘ</span><span class="lbl">How this demo works</span></button>
+    <button class="icon-btn" id="export-btn" type="button" aria-label="Export chat as a Markdown file" title="Export chat (.md)"><span aria-hidden="true">⬇</span><span class="lbl">Export</span></button>
+    <button class="icon-btn" id="copy-btn" type="button" aria-label="Copy session stats" title="Copy session stats"><span aria-hidden="true">📋</span></button>
+    <button class="icon-btn" id="theme-btn" type="button" aria-label="Toggle theme" title="Toggle light/dark">🌙</button>
   </div>
 </header>
 
@@ -210,8 +269,10 @@ a:hover{text-decoration:underline}
 </div>
 
 <div class="main">
+  <button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="sidebar"><span>📚 Topics, stats &amp; how it works</span><span class="chev" aria-hidden="true">▾</span></button>
   <div class="cp">
-    <div class="cs" id="chat" role="log" aria-live="polite"></div>
+    <div class="cs" id="chat" role="region" aria-label="Conversation"></div>
+    <div class="sr-only" id="sr-live" aria-live="polite" aria-atomic="true"></div>
     <div class="ia">
       <div class="ip-bar">
         <div class="ip-preview" id="ip-prev"></div>
@@ -220,7 +281,7 @@ a:hover{text-decoration:underline}
       <div class="ir">
         <input id="ci" type="text" placeholder="Ask something — try: Explain DNS simply" autocomplete="off" aria-label="Your question">
         <button class="btn-s" id="sb" type="button">Send</button>
-        <button class="btn-cl" id="cb" type="button" title="Clear chat">✕</button>
+        <button class="btn-cl" id="cb" type="button" title="Clear chat" aria-label="Clear chat and saved session">✕</button>
       </div>
       <div class="chips" id="chips" role="group" aria-label="Sample questions"></div>
       <div class="shrink-bar" id="shrink-bar"><div class="shrink-bar-fill" id="shrink-bar-fill"></div></div>
@@ -228,7 +289,7 @@ a:hover{text-decoration:underline}
     </div>
   </div>
 
-  <aside class="sidebar" aria-label="About GreenSearch">
+  <aside class="sidebar" id="sidebar" aria-label="About GreenSearch">
     <div class="panel">
       <div class="pt">⚡ How it works</div>
       <p>Every message runs through three steps before answering:</p>
@@ -243,6 +304,13 @@ a:hover{text-decoration:underline}
         <b>🌿 Canopy</b> 13–34 words → ~4 sentences<br>
         <b>🌲 Forest</b> 35+ words, complexity marker, or 2+ questions → ~6 sentences</p>
       </details>
+    </div>
+
+    <div class="panel" id="topic-panel">
+      <div class="pt"><label for="tb-search">📚 Topic browser</label></div>
+      <input class="tb-search" id="tb-search" type="search" placeholder="Search 95 topics…" autocomplete="off" aria-label="Search topics" aria-controls="tb-list">
+      <p class="tb-count" id="tb-count" role="status"></p>
+      <div class="tb-list" id="tb-list"></div>
     </div>
 
     <div class="panel">
@@ -280,8 +348,43 @@ a:hover{text-decoration:underline}
   <span>Grant O'Brien · <a href="https://github.com/succulentsdev" target="_blank" rel="noopener">succulentsdev</a></span>
 </div>
 
-<div class="cf" id="cache-flash" aria-live="assertive">⚡ Cache hit — 0 new tokens</div>
-<div class="toast" id="toast"></div>
+<div class="cf" id="cache-flash" aria-hidden="true">⚡ Cache hit — 0 new tokens</div>
+<div class="toast" id="toast" role="status"></div>
+
+<dialog class="how" id="how-dlg" aria-labelledby="how-title">
+  <div class="how-in">
+    <div class="how-hd">
+      <h2 id="how-title">How this demo works</h2>
+      <button class="icon-btn" id="how-close" type="button" aria-label="Close how this demo works">✕</button>
+    </div>
+    <h3>Canned answers, not a live model</h3>
+    <p>Every answer on this page is a pre-written template. There are 95 topics: six hand-written in three lengths (email follow-ups, APIs, workouts, backups, Portcullis firewalls, DNS) and 89 more, each one written once and cut to 2, 4 or 6 sentences depending on the route. No model reads your question. A question outside the library gets an honest "not in the library" reply, never a made-up answer.</p>
+    <h3>What the steps really do</h3>
+    <ul>
+      <li><b>PromptShrink</b> runs on your actual text: it removes filler and wordy phrases and leaves code blocks alone.</li>
+      <li><b>Routing</b> picks Sprout, Canopy or Forest from word count, complexity words and question marks.</li>
+      <li><b>Session cache</b> reuses an earlier answer when the trimmed question matches one you already asked. <b>Regenerate</b> skips the cache.</li>
+    </ul>
+    <h3>The numbers are estimates</h3>
+    <ul>
+      <li><b>Tokens</b> are estimated as words × 1.33 (minimum 1). There is no real tokenizer.</li>
+      <li><b>CO₂e</b> is tokens × 0.0018 g. That factor is an assumption, not a measurement of any data centre.</li>
+      <li><b>The baseline is assumed, not measured.</b> It counts your original question plus the Forest (longest) answer, with no trimming, routing or reuse. It is not a measured ChatGPT or Gemini comparison. Published per-prompt figures for real models vary by 10× or more.</li>
+    </ul>
+    <h3>The live study is waiting for an API key</h3>
+    <p>The repo includes a baseline study script (<code>scripts/baseline_study.py</code>) that can measure real token counts against a live model. It needs an API key, which this project does not have yet, so no live results exist. The repo's current <code>BASELINE.md</code> uses the offline canned provider and says so. No live numbers have been made up to fill the gap.</p>
+    <h3>What would change with a live model</h3>
+    <ul>
+      <li><b>A backend.</b> An API key can't safely sit in a browser page, so a small server would make the model calls.</li>
+      <li><b>A real tokenizer.</b> Token counts would come from the model provider instead of words × 1.33.</li>
+      <li><b>A logprob cascade.</b> A small model answers first, and the question goes to a larger model only when the small model's own token log-probabilities show low confidence. The Python package sketches this, but this page doesn't use it.</li>
+      <li><b>Finland hosting.</b> Running in Google Cloud Finland (europe-north1, about 98% carbon-free energy) is a separate lever on top of token savings. This page runs on your device, not in Finland.</li>
+      <li>All the savings would need to be measured again. The percentages shown here would not carry over automatically.</li>
+    </ul>
+    <h3>Privacy</h3>
+    <p>The whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them.</p>
+  </div>
+</dialog>
 
 <script>
 /* ═══════════════════════════════════════════════
@@ -489,6 +592,115 @@ function detectTopic(shrunk){
   }
   return null;
 }
+/* Topic browser metadata: id -> [category, label, sample question]. Answers stay in
+   TEMPLATES / EXPANDED_TOPICS; every sample must route back to its own id via detectTopic. */
+var TOPIC_CATEGORIES=['Original six','Technology','Programming','Science','Math','History','Business','Health','Cooking','Home maintenance','Learning & skills'];
+var TOPIC_META={
+  dns:['Original six','DNS','Explain DNS simply'],
+  api:['Original six','APIs','Could you please explain APIs to a 10-year-old?'],
+  email:['Original six','Follow-up email','Write a follow-up email about our missed call'],
+  backup:['Original six','Backups','Why do backups matter for a small office?'],
+  workout:['Original six','Beginner workout','Give me a 3-day workout plan for beginners'],
+  firewall:['Original six','Portcullis firewall','Explain the Portcullis firewall in plain English'],
+  password:['Technology','Passwords','How do I make a strong password?'],
+  vpn:['Technology','VPNs','Do I need a VPN?'],
+  cloud:['Technology','Cloud computing','What is cloud computing?'],
+  ml:['Technology','Machine learning','What is machine learning?'],
+  blockchain:['Technology','Blockchain','How does a blockchain work?'],
+  cybersecurity:['Technology','Cybersecurity','How do I spot phishing?'],
+  cookies:['Technology','Web cookies','What are web cookies?'],
+  ram:['Technology','RAM vs storage','What does RAM do?'],
+  linux:['Technology','Linux','Is Linux worth learning?'],
+  http:['Technology','HTTPS','Why does HTTPS matter?'],
+  encryption:['Technology','Encryption','How does encryption keep data safe?'],
+  ssh:['Technology','SSH','What is SSH used for?'],
+  networking:['Technology','Networking','How does an IP address work?'],
+  ai:['Technology','Artificial intelligence','What is artificial intelligence?'],
+  spreadsheets:['Technology','Spreadsheets','How do spreadsheets help a small business?'],
+  git:['Programming','Git','How does Git work?'],
+  database:['Programming','Databases','SQL vs NoSQL databases'],
+  docker:['Programming','Docker','What is Docker?'],
+  python:['Programming','Python','Why learn Python?'],
+  javascript:['Programming','JavaScript','What is JavaScript used for?'],
+  htmlcss:['Programming','HTML & CSS','How do HTML and CSS work together?'],
+  debugging:['Programming','Debugging','How do I get better at debugging?'],
+  datastructures:['Programming','Data structures','What are common data structures?'],
+  algorithms:['Programming','Algorithms','What is a sorting algorithm?'],
+  testing:['Programming','Testing','Why does unit testing matter?'],
+  regex:['Programming','Regular expressions','How do regular expressions work?'],
+  gravity:['Science','Gravity','How does gravity work?'],
+  photosynthesis:['Science','Photosynthesis','How does photosynthesis work?'],
+  evolution:['Science','Evolution','How does evolution work?'],
+  atoms:['Science','Atoms','What are atoms made of?'],
+  blackhole:['Science','Black holes','What is a black hole?'],
+  vaccine:['Science','Vaccines','How do vaccines work?'],
+  climate:['Science','Climate change','What causes climate change?'],
+  dna:['Science','DNA','What does DNA do?'],
+  electricity:['Science','Electricity','How does electricity work?'],
+  solarsystem:['Science','Solar system','How many planets are in the solar system?'],
+  typesofenergy:['Science','Types of energy','What are the types of energy?'],
+  watercycle:['Science','Water cycle','Explain the water cycle'],
+  periodictable:['Science','Periodic table','How does the periodic table work?'],
+  climateaction:['Science','Climate action','How can I shrink my carbon footprint?'],
+  fractions:['Math','Fractions','How do fractions work?'],
+  percentages:['Math','Percentages','How do I calculate percentages?'],
+  algebra:['Math','Algebra','How do I solve an algebra equation?'],
+  statistics:['Math','Statistics','What is standard deviation?'],
+  probability:['Math','Probability','How does probability work?'],
+  ww2:['History','World War II','What caused World War II?'],
+  industrialrev:['History','Industrial Revolution','What caused the Industrial Revolution?'],
+  coldwar:['History','Cold War','What was the Cold War?'],
+  renaissance:['History','Renaissance','What was the Renaissance?'],
+  ancientciv:['History','Ancient civilizations','What was life like in ancient Rome?'],
+  budgeting:['Business','Budgeting','How do I make a monthly budget?'],
+  investing:['Business','Investing','How should a beginner start investing?'],
+  stockmarket:['Business','Stock market','How does the stock market work?'],
+  compoundinterest:['Business','Compound interest','What is compound interest?'],
+  taxes:['Business','Taxes','How do income taxes work?'],
+  resume:['Business','Resumes','How do I write a good resume?'],
+  negotiation:['Business','Negotiation','How do I negotiate a higher salary?'],
+  marketing:['Business','Marketing','What is marketing for a small business?'],
+  startup:['Business','Startups','How do I launch a startup?'],
+  supplydemand:['Business','Supply and demand','Explain supply and demand'],
+  coverletter:['Business','Cover letters','How do I write a cover letter?'],
+  nutrition:['Health','Nutrition','What is a healthy diet?'],
+  sleep:['Health','Sleep','How can I sleep better?'],
+  stress:['Health','Stress','How do I manage stress?'],
+  firstaid:['Health','First aid','What first aid basics should I know?'],
+  hydration:['Health','Hydration','How much drinking water do I need?'],
+  posture:['Health','Posture','How do I fix my posture at a desk?'],
+  meditation:['Health','Meditation','How do I start meditation?'],
+  mealprep:['Cooking','Meal prep','How do I start meal prep?'],
+  foodsafety:['Cooking','Food safety','How do I avoid food poisoning?'],
+  cooking:['Cooking','Cooking basics','Give me some cooking tips'],
+  baking:['Cooking','Baking','How do I start baking bread?'],
+  seasoning:['Cooking','Seasoning','How do I use spices well?'],
+  homemaintenance:['Home maintenance','Home maintenance','What home maintenance should I do each year?'],
+  plumbing:['Home maintenance','Plumbing','How do I fix basic plumbing problems?'],
+  painting:['Home maintenance','Painting','Tips for painting a room'],
+  organizing:['Home maintenance','Organizing','How do I start organizing my closet?'],
+  carmaintenance:['Home maintenance','Car maintenance','How often do I need an oil change?'],
+  publicspeaking:['Learning & skills','Public speaking','How do I get better at public speaking?'],
+  grammar:['Learning & skills','Grammar','Common grammar mistakes to avoid'],
+  technicalwriting:['Learning & skills','Technical writing','How do I write good documentation?'],
+  writingtips:['Learning & skills','Writing tips','How can I improve my writing?'],
+  studytechniques:['Learning & skills','Study techniques','What are the best study techniques?'],
+  notetaking:['Learning & skills','Note-taking','How should I approach note-taking?'],
+  timemanagement:['Learning & skills','Time management','How do I beat procrastination?'],
+  memory:['Learning & skills','Memory techniques','What are good memory techniques?'],
+  photography:['Learning & skills','Photography','Give me photography tips for beginners'],
+  music:['Learning & skills','Music theory','What is music theory?'],
+  mentalmodels:['Learning & skills','Mental models','What are mental models?']
+};
+/* Catalog derived from the live topic data: the original six (TEMPLATES) plus EXPANDED_TOPICS. */
+function topicCatalog(){
+  var ids=['dns','api','email','backup','workout','firewall'].map(function(id){return{key:id,id:id};})
+    .concat(EXPANDED_TOPICS.map(function(t){return{key:'_exp:'+t.id,id:t.id};}));
+  return ids.map(function(x){
+    var m=TOPIC_META[x.id]||['Learning & skills',x.id,'Tell me about '+x.id];
+    return{key:x.key,id:x.id,cat:m[0],label:m[1],sample:m[2]};
+  });
+}
 function cacheKey(shrunk){return shrunk.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();}
 var TEMPLATES={
   email:{
@@ -587,31 +799,84 @@ document.addEventListener('DOMContentLoaded',function(){
 
 /* Theme */
 var themeBtn=document.getElementById('theme-btn');
+function setThemeBtn(dark){
+  themeBtn.textContent=dark?'☀️':'🌙';
+  themeBtn.setAttribute('aria-label',dark?'Switch to light theme':'Switch to dark theme');
+}
 (function(){
   var dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
   document.documentElement.setAttribute('data-theme',dark?'dark':'light');
-  themeBtn.textContent=dark?'☀️':'🌙';
+  setThemeBtn(dark);
 })();
 themeBtn.addEventListener('click',function(){
   var isDark=document.documentElement.getAttribute('data-theme')==='dark';
   document.documentElement.setAttribute('data-theme',isDark?'light':'dark');
-  themeBtn.textContent=isDark?'🌙':'☀️';
+  setThemeBtn(!isDark);
 });
 
-/* State */
-var cache={},totals={calls:0,base:0,green:0,saved:0,co2:0},history=[];
+/* State. turns[] is the source of truth: each turn is {raw, bypass, r} where r is the
+   integrateChat result. totals and history are adjusted per turn (never re-added). */
+var STORE_KEY='greensearch-demo-v1';
+function zeroTotals(){return{calls:0,base:0,green:0,saved:0,co2:0};}
+var cache={},totals=zeroTotals(),history=[],turns=[];
+var epoch=0;          /* bumped on clear/edit so in-flight animations stop */
+var restored=false;   /* show the 'Restored' note after re-renders */
+var reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 var chatEl=document.getElementById('chat');
 var inputEl=document.getElementById('ci');
 var prevEl=document.getElementById('ip-prev');
 var cntEl=document.getElementById('ip-cnt');
+var liveEl=document.getElementById('sr-live');
+
+function round4(v){return Math.round(v*10000)/10000;}
+function addContribution(r,sign){
+  totals.calls+=sign;totals.base+=sign*r.baselineTotal;totals.green+=sign*r.integratedTotal;
+  totals.saved+=sign*r.tokensSaved;totals.co2=round4(totals.co2+sign*r.savedCO2);
+}
+function histEntry(raw,r){return{q:raw,pct:r.savingPct,mode:r.mode,tok:r.tokensSaved,co2:r.savedCO2};}
+function hasKey(o,k){return Object.prototype.hasOwnProperty.call(o,k);}
+/* bypass=true: skip the cache lookup (Regenerate), but still seed the cache if this
+   question is new, exactly as a normal first ask would. */
+function runTurn(raw,bypass){
+  if(!bypass)return integrateChat(raw,cache);
+  var r=integrateChat(raw,null);
+  var k=r.empty?'':cacheKey(r.shrunk);
+  if(k&&!hasKey(cache,k))cache[k]={mode:r.mode,answer:r.answer};
+  return r;
+}
+/* Rebuild cache, totals and history from scratch by replaying every turn in order. */
+function replayAll(){
+  cache={};totals=zeroTotals();history=[];
+  turns.forEach(function(t){
+    t.r=runTurn(t.raw,t.bypass);
+    addContribution(t.r,1);history.push(histEntry(t.raw,t.r));
+  });
+}
+
+/* ── Persistence (localStorage) ── */
+function saveState(){
+  try{
+    localStorage.setItem(STORE_KEY,JSON.stringify({v:1,savedAt:new Date().toISOString(),
+      turns:turns.map(function(t){return{raw:t.raw,bypass:!!t.bypass,r:t.r};}),
+      totals:totals,history:history}));
+  }catch(e){/* storage full or disabled: the chat still works, it just won't persist */}
+}
+function clearState(){try{localStorage.removeItem(STORE_KEY);}catch(e){}}
+function loadState(){
+  var s;
+  try{s=JSON.parse(localStorage.getItem(STORE_KEY)||'null');}catch(e){return null;}
+  if(!s||s.v!==1||!Array.isArray(s.turns)||!s.turns.length||!s.totals)return null;
+  var ok=s.turns.every(function(t){return t&&typeof t.raw==='string'&&t.r&&typeof t.r.answer==='string'&&typeof t.r.shrunk==='string';});
+  return ok?s:null;
+}
 
 /* ── Animated counter ── */
 var _ctimers={};
-function animNum(id,target,fmt){
+function animNum(id,target,fmt,instant){
   if(_ctimers[id])cancelAnimationFrame(_ctimers[id]);
   var el=document.getElementById(id);if(!el)return;
   var from=parseFloat(el.dataset.v||0)||0,diff=target-from;
-  if(Math.abs(diff)<0.0001){el.textContent=fmt(target);el.dataset.v=target;return;}
+  if(instant||reduceMotion||Math.abs(diff)<0.0001){el.textContent=fmt(target);el.dataset.v=target;el.classList.remove('pop');return;}
   var dur=550,t0=null;
   el.classList.add('pop');
   function step(ts){
@@ -636,38 +901,45 @@ function co2eq(g){
 }
 
 /* ── Render totals ── */
-function renderTotals(){
-  animNum('t-calls',totals.calls,fmtInt);
-  animNum('t-base',totals.base,fmtInt);
-  animNum('t-green',totals.green,fmtInt);
-  animNum('t-saved',totals.saved,fmtInt);
-  animNum('t-co2',totals.co2,fmtCO2);
+function renderTotals(instant){
+  animNum('t-calls',totals.calls,fmtInt,instant);
+  animNum('t-base',totals.base,fmtInt,instant);
+  animNum('t-green',totals.green,fmtInt,instant);
+  animNum('t-saved',totals.saved,fmtInt,instant);
+  animNum('t-co2',totals.co2,fmtCO2,instant);
   var eq=document.getElementById('t-eq');
   if(eq)eq.textContent=co2eq(totals.co2);
+  var sp=document.getElementById('stats-panel');
   if(totals.calls>0){
-    document.getElementById('stats-panel').style.display='';
+    sp.style.display='';
     var pct=totals.base?Math.round((1-totals.green/totals.base)*100):0;
     document.getElementById('live-stats').innerHTML=
       '<div class="sr"><span>Token reduction</span><span class="sv">'+pct+'%</span></div>'+
       '<div class="sr"><span>Avg saved / msg</span><span class="sv">'+Math.round(totals.saved/totals.calls)+' tokens</span></div>'+
       '<div class="sr"><span>Avg CO₂e / msg</span><span class="sv">'+(totals.co2/totals.calls).toFixed(4)+'g</span></div>';
-  }
+  } else sp.style.display='none';
 }
 
 /* ── History panel ── */
 function renderHistory(){
   var panel=document.getElementById('hist-panel');
   var list=document.getElementById('hist-list');
-  if(!history.length){panel.style.display='none';return;}
+  if(!history.length){panel.style.display='none';list.innerHTML='';return;}
   panel.style.display='';
   list.innerHTML='';
-  history.slice().reverse().forEach(function(h,idx){
-    var item=document.createElement('div');
-    item.className='hist-item';
-    item.innerHTML='<div class="hi"><span class="hist-q">'+h.q.slice(0,42)+(h.q.length>42?'…':'')+'</span>'+
-      '<span class="hist-pct">-'+h.pct+'%</span></div>'+
-      '<div class="hist-meta">mode: '+h.mode+' · saved '+h.tok+' tokens · '+h.co2.toFixed(4)+'g CO₂e</div>';
-    item.addEventListener('click',function(){item.classList.toggle('open');});
+  history.slice().reverse().forEach(function(h){
+    var item=document.createElement('button');
+    item.type='button';item.className='hist-item';item.setAttribute('aria-expanded','false');
+    var hi=document.createElement('span');hi.className='hi';
+    var q=document.createElement('span');q.className='hist-q';q.textContent=h.q.slice(0,42)+(h.q.length>42?'…':'');
+    var pc=document.createElement('span');pc.className='hist-pct';pc.textContent='-'+h.pct+'%';
+    hi.appendChild(q);hi.appendChild(pc);
+    var meta=document.createElement('span');meta.className='hist-meta';
+    meta.textContent='mode: '+h.mode+' · saved '+h.tok+' tokens · '+h.co2.toFixed(4)+'g CO₂e';
+    item.appendChild(hi);item.appendChild(meta);
+    item.addEventListener('click',function(){
+      var open=item.classList.toggle('open');item.setAttribute('aria-expanded',open?'true':'false');
+    });
     list.appendChild(item);
   });
 }
@@ -676,23 +948,35 @@ function renderHistory(){
 function nearBottom(){return chatEl.scrollHeight-chatEl.scrollTop-chatEl.clientHeight<90;}
 function scrollBottom(){if(nearBottom())chatEl.scrollTop=chatEl.scrollHeight;}
 
+/* ── Screen-reader announcement: used only for new or replaced bot answers ── */
+function announce(text){
+  liveEl.textContent='';
+  setTimeout(function(){liveEl.textContent=text;},60);
+}
+function modeName(r){
+  var lbl={sprout:'Sprout',canopy:'Canopy',forest:'Forest'};
+  return r.cacheHit?'cache hit':(lbl[r.mode]||r.mode);
+}
+
 /* ── Typing indicator ── */
-function addTypingIndicator(){
-  var row=document.createElement('div');row.className='mr bot';row.id='typing-ind';
-  var b=document.createElement('div');b.className='dots-bubble';
+function addTypingIndicator(parent){
+  var row=document.createElement('div');row.className='mr bot';
+  var b=document.createElement('div');b.className='dots-bubble';b.setAttribute('aria-hidden','true');
   b.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-  row.appendChild(b);chatEl.appendChild(row);scrollBottom();
+  row.appendChild(b);parent.appendChild(row);scrollBottom();
   return row;
 }
 
-/* ── Typewriter ── */
-function typewrite(text,onDone){
+/* ── Typewriter (stops if the chat was cleared or rebuilt meanwhile) ── */
+function typewrite(parent,text,myEpoch,onDone){
   var SPEED=14;
   var row=document.createElement('div');row.className='mr bot';
   var bubble=document.createElement('div');bubble.className='bubble typing';
-  row.appendChild(bubble);chatEl.appendChild(row);chatEl.scrollTop=chatEl.scrollHeight;
+  row.appendChild(bubble);parent.appendChild(row);chatEl.scrollTop=chatEl.scrollHeight;
+  if(reduceMotion){bubble.textContent=text;bubble.classList.remove('typing');onDone(row,bubble);return row;}
   var i=0;
   function tick(){
+    if(myEpoch!==epoch)return;
     if(i<text.length){
       bubble.textContent=text.slice(0,++i);
       scrollBottom();
@@ -719,6 +1003,21 @@ function showToast(msg){
   toastEl.textContent=msg;toastEl.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer=setTimeout(function(){toastEl.classList.remove('show');},2200);
+}
+
+/* ── Clipboard with fallback ── */
+function copyText(txt,okMsg){
+  function fallback(){
+    var ok=false,ta=document.createElement('textarea');
+    ta.value=txt;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.top='0';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{ok=document.execCommand('copy');}catch(e){ok=false;}
+    ta.remove();
+    showToast(ok?okMsg:'Copy failed: clipboard unavailable here. Select the text and copy it manually.');
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){showToast(okMsg);},fallback);
+  } else fallback();
 }
 
 /* ── Diff row ── */
@@ -779,12 +1078,86 @@ function tokTag(orig,shrunk){
   el.textContent=orig+'→'+shrunk+' tokens';
   return el;
 }
+function short(s){s=s.replace(/\s+/g,' ').trim();return s.length>48?s.slice(0,48)+'…':s;}
+function actBtn(text,label,fn){
+  var b=document.createElement('button');
+  b.type='button';b.className='act';b.textContent=text;b.setAttribute('aria-label',label);b.title=label;
+  b.addEventListener('click',fn);
+  return b;
+}
 
-/* ── Add user bubble ── */
-function addUser(text){
+/* ── Turn rendering ── */
+function makeUserRow(t){
   var row=document.createElement('div');row.className='mr user';
-  var b=document.createElement('div');b.className='bubble';b.textContent=text;
-  row.appendChild(b);chatEl.appendChild(row);chatEl.scrollTop=chatEl.scrollHeight;
+  var b=document.createElement('div');b.className='bubble';b.textContent=t.raw;
+  var acts=document.createElement('div');acts.className='acts';
+  t.editBtn=actBtn('✎ Edit','Edit question: '+short(t.raw),function(){startEdit(t);});
+  acts.appendChild(t.editBtn);
+  row.appendChild(b);row.appendChild(acts);
+  t.userRow=row;
+  return row;
+}
+function makeMeta(t){
+  var r=t.r,q=short(t.raw);
+  var mm=document.createElement('div');mm.className='mm';
+  mm.appendChild(modeTag(r.mode,r.cacheHit,r.cacheHit?null:makeRouteReason(r.shrunk,r.mode)));
+  mm.appendChild(savePill(r.savingPct,r.savedCO2));
+  var tt=tokTag(r.origIn,r.shrunkIn);if(tt)mm.appendChild(tt);
+  mm.appendChild(actBtn('⧉ Copy','Copy answer to: '+q,function(){copyText(t.r.answer,'Answer copied!');}));
+  t.regenBtn=actBtn('↻ Regenerate','Regenerate answer to: '+q+' (skips the cache)',function(){regenerate(t);});
+  mm.appendChild(t.regenBtn);
+  return mm;
+}
+function startTurn(t){
+  var wrap=document.createElement('div');wrap.className='turn';
+  t.el=wrap;
+  wrap.appendChild(makeUserRow(t));
+  var dr=makeDiffRow(t.r.diff,t.r.shrunk,t.r.raw);
+  if(dr)wrap.appendChild(dr);
+  chatEl.appendChild(wrap);
+  return wrap;
+}
+function finishTurn(t,bubble){
+  t.bubble=bubble;
+  t.mm=makeMeta(t);
+  t.el.appendChild(t.mm);
+}
+/* Static render: used for restore and replay (no typing, no announcement, no flash). */
+function renderTurnStatic(t){
+  var wrap=startTurn(t);
+  var row=document.createElement('div');row.className='mr bot';
+  var bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=t.r.answer;
+  row.appendChild(bubble);wrap.appendChild(row);
+  finishTurn(t,bubble);
+}
+/* Animated render for a newly sent message. */
+function renderTurnAnimated(t){
+  var wrap=startTurn(t),r=t.r,my=epoch;
+  chatEl.scrollTop=chatEl.scrollHeight;
+  if(r.cacheHit)showCacheFlash();
+  var ind=addTypingIndicator(wrap);
+  setTimeout(function(){
+    if(my!==epoch)return;
+    ind.remove();
+    typewrite(wrap,r.answer,my,function(row,bubble){
+      finishTurn(t,bubble);
+      scrollBottom();
+      announce('GreenSearch answer ('+modeName(r)+', '+r.savingPct+'% fewer tokens): '+r.answer);
+    });
+  },r.cacheHit?180:420);
+}
+function addRestoreNote(){
+  var n=document.createElement('div');n.className='restore-note';
+  n.textContent='↺ Restored from your last session';
+  chatEl.appendChild(n);
+}
+function renderAll(){
+  epoch++;
+  turns.forEach(function(t){t.editing=false;});
+  chatEl.innerHTML='';
+  addWelcome();
+  if(restored)addRestoreNote();
+  turns.forEach(renderTurnStatic);
 }
 
 /* ── Welcome ── */
@@ -806,7 +1179,7 @@ document.getElementById('copy-btn').addEventListener('click',function(){
     'CO₂e saved: '+totals.co2.toFixed(4)+'g\n'+
     '(estimates, not measurements)\n'+
     'greensearch demo by Grant O\'Brien — github.com/succulentsdev';
-  navigator.clipboard.writeText(txt).then(function(){showToast('Stats copied!');},function(){showToast('Copy failed.');});
+  copyText(txt,'Stats copied!');
 });
 
 /* ── Send ── */
@@ -814,33 +1187,67 @@ function send(raw){
   if(!raw.trim())return;
   var r=integrateChat(raw,cache);
   if(r.empty)return;
+  var t={raw:raw,bypass:false,r:r};
+  turns.push(t);
+  addContribution(r,1);history.push(histEntry(raw,r));
+  renderTotals();renderHistory();saveState();
+  renderTurnAnimated(t);
+}
 
-  addUser(raw);
+/* ── Regenerate: same original prompt, cache bypassed, replaced in place.
+   Totals: subtract the old turn's contribution, add the new one. ── */
+function regenerate(t){
+  var i=turns.indexOf(t);if(i<0||!t.bubble)return;
+  addContribution(t.r,-1);
+  t.bypass=true;
+  t.r=runTurn(t.raw,true);
+  addContribution(t.r,1);
+  history[i]=histEntry(t.raw,t.r);
+  t.bubble.textContent=t.r.answer;
+  var mm=makeMeta(t);t.mm.replaceWith(mm);t.mm=mm;
+  renderTotals();renderHistory();saveState();
+  t.regenBtn.focus();
+  announce('Regenerated answer ('+modeName(t.r)+'): '+t.r.answer);
+  showToast('Answer regenerated (cache skipped). Totals adjusted.');
+}
 
-  var diffRow=makeDiffRow(r.diff,r.shrunk,r.raw);
-  if(diffRow)chatEl.appendChild(diffRow);
-
-  if(r.cacheHit)showCacheFlash();
-
-  /* Typing indicator then typewriter */
-  var ind=addTypingIndicator();
-  var delay=r.cacheHit?180:420;
-  setTimeout(function(){
-    ind.remove();
-    typewrite(r.answer,function(row,bubble){
-      var mm=document.createElement('div');mm.className='mm';
-      mm.appendChild(modeTag(r.mode,r.cacheHit,r.cacheHit?null:makeRouteReason(r.shrunk,r.mode)));
-      mm.appendChild(savePill(r.savingPct,r.savedCO2));
-      var tt=tokTag(r.origIn,r.shrunkIn);if(tt)mm.appendChild(tt);
-      chatEl.appendChild(mm);
-      scrollBottom();
-    });
-  },delay);
-
-  totals.calls++;totals.base+=r.baselineTotal;totals.green+=r.integratedTotal;
-  totals.saved+=r.tokensSaved;totals.co2+=r.savedCO2;
-  history.push({q:raw,pct:r.savingPct,mode:r.mode,tok:r.tokensSaved,co2:r.savedCO2});
-  renderTotals();renderHistory();
+/* ── Edit: replace the question, then replay every turn from scratch ── */
+function startEdit(t){
+  if(t.editing)return;
+  t.editing=true;
+  var row=t.userRow,bubble=row.querySelector('.bubble'),acts=row.querySelector('.acts');
+  bubble.style.display='none';acts.style.display='none';
+  var box=document.createElement('div');box.className='edit-box';
+  var ta=document.createElement('textarea');ta.value=t.raw;ta.setAttribute('aria-label','Edit your question');
+  var ba=document.createElement('div');ba.className='acts';
+  function cancel(){
+    t.editing=false;box.remove();bubble.style.display='';acts.style.display='';t.editBtn.focus();
+  }
+  function save(){
+    var v=ta.value;
+    if(!v.trim()||!shrinkPrompt(v)){showToast('The question can\'t be empty.');ta.focus();return;}
+    if(v===t.raw){cancel();return;}
+    applyEdit(t,v);
+  }
+  var sb=actBtn('Save','Save edited question and replay the chat',save);sb.classList.add('save');
+  ba.appendChild(sb);
+  ba.appendChild(actBtn('Cancel','Cancel editing',cancel));
+  ta.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){e.preventDefault();cancel();}
+    else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();save();}
+  });
+  box.appendChild(ta);box.appendChild(ba);row.appendChild(box);
+  ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+}
+function applyEdit(t,v){
+  t.raw=v;t.bypass=false;t.editing=false;
+  replayAll();
+  renderAll();
+  renderTotals();renderHistory();saveState();
+  if(t.el){t.el.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'});}
+  if(t.editBtn)t.editBtn.focus({preventScroll:true});
+  announce('Question edited. All answers were replayed. New answer ('+modeName(t.r)+'): '+t.r.answer);
+  showToast('Edited. Chat replayed, totals rebuilt.');
 }
 
 /* ── Live input preview ── */
@@ -860,14 +1267,14 @@ inputEl.addEventListener('input',function(){
       if(barEl)barEl.classList.remove('active');
     } else {
       var diff=wordDiff(raw,shrunk);
-      var removed=diff?diff.tokens.filter(function(t){return t.t==='r';}).map(function(t){return t.w;}):[]; 
+      var removed=diff?diff.tokens.filter(function(t){return t.t==='r';}).map(function(t){return t.w;}):[];
       var saved=estTokens(raw)-estTokens(shrunk);
       prevEl.className='ip-preview active';
-      var html='PromptShrink: ';
-      if(removed.length)html+='<span class="px">'+removed.join(' ')+'</span> ';
-      if(diff&&diff.added.length)html+='<span style="color:var(--amber);font-style:italic">→ '+diff.added.join(' ')+'</span> ';
-      html+='<span style="opacity:.7">'+saved+' token'+(saved!==1?'s':'')+' saved</span>';
-      prevEl.innerHTML=html;
+      prevEl.innerHTML='';
+      prevEl.appendChild(document.createTextNode('PromptShrink: '));
+      if(removed.length){var px=document.createElement('span');px.className='px';px.textContent=removed.join(' ');prevEl.appendChild(px);prevEl.appendChild(document.createTextNode(' '));}
+      if(diff&&diff.added.length){var ad=document.createElement('span');ad.style.cssText='color:var(--amber);font-style:italic';ad.textContent='→ '+diff.added.join(' ');prevEl.appendChild(ad);prevEl.appendChild(document.createTextNode(' '));}
+      var sv=document.createElement('span');sv.style.opacity='.7';sv.textContent=saved+' token'+(saved!==1?'s':'')+' saved';prevEl.appendChild(sv);
       var pct=Math.min(100,Math.round(saved/estTokens(raw)*100));
       var barEl=document.getElementById('shrink-bar');
       var fillEl=document.getElementById('shrink-bar-fill');
@@ -886,9 +1293,11 @@ function doSend(){
   send(v);
 }
 
-/* ── Clear ── */
+/* ── Clear (also wipes the saved session) ── */
 document.getElementById('cb').addEventListener('click',function(){
-  chatEl.innerHTML='';cache={};totals={calls:0,base:0,green:0,saved:0,co2:0};history=[];
+  epoch++;
+  chatEl.innerHTML='';cache={};totals=zeroTotals();history=[];turns=[];restored=false;
+  clearState();
   ['t-calls','t-base','t-green','t-saved'].forEach(function(id){
     var el=document.getElementById(id);if(el){el.textContent='0';el.dataset.v='0';}
   });
@@ -898,7 +1307,101 @@ document.getElementById('cb').addEventListener('click',function(){
   document.getElementById('hist-panel').style.display='none';
   document.getElementById('hist-list').innerHTML='';
   addWelcome();
+  showToast('Chat cleared, saved session deleted.');
 });
+
+/* ── Export chat as Markdown (local Blob download, no server) ── */
+function pad2(n){return(n<10?'0':'')+n;}
+document.getElementById('export-btn').addEventListener('click',function(){
+  if(!turns.length){showToast('Nothing to export yet.');return;}
+  var d=new Date();
+  var stamp=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes())+pad2(d.getSeconds());
+  var lbl={sprout:'Sprout',canopy:'Canopy',forest:'Forest'};
+  var L=['# GreenSearch demo chat','','Exported '+d.toLocaleString()+'.','',
+    '> Canned demo answers from a 95-topic library, not a live model. Tokens are estimates (words × 1.33); CO₂e is tokens × 0.0018 g; the baseline is assumed (original question + Forest answer, no trimming or routing), not measured.',''];
+  turns.forEach(function(t,i){
+    var r=t.r;
+    L.push('## '+(i+1)+'. '+short(t.raw).replace(/[#\n]/g,' '),'');
+    L.push('**Question:**','');
+    t.raw.split('\n').forEach(function(line){L.push('> '+line);});
+    L.push('','**Answer:**','',r.answer,'');
+    var mode=r.cacheHit?'Cache hit (reused '+(lbl[r.mode]||r.mode)+' answer)':(lbl[r.mode]||r.mode);
+    if(t.bypass)mode+=', regenerated';
+    L.push('- Mode: '+mode);
+    L.push('- Tokens: baseline '+r.baselineTotal+' → GreenSearch '+r.integratedTotal+' (saved '+r.tokensSaved+', −'+r.savingPct+'%)');
+    L.push('- CO₂e saved (est.): '+r.savedCO2.toFixed(4)+' g','');
+  });
+  var pct=totals.base?Math.round((1-totals.green/totals.base)*100):0;
+  L.push('## Session totals','',
+    '- Messages: '+totals.calls,
+    '- Baseline tokens: '+totals.base,
+    '- GreenSearch tokens: '+totals.green,
+    '- Tokens saved: '+totals.saved+' ('+pct+'%)',
+    '- CO₂e saved (est.): '+totals.co2.toFixed(4)+' g','');
+  var name='greensearch-chat-'+stamp+'.md';
+  var url=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/markdown;charset=utf-8'}));
+  var a=document.createElement('a');a.href=url;a.download=name;a.style.display='none';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  showToast('Exported '+name);
+});
+
+/* ── How this demo works (in-page dialog) ── */
+var howDlg=document.getElementById('how-dlg'),howBtn=document.getElementById('how-btn');
+function closeHow(){if(howDlg.open){if(howDlg.close)howDlg.close();else howDlg.removeAttribute('open');}howBtn.focus();}
+howBtn.addEventListener('click',function(){
+  if(howDlg.showModal)howDlg.showModal();else howDlg.setAttribute('open','');
+  document.getElementById('how-close').focus();
+});
+document.getElementById('how-close').addEventListener('click',closeHow);
+howDlg.addEventListener('click',function(e){if(e.target===howDlg)closeHow();});
+howDlg.addEventListener('cancel',function(e){e.preventDefault();closeHow();});
+
+/* ── Sidebar toggle (narrow screens) ── */
+var sideEl=document.getElementById('sidebar'),sideBtn=document.getElementById('side-toggle');
+function setSide(open){sideEl.classList.toggle('open',open);sideBtn.setAttribute('aria-expanded',open?'true':'false');}
+sideBtn.addEventListener('click',function(){setSide(!sideEl.classList.contains('open'));});
+function isNarrow(){return window.matchMedia('(max-width:820px)').matches;}
+
+/* ── Topic browser (built from topicCatalog(), i.e. the live topic data) ── */
+var CATALOG=topicCatalog();
+var tbList=document.getElementById('tb-list'),tbSearch=document.getElementById('tb-search'),tbCount=document.getElementById('tb-count');
+function askTopic(q){
+  if(isNarrow())setSide(false);
+  inputEl.value='';send(q);inputEl.focus();
+}
+function renderTopics(){
+  var f=tbSearch.value.toLowerCase().trim(),shown=0;
+  tbList.innerHTML='';
+  TOPIC_CATEGORIES.forEach(function(cat){
+    var items=CATALOG.filter(function(t){
+      return t.cat===cat&&(!f||(t.label+' '+t.sample+' '+t.cat+' '+t.id).toLowerCase().indexOf(f)>-1);
+    });
+    if(!items.length)return;
+    shown+=items.length;
+    var sec=document.createElement('section');sec.className='tb-group';
+    var h=document.createElement('h3');h.className='tb-cat';
+    var hn=document.createElement('span');hn.textContent=cat;
+    var hc=document.createElement('span');hc.textContent=items.length;
+    h.appendChild(hn);h.appendChild(hc);sec.appendChild(h);
+    var ul=document.createElement('ul');
+    items.forEach(function(t){
+      var li=document.createElement('li');
+      var b=document.createElement('button');b.type='button';b.className='tb-item';
+      b.setAttribute('aria-label','Ask about '+t.label+': '+t.sample);
+      var n=document.createElement('span');n.className='tb-name';n.textContent=t.label;
+      var q=document.createElement('span');q.className='tb-q';q.textContent=t.sample;
+      b.appendChild(n);b.appendChild(q);
+      b.addEventListener('click',function(){askTopic(t.sample);});
+      li.appendChild(b);ul.appendChild(li);
+    });
+    sec.appendChild(ul);tbList.appendChild(sec);
+  });
+  tbCount.textContent=f?(shown+' of '+CATALOG.length+' topics match'):(CATALOG.length+' topics · tap one to ask its sample question');
+}
+var _tbDebounce;
+tbSearch.addEventListener('input',function(){clearTimeout(_tbDebounce);_tbDebounce=setTimeout(renderTopics,80);});
+renderTopics();
 
 /* ── Chips ── */
 var SAMPLES=[
@@ -912,13 +1415,32 @@ var SAMPLES=[
 var chipsEl=document.getElementById('chips');
 SAMPLES.forEach(function(s){
   var b=document.createElement('button');
-  b.className='chip';b.textContent=s;
+  b.type='button';b.className='chip';b.textContent=s;
   b.addEventListener('click',function(){inputEl.value='';send(s);inputEl.focus();});
   chipsEl.appendChild(b);
 });
 
-addWelcome();
-renderTotals();
+/* ── Restore the last session (no animation, no re-counting) ── */
+var saved=loadState();
+if(saved){
+  turns=saved.turns.map(function(t){return{raw:t.raw,bypass:!!t.bypass,r:t.r};});
+  var st=saved.totals;
+  totals={calls:+st.calls||0,base:+st.base||0,green:+st.green||0,saved:+st.saved||0,co2:+st.co2||0};
+  history=Array.isArray(saved.history)&&saved.history.length===turns.length?saved.history
+    :turns.map(function(t){return histEntry(t.raw,t.r);});
+  /* Rebuild the cache in the same order the questions were first asked. */
+  turns.forEach(function(t){
+    var k=cacheKey(t.r.shrunk);
+    if(k&&!hasKey(cache,k))cache[k]={mode:t.r.mode,answer:t.r.answer};
+  });
+  restored=true;
+  renderAll();
+  renderTotals(true);renderHistory();
+  chatEl.scrollTop=chatEl.scrollHeight;
+} else {
+  addWelcome();
+  renderTotals(true);
+}
 });
 }
 </script>
