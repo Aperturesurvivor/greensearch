@@ -25,6 +25,7 @@ from greensearch.router import route_mode  # noqa: E402
 from greensearch.shrink import shrink  # noqa: E402
 from server.app import (  # noqa: E402
     DEFAULT_FALLBACKS,
+    DEFAULT_MODEL,
     MSG_ESCALATION_FAILED,
     MSG_KEY_REJECTED,
     MSG_MODEL_NOT_FOUND,
@@ -41,6 +42,7 @@ from server.app import (  # noqa: E402
     RateLimiter,
     chunk_text,
     make_server,
+    parse_origins,
     parse_chat_request,
     parse_sse,
     sse_event,
@@ -89,7 +91,7 @@ class FakeProvider:
         )
 
 
-PRIMARY = "openrouter/free"
+PRIMARY = "google/gemma-4-31b-it:free"
 # Only used by the opt-in cascade tests; not a model choice for Phase 2.
 ESCALATION = "example/escalation-model"
 
@@ -97,7 +99,7 @@ ESCALATION = "example/escalation-model"
 def make_backend(primary=None, big=None, baseline=None, **config_overrides):
     """A Backend whose models are fakes. Returns (backend, primary, big).
 
-    Default config: single model (openrouter/free), no escalation model and
+    Default config: single model (google/gemma-4-31b-it:free), no escalation model and
     no fallback models (these tests predate the fallback chain and assume
     one primary model; FallbackTests covers the chain), so big must never
     be built. Pass escalation_model=ESCALATION to enable
@@ -427,13 +429,43 @@ class ErrorMappingTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     Config.from_env(env)
 
+    def test_origin_list_splits_on_commas_and_whitespace(self):
+        want = ("https://a.example", "https://b.example")
+        cases = {
+            "comma only": "https://a.example,https://b.example",
+            "space only": "https://a.example https://b.example",
+            "mixed comma and space": " https://a.example ,\n\thttps://b.example, ",
+            "trailing slashes": "https://a.example/, https://b.example//",
+            "repeats": "https://a.example https://a.example/ https://b.example",
+        }
+        for label, raw in cases.items():
+            with self.subTest(label):
+                self.assertEqual(parse_origins(raw), want)
+                cfg = Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
+                self.assertEqual(cfg.allowed_origins, want)
+        # Separators only = unset = the localhost defaults.
+        for raw in ("", " , ,", " / "):
+            with self.subTest(raw=raw):
+                self.assertEqual(Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
+                                 .allowed_origins, ("http://localhost:8000", "http://127.0.0.1:8000"))
+        # A wildcard is still refused, whatever the separator.
+        for raw in ("https://a.example *", "https://a.example,\t*"):
+            with self.subTest(raw=raw):
+                with self.assertRaises(ValueError):
+                    Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
+
     def test_config_defaults(self):
         cfg = Config.from_env({})
         self.assertFalse(cfg.configured)
         self.assertEqual(cfg.base_url, "https://openrouter.ai/api/v1")
-        self.assertEqual(cfg.model, "openrouter/free")
-        self.assertEqual(cfg.escalation_model, "openrouter/free")
+        self.assertEqual(cfg.model, "google/gemma-4-31b-it:free")
+        self.assertEqual(cfg.escalation_model, "google/gemma-4-31b-it:free")
         self.assertEqual(cfg.fallback_models, DEFAULT_FALLBACKS)
+        # The free router is only the last resort, and the primary is not repeated.
+        self.assertEqual(DEFAULT_FALLBACKS, (
+            "liquid/lfm-2.5-2.6b:free", "thinkingmachines/inkling-small:free",
+            "poolside/laguna-xs-2.1:free", "openrouter/free"))
+        self.assertNotIn(DEFAULT_MODEL, DEFAULT_FALLBACKS)
         self.assertFalse(cfg.cascade_enabled)
         self.assertFalse(hasattr(cfg, "model_4b"))
         self.assertEqual(cfg.cascade_threshold, -1.0)
@@ -444,12 +476,12 @@ class ErrorMappingTests(unittest.TestCase):
         self.assertEqual((cfg.model, cfg.escalation_model), ("other/model", "other/model"))
         self.assertFalse(cfg.cascade_enabled)
         cfg = Config.from_env({"GREENSEARCH_ESCALATION_MODEL": "big/model"})
-        self.assertEqual((cfg.model, cfg.escalation_model), ("openrouter/free", "big/model"))
+        self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, "big/model"))
         self.assertTrue(cfg.cascade_enabled)
         # The old 4B/8B variables are no longer read.
         cfg = Config.from_env({"GREENSEARCH_MODEL_4B": "qwen/qwen3-4b",
                                "GREENSEARCH_MODEL_8B": "x/y"})
-        self.assertEqual((cfg.model, cfg.escalation_model), ("openrouter/free", "openrouter/free"))
+        self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, DEFAULT_MODEL))
 
     def test_prompts_not_logged_by_default(self):
         log = io.StringIO()
@@ -580,6 +612,24 @@ class HTTPTests(unittest.TestCase):
         resp, _ = self.request(port, "OPTIONS", "/api/chat", None, {"Origin": "http://localhost:8000"})
         self.assertEqual(resp.status, 403)
 
+    def test_cors_space_separated_env_list_matches_exactly(self):
+        cfg = Config.from_env({"GREENSEARCH_API_KEY": SENTINEL_KEY,
+                               "GREENSEARCH_BACKEND_ORIGIN": "https://a.example/ https://b.example"})
+        backend, _, _ = make_backend(allowed_origins=cfg.allowed_origins)
+        port = self.start(backend)
+        for origin in ("https://a.example", "https://b.example"):
+            with self.subTest(origin=origin):
+                resp, _ = self.request(port, "OPTIONS", "/api/chat", None, {"Origin": origin})
+                self.assertEqual(resp.status, 204)
+                self.assertEqual(resp.getheader("Access-Control-Allow-Origin"), origin)
+        # Exact match only: no prefix, suffix or joined-string matches.
+        for origin in ("https://a.example.evil", "https://evil.a.example",
+                       "https://a.example https://b.example"):
+            with self.subTest(origin=origin):
+                resp, _ = self.request(port, "OPTIONS", "/api/chat", None, {"Origin": origin})
+                self.assertEqual(resp.status, 403)
+                self.assertIsNone(resp.getheader("Access-Control-Allow-Origin"))
+
     def test_rate_limit_triggers_over_http(self):
         backend, small, _ = make_backend(rate_limit_per_hour=2)
         port = self.start(backend)
@@ -602,8 +652,8 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         health = json.loads(data)
         self.assertFalse(health["configured"])
-        self.assertEqual(health["model"], "openrouter/free")
-        self.assertEqual(health["escalation_model"], "openrouter/free")
+        self.assertEqual(health["model"], DEFAULT_MODEL)
+        self.assertEqual(health["escalation_model"], DEFAULT_MODEL)
         self.assertEqual(health["fallbacks"], list(DEFAULT_FALLBACKS))
         self.assertFalse(health["cascade_enabled"])
         self.assertNotIn("model_4b", health)
@@ -654,7 +704,7 @@ class EntryPointAndSiteTests(unittest.TestCase):
                      "GREENSEARCH_CASCADE_THRESHOLD", "GREENSEARCH_BACKEND_ORIGIN",
                      "GREENSEARCH_RATE_LIMIT_PER_HOUR", "GREENSEARCH_DEBUG_LOG", "PORT"):
             self.assertIn(name, out.stdout)
-        self.assertIn("openrouter/free", out.stdout)
+        self.assertIn("google/gemma-4-31b-it:free", out.stdout)
         self.assertIn(DEFAULT_FALLBACKS[0], out.stdout)
         self.assertNotIn("MODEL_4B", out.stdout)
         self.assertNotIn("qwen3-4b", out.stdout)
@@ -681,7 +731,7 @@ class EntryPointAndSiteTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertNotRegex(match.group(1), r"sk-[A-Za-z0-9]{10,}")
         self.assertIn(match.group(1).strip(), ("", "replace-me"))
-        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL=openrouter/free$")
+        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL=google/gemma-4-31b-it:free$")
         self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL_FALLBACKS=" + re.escape(
             ",".join(DEFAULT_FALLBACKS)) + "$")
         self.assertNotIn("MODEL_4B", text)
@@ -716,7 +766,7 @@ def http_error(code, detail="detail"):
 
 
 FREE_A = "liquid/lfm-2.5-2.6b:free"
-FREE_B = "google/gemma-4-31b-it:free"
+FREE_B = "thinkingmachines/inkling-small:free"
 PAID = "example/paid-model"
 
 

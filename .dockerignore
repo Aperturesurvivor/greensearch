@@ -8,3 +8,4 @@ scripts/
 results/
 spec/
 docs/
+env.yaml

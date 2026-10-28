@@ -12,8 +12,11 @@ Method (see BASELINE.md for the full write-up):
 
 Usage:
   python scripts/baseline_study.py --provider demo --report-out BASELINE.md
-  python scripts/baseline_study.py --provider live --model gpt-4o-mini \
+  python scripts/baseline_study.py --provider live \
+      --base-url https://openrouter.ai/api/v1 \
       --report-out results/baseline_live.md
+  # --model defaults to google/gemma-4-31b-it:free (an OpenRouter id, so
+  # pass the OpenRouter --base-url); --model still overrides it.
   # Live mode requires GREENSEARCH_API_KEY. Without it, this script
   # exits 2 and writes nothing -- it never fabricates a live result.
 
@@ -139,7 +142,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Run the GreenSearch baseline study over spec/corpus.json.")
     parser.add_argument("--provider", choices=["demo", "live"], default="demo")
     parser.add_argument("--base-url", default="https://api.openai.com/v1")
-    parser.add_argument("--model", default="gpt-4o-mini")
+    parser.add_argument("--model", default="google/gemma-4-31b-it:free")
     parser.add_argument("--mode", choices=["sprout", "canopy", "full"], default="canopy")
     parser.add_argument("--report-out", default=None, help="Write a markdown report to this path")
     parser.add_argument("--json-out", default=None, help="Write per-prompt JSON results to this path")

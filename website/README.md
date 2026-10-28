@@ -1,4 +1,6 @@
-# GreenSearch chat website demo
+# Arboris chat website demo
+
+The demo site is named **Arboris**. The Python package, CLI and repo are still `greensearch` for now (so are the localStorage keys and API paths below).
 
 A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no backend, no API call, no external fonts, images or scripts, and nothing leaves the page. See [SELFHOST.md](SELFHOST.md) for hosting it.
 
@@ -7,7 +9,7 @@ A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no b
 - Chat input, multi-turn in one session, with sample chips for the original 6 covered topics, plus 89 more templated topics (95 total).
 - PromptShrink first: trims filler and verbose phrases from the question, protecting code fences. A live preview under the input shows what will be trimmed, and each sent message shows a diff row.
 - Session cache: a repeated question (after trimming, to the same core) reuses the earlier answer, with 0 new answer tokens.
-- GreenSearch routing: Sprout (12 words or fewer), Canopy, or Forest (35 words or more, complexity markers, or 2+ question marks).
+- Arboris routing: Sprout (12 words or fewer), Canopy, or Forest (35 words or more, complexity markers, or 2+ question marks).
 - Per-answer and session savings: tokens before/after, estimated CO2e vs a defined baseline, a session stats panel and a message history panel.
 - Finland panel: Google Cloud Finland (europe-north1) 98% carbon-free energy, grid 30 gCO2eq/kWh; Hamina 97%; global Google data centers 65% in 2025. The panel states clearly that this demo runs locally, not in Finland, so Finland numbers do not change the demo CO2 numbers. Token savings are the demo saving. Clean-energy hosting is a separate lever for a live version.
 
@@ -20,7 +22,7 @@ A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no b
 
 ### Export
 
-**Export** in the header downloads the transcript as a readable Markdown file named `greensearch-chat-YYYY-MM-DD-HHMMSS.md`. It lists each question and answer with its mode (including cache hits and regenerated answers), baseline vs GreenSearch tokens, tokens saved and estimated CO2e saved, followed by the session totals and a note on what the numbers are. The file is built in the browser as a local Blob, with no server involved.
+**Export** in the header downloads the transcript as a readable Markdown file named `arboris-chat-YYYY-MM-DD-HHMMSS.md`. It lists each question and answer with its mode (including cache hits and regenerated answers), baseline vs GreenSearch tokens, tokens saved and estimated CO2e saved, followed by the session totals and a note on what the numbers are. The file is built in the browser as a local Blob, with no server involved.
 
 ### Per-message actions
 
@@ -40,17 +42,18 @@ The **How this demo works** button in the header opens an in-page dialog, with n
 
 ### Mobile and accessibility
 
-- Buttons, chips, topic entries and message actions are at least 44px tall, and every control has a visible focus outline.
+- Buttons, chips, topic entries and message actions are at least 44px tall (Send, Clear and the chat input 56px), and every control has a visible focus outline.
 - Icon buttons (theme, copy stats, clear, export, how-it-works, close) and the topic search box have aria-labels. Message action labels name the question they act on.
 - Only new or regenerated bot answers are announced, through one polite live region. Re-rendering after an edit or restore does not re-announce the whole transcript, and the cache flash is hidden from screen readers.
-- Under 820px wide, the sidebar collapses behind a "Topics, stats & how it works" toggle instead of a cramped strip.
+- Under 860px wide, the sidebar collapses behind a "Topics, stats & how it works" toggle instead of a cramped strip.
 - `prefers-reduced-motion` turns off CSS animation and also skips the typewriter and counter animations.
-- Dark and light themes use the same contrast as before.
+- Dark and light themes share one restrained green accent (buttons, LIVE pill, links, focus rings, savings tags). Every text/background pair in both palettes was checked at 4.5:1 or better (WCAG AA) by calculation; it has not been checked in a browser.
+- Base text is 17px (16px on phones), with larger chat bubbles, softer borders and shadows, and a divider-free totals row.
 
 ## Baseline, stated, not assumed
 
 Baseline per message: original question tokens + Forest (full) answer tokens for the same topic, with no trimming, no routing, no reuse.
-GreenSearch per message: trimmed question tokens + routed answer tokens, or trimmed question only on a cache hit.
+Arboris per message: trimmed question tokens + routed answer tokens, or trimmed question only on a cache hit.
 Tokens: words x 1.33, minimum 1. CO2e: tokens x 0.0018 g. Both are estimates, not measurements.
 
 ## What it does not do

@@ -11,8 +11,8 @@ Pipeline per chat request, in order:
      mode-aware. A hit makes no model call: 0 new output tokens.
   3. Auto routing (greensearch.router), unless the client sent a mode.
   4. One call to the primary model (GREENSEARCH_MODEL, default
-     openrouter/free, OpenRouter's free-model router rather than a named
-     model) with the brevity system prompt and token cap, logprobs
+     google/gemma-4-31b-it:free, a named general chat model) with the
+     brevity system prompt and token cap, logprobs
      requested. By default that is the only model call: escalated=false,
      reason "single model: no separate escalation model configured".
      If that call fails with HTTP 429/404/502/503 (or 402 when the next
@@ -97,15 +97,18 @@ MSG_INTERNAL = "Something went wrong on the server, try again"
 MSG_NOT_FOUND = "Not found"
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-# openrouter/free is OpenRouter's router over its free models, not a named
-# model: which model answers can change per request. Free models are
-# rate-limited and rotate, hence the fallback chain below.
-DEFAULT_MODEL = "openrouter/free"
+# A named general chat model. openrouter/free (OpenRouter's router over its
+# free models) is NOT the primary: it can route to non-chat models, e.g. a
+# content-safety classifier answered a hamburger question with "User
+# Safety: safe", and fallback only triggers on errors, not wrong-type
+# answers. Free models are rate-limited and rotate, hence the chain below,
+# with the router kept only as the last resort.
+DEFAULT_MODEL = "google/gemma-4-31b-it:free"
 DEFAULT_FALLBACKS = (
     "liquid/lfm-2.5-2.6b:free",
-    "google/gemma-4-31b-it:free",
     "thinkingmachines/inkling-small:free",
     "poolside/laguna-xs-2.1:free",
+    "openrouter/free",
 )
 # Provider HTTP codes that move on to the next model. 402 is handled
 # separately (only towards a free model); 401 never falls back.
@@ -144,7 +147,8 @@ ENV_VARS = [
     ("GREENSEARCH_CASCADE_THRESHOLD", "-1.0",
      "Mean-logprob escalation threshold, must be <= 0. Cascade only."),
     ("GREENSEARCH_BACKEND_ORIGIN", ",".join(DEFAULT_ORIGINS),
-     "Comma-separated CORS allowlist of exact origins. '*' is refused."),
+     "CORS allowlist of exact origins, separated by commas and/or spaces; "
+     "trailing slashes are stripped. '*' is refused."),
     ("GREENSEARCH_RATE_LIMIT_PER_HOUR", "100",
      "Chat requests per client IP per rolling hour. 0 disables the limit."),
     ("GREENSEARCH_DEBUG_LOG", "off",
@@ -227,10 +231,7 @@ class Config:
             raise ValueError("GREENSEARCH_RATE_LIMIT_PER_HOUR must be a whole number")
         if rate < 0:
             raise ValueError("GREENSEARCH_RATE_LIMIT_PER_HOUR must be 0 or more")
-        raw_origins = env.get("GREENSEARCH_BACKEND_ORIGIN", "").strip()
-        origins = tuple(
-            o.strip().rstrip("/") for o in raw_origins.split(",") if o.strip()
-        ) or DEFAULT_ORIGINS
+        origins = parse_origins(env.get("GREENSEARCH_BACKEND_ORIGIN", "")) or DEFAULT_ORIGINS
         if any(o == "*" or "*" in o for o in origins):
             raise ValueError("GREENSEARCH_BACKEND_ORIGIN must list exact origins; '*' is not allowed")
         return cls(
@@ -254,6 +255,19 @@ def parse_fallbacks(models, primary):
         model = model.strip()
         if model and model != primary and model not in out:
             out.append(model)
+    return tuple(out)
+
+
+def parse_origins(raw):
+    """Split a CORS allowlist on commas and/or whitespace, drop empties and
+    repeats, keep order. Trailing slashes are stripped, so
+    "https://example.com/" is stored (and matched) as "https://example.com";
+    browsers never send a trailing slash in Origin. Matching stays exact."""
+    out = []
+    for origin in re.split(r"[,\s]+", raw or ""):
+        origin = origin.rstrip("/")
+        if origin and origin not in out:
+            out.append(origin)
     return tuple(out)
 
 

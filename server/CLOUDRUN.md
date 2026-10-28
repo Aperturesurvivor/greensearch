@@ -35,6 +35,35 @@ if the region matches the claim. Changing region later is just a
 
 Replace `YOUR_PROJECT_ID` with your project id throughout.
 
+### Env vars: use an env-vars YAML file (the default method)
+
+Keep the non-secret settings in a local `env.yaml` next to the
+Dockerfile and pass it with `--env-vars-file`. The CORS list is one
+string, **commas, no spaces** (the server also accepts spaces since
+Unreleased, but commas are the canonical form and survive every shell
+and YAML tool). Quote every value. Trailing slashes are stripped by the
+server, but write origins without one.
+
+```yaml
+# env.yaml: local deploy state. Do NOT commit it (it is git-ignored).
+# Not a secret (it holds the public service URL), but it is per-deploy
+# state, not repo content. The API key is NEVER in here: it is a secret.
+GREENSEARCH_MODEL: "google/gemma-4-31b-it:free"
+GREENSEARCH_BACKEND_ORIGIN: "http://localhost:8000,http://127.0.0.1:8000"
+```
+
+> **Warning: `--set-env-vars` and `--env-vars-file` REPLACE the whole
+> env var list; `--update-env-vars` changes only the vars you name and
+> keeps the rest.** A single-var
+> `gcloud run services update ... --set-env-vars GREENSEARCH_MODEL=...`
+> once wiped `GREENSEARCH_BACKEND_ORIGIN` in production: the allowlist
+> fell back to localhost and the hosted page got "This page's origin is
+> not allowed". So: either pass the **complete** `env.yaml` (every
+> non-secret var, origins and model together), or change one var with
+> `--update-env-vars`. Never use `--set-env-vars` for a one-var change.
+> After any env change, check with
+> `gcloud run services describe greensearch --region us-central1 --format='yaml(spec.template.spec.containers[0].env)'`.
+
 ```bash
 # 1. Point gcloud at your project, enable the services.
 gcloud config set project YOUR_PROJECT_ID
@@ -50,15 +79,14 @@ printf '%s' 'YOUR_OPENROUTER_KEY' | \
 # 3. Build and deploy from the repo root (the folder with Dockerfile).
 #    --allow-unauthenticated makes the demo public, which is what a
 #    demo wants. Remove it if you want a private service instead.
-#    The first deploy does NOT yet know its own URL, so CORS is set
-#    to localhost only for now; step 5 fixes that.
+#    The first deploy does NOT yet know its own URL, so env.yaml lists
+#    localhost only for now; step 5 fixes that.
 gcloud run deploy greensearch \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
   --set-secrets GREENSEARCH_API_KEY=greensearch-api-key:latest \
-  --set-env-vars GREENSEARCH_MODEL=openrouter/free \
-  --set-env-vars GREENSEARCH_BACKEND_ORIGIN=http://localhost:8000,http://127.0.0.1:8000
+  --env-vars-file env.yaml
 ```
 
 Note the deploy command for the URL it prints, e.g.
@@ -68,12 +96,27 @@ Note the deploy command for the URL it prints, e.g.
 # 4. Check health. It must say "configured": true.
 curl https://greensearch-abc123-uc.a.run.app/api/health
 
-# 5. Add the hosted URL to the CORS allowlist, then redeploy the
-#    env var only (no rebuild needed for an env change, but
-#    `gcloud run deploy` with the same source is the simple path).
+# 5. Add the hosted URL to GREENSEARCH_BACKEND_ORIGIN in env.yaml
+#    (commas, no spaces), keep GREENSEARCH_MODEL in the same file, then
+#    apply the whole file. No rebuild is needed for an env change.
+#      GREENSEARCH_MODEL: "google/gemma-4-31b-it:free"
+#      GREENSEARCH_BACKEND_ORIGIN: "https://greensearch-abc123-uc.a.run.app,http://localhost:8000,http://127.0.0.1:8000"
 gcloud run services update greensearch --region us-central1 \
-  --set-env-vars GREENSEARCH_BACKEND_ORIGIN=https://greensearch-abc123-uc.a.run.app,http://localhost:8000,http://127.0.0.1:8000
+  --env-vars-file env.yaml
 ```
+
+### Changing just the model later
+
+Use `--update-env-vars`, which leaves the CORS allowlist (and every
+other var) in place:
+
+```bash
+gcloud run services update greensearch --region us-central1 \
+  --update-env-vars GREENSEARCH_MODEL=google/gemma-4-31b-it:free
+```
+
+Then update `env.yaml` to match, so the next full `--env-vars-file`
+apply does not silently put the old model back.
 
 ## Using the hosted demo
 
@@ -85,8 +128,11 @@ question and check the LIVE metadata row: model that answered, tokens,
 latency, and whether a fallback was used.
 
 If the page shows a CORS error ("This page's origin is not allowed"),
-step 5 was missed or the URL has a typo — the allowlist must match the
-service URL exactly, with no trailing slash.
+step 5 was missed, the URL has a typo, or a later `--set-env-vars`
+replaced the env list (see the warning above). The allowlist must match
+the service URL exactly (scheme, host, port). Entries may be separated
+by commas and/or spaces, and a trailing slash on an entry is stripped,
+so `https://x.run.app/` matches `https://x.run.app`.
 
 ## Costs and limits to watch
 

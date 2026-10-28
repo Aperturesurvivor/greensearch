@@ -1,6 +1,47 @@
 # Changelog
 
 - **Unreleased -- Phase 2 (local only, not deployed, not pushed):**
+  - Model, CORS and site pass (local only; version stays 0.8.0):
+    - Default model is now `google/gemma-4-31b-it:free`, a named general
+      chat model (server default, `.env.example`, `--help`, docs).
+      `GREENSEARCH_MODEL_FALLBACKS` default is now
+      `liquid/lfm-2.5-2.6b:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free,openrouter/free`:
+      gemma moved out (it is the primary) and `openrouter/free` is the
+      last resort only. Why: as primary, `openrouter/free` routed a
+      hamburger question to a content-safety model that answered "User
+      Safety: safe...". The router can pick non-chat free models, and
+      fallback only triggers on errors, not on wrong-type answers. This
+      supersedes the `openrouter/free` default noted below.
+    - CORS: `GREENSEARCH_BACKEND_ORIGIN` now splits on commas and/or
+      whitespace (`re.split(r"[,\s]+")`, empties and repeats dropped), so
+      a space-separated list no longer becomes one unmatchable origin.
+      Trailing slashes are still stripped; matching is still exact and
+      `*` is still refused. `server/CLOUDRUN.md` now uses an env-vars YAML
+      file by default and warns that `--set-env-vars` replaces the whole
+      env list (a single-var `--set-env-vars` wiped the CORS allowlist in
+      production) while `--update-env-vars` keeps the rest. `env.yaml` is
+      git- and docker-ignored.
+    - Website renamed to **Arboris** in everything a visitor sees (title,
+      wordmark, totals label, sidebar, footer, How-it-works dialog,
+      welcome, copied stats, Markdown export and its file name
+      `arboris-chat-*.md`). Package, CLI, repo, localStorage keys and API
+      paths stay `greensearch`.
+    - Website redesign (CSS only): one restrained green accent (buttons,
+      LIVE pill, links, focus rings, savings tags), 17px base text, larger
+      bubbles, a 56px input and Send/Clear, more whitespace, softer borders
+      and shadows, a divider-free totals row, lighter metadata tags. All
+      controls kept. Text contrast is 4.5:1 or better in both themes, by
+      calculation only (not checked in a browser).
+    - Live metadata row now shows `meta.provider_model` when present and
+      different from `meta.model`, and a "truncated" tag when
+      `meta.truncated` is true.
+    - `scripts/baseline_study.py` `--model` default is now
+      `google/gemma-4-31b-it:free` (was `gpt-4o-mini`). BASELINE.md has a
+      "NOT YET MEASURED" section with the local run steps. No live
+      baseline was run; the canned numbers are unchanged.
+    - Tests: 160 to 162 (comma, space, mixed, trailing-slash and repeat
+      origin parsing; exact matching of a space-separated list over HTTP;
+      the new default model and fallback order).
   - Cloud Run prep (not deployed, no GCP account used): `Dockerfile`
     (Python 3.12-slim, stdlib only, binds 0.0.0.0 and reads $PORT),
     `.dockerignore` (never ships `.env`), and `server/CLOUDRUN.md`

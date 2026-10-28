@@ -5,3 +5,4 @@ demo-report.md
 session.json
 *.egg-info/
 .env
+env.yaml

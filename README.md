@@ -29,8 +29,9 @@ which keep priority, plus 89 more from `spec/templates.json` (technology,
 science, math, history, business, health, cooking, home maintenance,
 programming). It says plainly when a topic is not covered.
 
-Open `website/index.html` in a browser for the chat-style demo: no server,
-no network, same canned topics.
+Open `website/index.html` in a browser for the chat-style demo site,
+**Arboris**: no server, no network, same canned topics. (The site is named
+Arboris; the package, CLI and repo are still `greensearch` for now.)
 
 ## How the numbers work
 
@@ -94,14 +95,14 @@ version stays 0.8.0.
   origins, rate limit and debug logging all come from the environment
   only. Per request: PromptShrink → per-session, mode-aware cache → routing
   → one call to the primary model (`GREENSEARCH_MODEL`, default
-  `openrouter/free`: OpenRouter's router over its free models, not a named
-  model; free models are rate-limited and rotate) with the brevity
+  `google/gemma-4-31b-it:free`, a named general chat model; free models
+  are rate-limited and rotate) with the brevity
   prompt, token cap and logprobs → `apply_brevity`. If that call fails
   with HTTP 429/404/502/503 (or 402 when the next model is free), the
   models in `GREENSEARCH_MODEL_FALLBACKS` are tried in order; 401 never
   falls back. If a provider rejects logprobs, the same model is retried
   once without them. `meta.model` reports the model id that answered
-  (`openrouter/free` itself when the router answered; `meta.provider_model`
+  (`openrouter/free` itself when the last-resort router answered; `meta.provider_model`
   passes through the response's own `model` field, unverified live). There is
   no escalation call by default. The logprob cascade runs only if
   `GREENSEARCH_ESCALATION_MODEL` is set to a different model, and then an
@@ -114,24 +115,31 @@ version stays 0.8.0.
   400 invalid). A final sentence cut off at the token cap is dropped, or
   marked with `…` when it is the whole answer, and `meta.truncated` says so. It
   has a per-IP in-memory rate limit and an exact-origin CORS allowlist
-  (never `*`). See [`server/README.md`](server/README.md).
-- **Website Live mode**: a labelled toggle, OFF on every load. With it off,
+  (never `*`; entries split on commas and/or spaces, trailing slashes
+  stripped). See [`server/README.md`](server/README.md) and, for Cloud
+  Run env vars, [`server/CLOUDRUN.md`](server/CLOUDRUN.md).
+- **Website (Arboris) Live mode**: a labelled toggle, OFF on every load. With it off,
   the demo behaves exactly as before. With it on, the page shows a LIVE
   pill and a banner saying it is not browser-only. It sends the raw prompt
   to an editable backend URL (stored under `greensearch-live-backend-url`),
-  renders streamed chunks, and shows the model, escalation, cache hit,
-  tokens and latency. Backend errors show as plain chat messages. Live
+  renders streamed chunks, and shows the model (plus the provider-reported
+  model when it differs), escalation, cache hit, tokens, latency and a
+  truncated marker when the answer was cut at the token cap. Backend errors show as plain chat messages. Live
   totals are in a separate LIVE row, never mixed with demo estimates. A
   **Measure baseline** checkbox (off by default) makes a second,
   unconstrained call to measure savings, which doubles API cost.
-- **`tests/test_live_backend.py`**: 61 tests, with fake providers only and
+- **`tests/test_live_backend.py`**: 63 tests, with fake providers only and
   no key or network (the HTTP tests use loopback).
-- **`.env.example`**: placeholders only, `GREENSEARCH_MODEL=openrouter/free`
-  and the default `GREENSEARCH_MODEL_FALLBACKS` list.
+- **`.env.example`**: placeholders only, `GREENSEARCH_MODEL=google/gemma-4-31b-it:free`
+  and the default `GREENSEARCH_MODEL_FALLBACKS` list (`openrouter/free` last).
 
 Model decision: the default was Qwen3-8B (`qwen/qwen3-8b`) until OpenRouter
-deprecated it on 2026-10-09; it is now `openrouter/free` with a fallback
-chain of free models. `scripts/compare_qwen.py` remains in the tree but is
+deprecated it on 2026-10-09, then briefly `openrouter/free`. It is now the
+named chat model `google/gemma-4-31b-it:free`, with a fallback chain of
+free models ending in `openrouter/free` as the last resort. Why not the
+router as primary: it sent a hamburger question to a content-safety model
+that answered "User Safety: safe...". The router can pick non-chat free
+models, and fallback only triggers on errors, not on wrong-type answers. `scripts/compare_qwen.py` remains in the tree but is
 not needed for the model decision.
 
 Still blocked, on accounts rather than code: a provider API key (so no
@@ -146,7 +154,7 @@ Cloudflare are noted as future options only), and a domain.
 python -m unittest discover -s tests -v
 ```
 
-137 tests, standard library only (tiktoken is an optional extra, tested
+162 tests, standard library only (tiktoken is an optional extra, tested
 separately in a venv). The website check needs Node and is skipped
 without it. `spec/routing_cases.json` holds hand-written routing expectations
 that both the Python router and the website's `routeMode()` must satisfy, so
@@ -154,7 +162,7 @@ the two implementations cannot drift silently.
 
 ## Known differences from the site
 
-| | Site demo | Harness |
+| | Site demo (Arboris) | Harness |
 |---|---|---|
 | Mode names | Sprout / Canopy / Forest | Sprout / Canopy / Full |
 | Prompt trimming (PromptShrink) | Yes | Yes, since 0.6.0 (shrink.py, input-side accounting) |
@@ -206,7 +214,7 @@ session caching, and a logprob-gated cascade (`--cascade`).
 - `spec/routing_cases.json`, `spec/corpus.json`, `tests/`: shared spec, fixed corpus, tests
 - `scripts/baseline_study.py`: canned/live baseline study over the corpus
 - `BASELINE.md`: baseline study results (canned until a live run is done)
-- `website/`: browser demo and its README
+- `website/`: the Arboris browser demo site and its README
 - `server/`: Phase 2 live backend (local only) and its README; `.env.example` lists its settings
 - `CHANGELOG.md`: history, including the rename from EcoGPT
 

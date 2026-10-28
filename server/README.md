@@ -7,12 +7,17 @@ only been run on localhost: the tests use fake providers, and one local
 live run with an OpenRouter key (2026-10-27) found the bugs fixed in the
 "Model and fallbacks" section below.
 
-**Default model: `openrouter/free`.** This is OpenRouter's router over its
-free models, **not a named model**: which model answers can change from
-request to request. Free models are rate-limited and rotate in and out of
-service. The previous default, `qwen/qwen3-8b`, was deprecated on
-OpenRouter on 2026-10-09 and now returns 404. Set `GREENSEARCH_MODEL` to
-pin a specific model. The logprob cascade remains available only as an
+**Default model: `google/gemma-4-31b-it:free`**, a named general chat
+model. `openrouter/free` (OpenRouter's router over its free models, not a
+named model) was the default until Unreleased, and is now only the
+**last** fallback. Why: as primary, the router sent a hamburger question
+to a content-safety model, which answered "User Safety: safe...". The
+router can pick non-chat free models, and the fallback chain only
+triggers on errors, never on a wrong-type answer, so a named chat model
+must answer first. Free models are rate-limited and rotate in and out of
+service. An older default, `qwen/qwen3-8b`, was deprecated on OpenRouter
+on 2026-10-09 and now returns 404. Set `GREENSEARCH_MODEL` to pin a
+different model. The logprob cascade remains available only as an
 opt-in: set `GREENSEARCH_ESCALATION_MODEL` to a *different* model to turn
 it on.
 
@@ -47,11 +52,12 @@ The server log gets one line per failed attempt and one for the answer,
 with the HTTP status and model id only, never the key, the prompt or the
 provider's error text, e.g. `primary call failed: HTTP 404
 model=qwen/qwen3-8b`, `fallback call failed: HTTP 429 model=...`,
-`answered by fallback model=google/gemma-4-31b-it:free`.
+`answered by fallback model=liquid/lfm-2.5-2.6b:free`.
 
 `meta.model` is the model id the server sent in the request that
-answered. With `openrouter/free` that is `openrouter/free`, which hides
-the underlying model. `meta.provider_model` passes through the `model`
+answered. If the last-resort `openrouter/free` answered, that is
+`openrouter/free`, which hides the underlying model. `meta.provider_model`
+passes through the `model`
 field of the provider's response, when the response has one. For a router
 id it may name the routed model, but that has not been verified against a
 live OpenRouter response here, so treat it as the provider's claim.
@@ -116,11 +122,11 @@ requests, files in the repo, or the command line.
 |---|---|---|
 | `GREENSEARCH_API_KEY` | unset | Provider key. Server-side only. Unset means `/api/chat` returns 503 and no provider is called. |
 | `GREENSEARCH_BASE_URL` | `https://openrouter.ai/api/v1` | OpenAI-compatible base URL. https required (http only for localhost). |
-| `GREENSEARCH_MODEL` | `openrouter/free` | Primary model, called first on every request. `openrouter/free` is a router over free models, not a named model. |
-| `GREENSEARCH_MODEL_FALLBACKS` | `liquid/lfm-2.5-2.6b:free,google/gemma-4-31b-it:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free` | Comma-separated models tried in order when the primary call fails (see "Model and fallbacks"). Whitespace, empty entries, repeats and the primary model are dropped. Unset or empty uses the default list; `none` disables fallbacks. |
+| `GREENSEARCH_MODEL` | `google/gemma-4-31b-it:free` | Primary model, called first on every request. A named chat model; do not set the `openrouter/free` router here (it can route to non-chat models, see above). |
+| `GREENSEARCH_MODEL_FALLBACKS` | `liquid/lfm-2.5-2.6b:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free,openrouter/free` | Comma-separated models tried in order when the primary call fails (see "Model and fallbacks"). Whitespace, empty entries, repeats and the primary model are dropped. Unset or empty uses the default list; `none` disables fallbacks. |
 | `GREENSEARCH_ESCALATION_MODEL` | value of `GREENSEARCH_MODEL` | Optional. While it equals `GREENSEARCH_MODEL` (the default) there is **no** escalation call. Set it to a different model to turn on the logprob cascade. |
 | `GREENSEARCH_CASCADE_THRESHOLD` | `-1.0` | Cascade only: escalate when the primary model's mean token logprob is below this. Must be ≤ 0. A starting point to tune, not a sourced constant. |
-| `GREENSEARCH_BACKEND_ORIGIN` | `http://localhost:8000,http://127.0.0.1:8000` | Comma-separated CORS allowlist of exact origins. `*` is refused at startup. |
+| `GREENSEARCH_BACKEND_ORIGIN` | `http://localhost:8000,http://127.0.0.1:8000` | CORS allowlist of exact origins, separated by commas and/or whitespace (so a space-separated list works too). Trailing slashes are stripped, so `https://example.com/` matches `https://example.com`. Matching is otherwise exact; `*` is refused at startup. For Cloud Run, see `CLOUDRUN.md` (env-vars file, commas, no spaces). |
 | `GREENSEARCH_RATE_LIMIT_PER_HOUR` | `100` | `/api/chat` requests per client IP per rolling hour. `0` disables. |
 | `GREENSEARCH_DEBUG_LOG` | off | `1`/`true`/`yes`/`on` logs prompts to local stderr. Never sent in responses. |
 | `PORT` | `8000` | Listen port (`--port` overrides). |
@@ -153,7 +159,7 @@ Request (JSON):
 Pipeline, in order: PromptShrink → session cache (per session id,
 mode-aware key; a hit makes no model call and reports 0 new output tokens)
 → routing (or the explicit mode) → one call to the primary model
-(`openrouter/free` by default, then the fallbacks if it fails) with the
+(`google/gemma-4-31b-it:free` by default, then the fallbacks if it fails) with the
 brevity system prompt and token cap, logprobs requested → `apply_brevity`
 safety-net trim. By default that is the only
 model call: `meta.escalated` is `false` and `meta.escalation_reason` is
@@ -196,7 +202,7 @@ replaced). Once the answer is final, it is sent to the browser:
   data: {"text":"DNS is the "}
 
   event: meta
-  data: {"mode":"sprout","model":"openrouter/free","escalated":false,"cache_hit":false,...}
+  data: {"mode":"sprout","model":"google/gemma-4-31b-it:free","escalated":false,"cache_hit":false,...}
 
   event: done
   data: {}
@@ -245,7 +251,7 @@ fallback chain has run (see "Model and fallbacks").
 
 ### `GET /api/health`
 
-`{"status":"ok","configured":false,"model":"openrouter/free","fallbacks":["liquid/lfm-2.5-2.6b:free","google/gemma-4-31b-it:free","thinkingmachines/inkling-small:free","poolside/laguna-xs-2.1:free"],"escalation_model":"openrouter/free","cascade_enabled":false,"cascade_threshold":-1.0,"rate_limit_per_hour":100,"provider_streaming":false}`.
+`{"status":"ok","configured":false,"model":"google/gemma-4-31b-it:free","fallbacks":["liquid/lfm-2.5-2.6b:free","thinkingmachines/inkling-small:free","poolside/laguna-xs-2.1:free","openrouter/free"],"escalation_model":"google/gemma-4-31b-it:free","cascade_enabled":false,"cascade_threshold":-1.0,"rate_limit_per_hour":100,"provider_streaming":false}`.
 Never includes the key.
 
 ## Security and limits
@@ -307,8 +313,8 @@ Never includes the key.
   latency and measured savings are unmeasured. The fallback chain and the
   error mapping are tested with fake providers only.
 - **Provider data policy check** (retention and training, for the exact
-  account settings and every model `openrouter/free` and the fallbacks
-  may route to) before any privacy claim.
+  account settings, the primary model, the fallbacks, and every model the
+  last-resort `openrouter/free` may route to) before any privacy claim.
 - **Hosting account** (GCP, Vercel or Cloudflare) for any deployment.
 - **Domain** for a public origin and the matching CORS setting.
 
