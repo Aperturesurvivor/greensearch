@@ -1,5 +1,12 @@
 # Changelog
 
+- **Unreleased -- Arboris landscape redesign (to push):**
+  - Website completely redesigned from the TaniScan-inspired canopy option, with Grant's landscape photo (mountain forest at sunset, 2400x1350) as the full-bleed background instead of the AI canopy, embedded in the page as a data URI (the GitHub snapshot push cannot carry binary files, so the photo is not a separate repo asset).
+  - Green filter turned way down: scrim was a uniform 78% dark green, now a gradient mostly 30-35%, 70% only at the very top for nav/headline readability, 50% at the bottom for the chat. The photo shows through clearly; white text over the bright sunset sky is the tightest contrast case and still needs Grant's browser pass.
+  - Live mode is now always visible: a pill in the header nav ("Live: off" / solid green "LIVE"), opening a slim row under the nav with the backend URL field, baseline checkbox, warning, and live totals. It is no longer buried in a settings drawer.
+  - No big totals boxes: savings as small inline metadata under each answer and small leader-line stats, per the earlier brief. All 95 topics, demo + live mode, PromptShrink preview, Copy/Regenerate/Edit, history, and How-it-works kept.
+  - Option 2 (Vario-inspired canopy/landscape) is NOT pushed and is kept as a fallback: ~/workspace/your_files/arboris-redesign-options/option-2-landscape.html (and forest-canopy-vario.html).
+
 - **Unreleased -- Phase 2 (local only, not deployed, not pushed):**
   - Model, CORS and site pass (local only; version stays 0.8.0):
     - Default model is now `google/gemma-4-31b-it:free`, a named general
