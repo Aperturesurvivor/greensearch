@@ -1,5 +1,10 @@
 # Changelog
 
+- **Unreleased -- Website restored to pre-breakage version (2026-10-28):**
+  - `website/index.html` restored byte-for-byte to commit `e911b6d6` (Claude UNDERSTORY, live-first copy applied), the version live at the PromptShrink v2 report, before the hide cleanup, live-only deletion, hero-removal, and third-version changes that broke the chat.
+  - Restored: hero photo + title, sidebar (How + Finland panels), features section, main chat input, Live toggle (on by default on `*.run.app`, off elsewhere), 95-topic demo library as fallback, and demo conversation memory. Google Fonts stay removed, as in `e911b6d6`.
+  - Site tests reverted to match: `test_website_live_mode_off_by_default` and the expanded-topic JS parity test are back; the live-only assertions are gone. Server safeguards and small-model routing are untouched (server-only, still unpushed separately).
+
 - **Unreleased -- POC abuse safeguards (2026-10-28):**
   - Per-IP caps tightened: 30/hour (was 100) plus a new 100/day per-IP cap, and a new 800/day global cap across all IPs, all rolling windows, all env-overridable (0 disables each). The global cap sits below OpenRouter's free-model daily quota (1000/day after a $10 credit), so abuse burns the day's allowance, not the credit balance.
   - Paid models blocked by default: server refuses to start on a non-free primary, fallback, or escalation model unless `GREENSEARCH_ALLOW_PAID_MODELS=1` is set deliberately. Default chain stays free-only, so the $10 credit is not spent by normal traffic.
