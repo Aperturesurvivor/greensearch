@@ -1,6 +1,14 @@
 # Changelog
 
 - **Unreleased -- Phase 2 (local only, not deployed, not pushed):**
+  - Cloud Run prep (not deployed, no GCP account used): `Dockerfile`
+    (Python 3.12-slim, stdlib only, binds 0.0.0.0 and reads $PORT),
+    `.dockerignore` (never ships `.env`), and `server/CLOUDRUN.md`
+    (project, Secret Manager key, deploy, CORS allowlist update, and
+    teardown steps). Website live URL now defaults to the same origin
+    on `*.run.app` hosts, so a Cloud Run deployment works without
+    editing the URL field; everywhere else it still defaults to
+    localhost, and a saved URL always wins.
   - Fixed after the first local live run (2026-10-27, OpenRouter key in a
     local `.env`), tested with fake providers only:
     - Default model is now `openrouter/free` (server default and

@@ -1485,7 +1485,13 @@ SAMPLES.forEach(function(s){
    lives in this page. Live answers and totals are kept apart from the demo
    ones and are not written to localStorage; only the backend URL is. */
 var LIVE_URL_KEY='greensearch-live-backend-url';
-var LIVE_DEFAULT_URL='http://localhost:8000/api/chat';
+/* On a Cloud Run host (*.run.app) the backend serves this page, so the
+   live URL defaults to the same origin. Everywhere else (including the
+   GitHub Pages demo, which has no backend) it defaults to localhost,
+   where a locally-run server is expected. A saved URL always wins. */
+var LIVE_DEFAULT_URL=(window.location.hostname&&/\.run\.app$/i.test(window.location.hostname))
+  ?window.location.origin+'/api/chat'
+  :'http://localhost:8000/api/chat';
 var liveOn=false,liveTurns=[],liveTotals=zeroLive(),liveCtrls=[];
 var liveSession=newLiveSession();
 var liveToggle=document.getElementById('live-toggle');

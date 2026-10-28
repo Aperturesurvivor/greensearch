@@ -1,0 +1,10 @@
+# Never put a real key, a local .env, or test artefacts in the image.
+.env
+__pycache__/
+*.pyc
+.git/
+tests/
+scripts/
+results/
+spec/
+docs/
