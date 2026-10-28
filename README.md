@@ -82,13 +82,59 @@ harness asks the model for a short answer (system prompt) and caps its output
 then uses the provider-reported generated tokens, which shows that trimming
 after the fact saves nothing.
 
+## Unreleased -- Phase 2 (local only, not deployed, not pushed)
+
+Built and tested locally. Not released, not deployed, not pushed. The
+version stays 0.8.0.
+
+- **`server/app.py`**: a thin backend, stdlib only. `POST /api/chat` and
+  `GET /api/health`, and it also serves the website at `/`. Run it with
+  `python3 server/app.py` (port 8000, or `PORT` / `--port`); `--help`
+  lists every env var. The key, base URL, model, cascade threshold, CORS
+  origins, rate limit and debug logging all come from the environment
+  only. Per request: PromptShrink → per-session, mode-aware cache → routing
+  → one call to **Qwen3-8B** (`qwen/qwen3-8b`, `GREENSEARCH_MODEL`) with
+  the brevity prompt, token cap and logprobs → `apply_brevity`. There is
+  no escalation call by default. The logprob cascade runs only if
+  `GREENSEARCH_ESCALATION_MODEL` is set to a different model, and then an
+  escalation failure returns an error, never a downgrade. Answers
+  stream as SSE (chunk, meta, done), with a JSON fallback (`"stream": false`).
+  The provider itself is called without streaming because the brevity
+  trim (and the optional cascade) needs the full answer first. Errors are plain messages (503 not
+  configured, 502 provider unreachable, 429 rate limited, 400 invalid). It
+  has a per-IP in-memory rate limit and an exact-origin CORS allowlist
+  (never `*`). See [`server/README.md`](server/README.md).
+- **Website Live mode**: a labelled toggle, OFF on every load. With it off,
+  the demo behaves exactly as before. With it on, the page shows a LIVE
+  pill and a banner saying it is not browser-only. It sends the raw prompt
+  to an editable backend URL (stored under `greensearch-live-backend-url`),
+  renders streamed chunks, and shows the model, escalation, cache hit,
+  tokens and latency. Backend errors show as plain chat messages. Live
+  totals are in a separate LIVE row, never mixed with demo estimates. A
+  **Measure baseline** checkbox (off by default) makes a second,
+  unconstrained call to measure savings, which doubles API cost.
+- **`tests/test_live_backend.py`**: 41 tests, with fake providers only and
+  no key or network (the HTTP tests use loopback).
+- **`.env.example`**: placeholders only, `GREENSEARCH_MODEL=qwen/qwen3-8b`.
+
+Model decision: Phase 2 uses Qwen3-8B only, the model we already have data
+on. The earlier 4B-first pipeline and the Qwen3-4B vs 8B comparison were
+dropped by the user. `scripts/compare_qwen.py` remains in the tree but is
+not needed for the model decision.
+
+Still blocked, on accounts rather than code: a provider API key (so no
+real model call has been made, and live savings and latency are
+unmeasured), a provider data-policy check (retention and training) before
+any privacy claim, a hosting account (Cloud Run europe-north1, Vercel or
+Cloudflare are noted as future options only), and a domain.
+
 ## Tests
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-99 tests, standard library only (tiktoken is an optional extra, tested
+137 tests, standard library only (tiktoken is an optional extra, tested
 separately in a venv). The website check needs Node and is skipped
 without it. `spec/routing_cases.json` holds hand-written routing expectations
 that both the Python router and the website's `routeMode()` must satisfy, so
@@ -149,6 +195,7 @@ session caching, and a logprob-gated cascade (`--cascade`).
 - `scripts/baseline_study.py`: canned/live baseline study over the corpus
 - `BASELINE.md`: baseline study results (canned until a live run is done)
 - `website/`: browser demo and its README
+- `server/`: Phase 2 live backend (local only) and its README; `.env.example` lists its settings
 - `CHANGELOG.md`: history, including the rename from EcoGPT
 
 MIT licensed. See `LICENSE`.

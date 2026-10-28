@@ -230,6 +230,24 @@ a:hover{text-decoration:underline}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--surface2);border:1px solid var(--border2);color:var(--ink);border-radius:var(--rs);padding:8px 16px;font-size:13px;opacity:0;transition:opacity .2s,transform .2s;z-index:200;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ── Live mode (off by default; needs a backend) ── */
+[hidden]{display:none!important}
+.live-pill{font-size:11px;font-weight:700;font-family:var(--font-mono);padding:2px 8px;border-radius:999px;background:var(--fo-bg);color:var(--fo-fg);border:1px solid color-mix(in srgb,var(--red) 40%,transparent);letter-spacing:.06em}
+.live-bar{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:4px 20px;border-bottom:1px solid var(--border);background:var(--surface);font-size:13px}
+.live-sw{display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--ink2);cursor:pointer;min-height:44px}
+.live-sw input{width:18px;height:18px;accent-color:var(--red);cursor:pointer}
+.live-opts{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;flex:1}
+.live-opts label{font-size:12.5px;color:var(--ink2)}
+.live-url{flex:1;min-width:220px;max-width:420px;min-height:36px;background:var(--surface2);border:1px solid var(--border);color:var(--ink);border-radius:var(--rs);padding:6px 10px;font:13px var(--font-mono)}
+.live-url:focus{border-color:var(--red);outline:none}
+.live-banner{width:100%;background:var(--fo-bg);color:var(--fo-fg);border:1px solid color-mix(in srgb,var(--red) 35%,transparent);border-radius:var(--rs);padding:6px 10px;font-size:12.5px;font-weight:600;margin-bottom:4px}
+.ti-lbl{flex:0 0 auto;display:flex;align-items:center;justify-content:center;font:700 11px var(--font-mono);letter-spacing:.06em;color:var(--ink2);padding:8px 14px;border-right:1px solid var(--border);text-align:center}
+.totals-live .tn{color:var(--red)}
+.totals-live .tn.sm{font-size:16px}
+.mr.bot .bubble.err{border-color:var(--red);color:var(--red)}
+.tag.tg-live{background:var(--fo-bg);color:var(--fo-fg)}
+.tag.tg-info{background:var(--surface2);border:1px solid var(--border);color:var(--ink2)}
+
 @media(max-width:540px){
   .ti{min-width:80px;padding:8px 10px}
   .tn{font-size:19px}
@@ -250,7 +268,8 @@ a:hover{text-decoration:underline}
 <header class="hd">
   <div class="hd-l">
     <div class="logo"><div class="logo-icon" aria-hidden="true">🌿</div>GreenSearch</div>
-    <span class="demo-pill">DEMO</span>
+    <span class="demo-pill" id="demo-pill">DEMO</span>
+    <span class="live-pill" id="live-pill" hidden title="Live mode: prompts go to your configured backend">LIVE</span>
   </div>
   <div class="hd-r">
     <button class="icon-btn" id="how-btn" type="button" aria-label="How this demo works" aria-haspopup="dialog" title="How this demo works"><span aria-hidden="true">ⓘ</span><span class="lbl">How this demo works</span></button>
@@ -260,12 +279,32 @@ a:hover{text-decoration:underline}
   </div>
 </header>
 
+<div class="live-bar" id="live-bar">
+  <label class="live-sw"><input type="checkbox" id="live-toggle" autocomplete="off" aria-describedby="live-banner"> Live mode (uses a backend, off by default)</label>
+  <div class="live-opts" id="live-opts" hidden>
+    <label for="live-url">Backend URL</label>
+    <input class="live-url" id="live-url" type="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:8000/api/chat">
+    <label class="live-sw"><input type="checkbox" id="live-baseline" autocomplete="off"> Measure baseline (a second, unconstrained call per message: doubles API cost)</label>
+  </div>
+  <div class="live-banner" id="live-banner" role="note" hidden>Live mode sends your prompt to the backend you configured -- it is NOT browser-only. The backend forwards it to its model provider.</div>
+</div>
+
 <div class="totals" id="totals" aria-label="Session totals">
+  <div class="ti-lbl" id="demo-tot-lbl" hidden>DEMO<br>estimates</div>
   <div class="ti"><span class="tn" id="t-calls">0</span><span class="tl">messages</span></div>
   <div class="ti"><span class="tn" id="t-base">0</span><span class="tl">baseline tokens</span></div>
   <div class="ti"><span class="tn" id="t-green">0</span><span class="tl">GreenSearch tokens</span></div>
   <div class="ti"><span class="tn" id="t-saved">0</span><span class="tl">tokens saved</span></div>
   <div class="ti"><span class="tn" id="t-co2">0.00g</span><span class="tl">CO₂e saved (est.)</span><span class="te" id="t-eq"></span></div>
+</div>
+<div class="totals totals-live" id="totals-live" aria-label="Live totals (provider-reported, kept separate from demo totals)" hidden>
+  <div class="ti-lbl">LIVE<br>provider-reported</div>
+  <div class="ti"><span class="tn" id="lt-calls">0</span><span class="tl">live answers</span></div>
+  <div class="ti"><span class="tn" id="lt-in">0</span><span class="tl">input tokens</span></div>
+  <div class="ti"><span class="tn" id="lt-out">0</span><span class="tl">output tokens</span><span class="te" id="lt-unrep"></span></div>
+  <div class="ti"><span class="tn" id="lt-hits">0</span><span class="tl">cache hits</span></div>
+  <div class="ti"><span class="tn" id="lt-esc">0</span><span class="tl">escalations</span></div>
+  <div class="ti"><span class="tn" id="lt-saved">—</span><span class="tl" id="lt-saved-lbl">saved vs baseline (measured)</span></div>
 </div>
 
 <div class="main">
@@ -327,7 +366,7 @@ a:hover{text-decoration:underline}
       </details>
       <details>
         <summary>Honest limits</summary>
-        <p>No live model. Answers are pre-written for 95 topics. Anything outside the library gets an honest fallback, not a made-up answer.</p>
+        <p>Demo mode has no live model. Answers are pre-written for 95 topics. Anything outside the library gets an honest fallback, not a made-up answer. Live mode (off by default) needs a GreenSearch backend that you run yourself.</p>
       </details>
     </div>
 
@@ -344,7 +383,7 @@ a:hover{text-decoration:underline}
 </div>
 
 <div class="ft">
-  <span>GreenSearch · portfolio demo · nothing leaves your browser</span>
+  <span id="ft-note">GreenSearch · portfolio demo · nothing leaves your browser</span>
   <span>Grant O'Brien · <a href="https://github.com/succulentsdev" target="_blank" rel="noopener">succulentsdev</a></span>
 </div>
 
@@ -377,12 +416,14 @@ a:hover{text-decoration:underline}
     <ul>
       <li><b>A backend.</b> An API key can't safely sit in a browser page, so a small server would make the model calls.</li>
       <li><b>A real tokenizer.</b> Token counts would come from the model provider instead of words × 1.33.</li>
-      <li><b>A logprob cascade.</b> A small model answers first, and the question goes to a larger model only when the small model's own token log-probabilities show low confidence. The Python package sketches this, but this page doesn't use it.</li>
+      <li><b>A logprob cascade.</b> A small model answers first, and the question goes to a larger model only when the small model's own token log-probabilities show low confidence. The Python package and the optional live backend do this; demo mode doesn't.</li>
       <li><b>Finland hosting.</b> Running in Google Cloud Finland (europe-north1, about 98% carbon-free energy) is a separate lever on top of token savings. This page runs on your device, not in Finland.</li>
       <li>All the savings would need to be measured again. The percentages shown here would not carry over automatically.</li>
     </ul>
+    <h3>Live mode (optional, off by default)</h3>
+    <p>The <b>Live mode</b> switch sends each question to a GreenSearch backend at the URL you enter (default <code>http://localhost:8000/api/chat</code>, i.e. <code>python server/app.py</code> on your own machine). The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used, whether it escalated, cache hits, provider-reported tokens and latency. Live totals sit in their own LIVE row and are never added to the demo estimates. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers aren't saved in localStorage; only the backend URL is, under <code>greensearch-live-backend-url</code>.</p>
     <h3>Privacy</h3>
-    <p>The whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them.</p>
+    <p>In demo mode (the default) the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
   </div>
 </dialog>
 
@@ -821,6 +862,7 @@ function zeroTotals(){return{calls:0,base:0,green:0,saved:0,co2:0};}
 var cache={},totals=zeroTotals(),history=[],turns=[];
 var epoch=0;          /* bumped on clear/edit so in-flight animations stop */
 var restored=false;   /* show the 'Restored' note after re-renders */
+var seqCounter=0;     /* display order shared by demo turns and live turns */
 var reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 var chatEl=document.getElementById('chat');
 var inputEl=document.getElementById('ci');
@@ -1157,7 +1199,10 @@ function renderAll(){
   chatEl.innerHTML='';
   addWelcome();
   if(restored)addRestoreNote();
-  turns.forEach(renderTurnStatic);
+  /* Live turns keep their own DOM; re-attach them in send order between demo turns. */
+  turns.concat(liveTurns).sort(function(a,b){return(a.seq||0)-(b.seq||0);}).forEach(function(t){
+    if(t.live)chatEl.appendChild(t.el);else renderTurnStatic(t);
+  });
 }
 
 /* ── Welcome ── */
@@ -1187,7 +1232,7 @@ function send(raw){
   if(!raw.trim())return;
   var r=integrateChat(raw,cache);
   if(r.empty)return;
-  var t={raw:raw,bypass:false,r:r};
+  var t={raw:raw,bypass:false,r:r,seq:++seqCounter};
   turns.push(t);
   addContribution(r,1);history.push(histEntry(raw,r));
   renderTotals();renderHistory();saveState();
@@ -1261,7 +1306,7 @@ inputEl.addEventListener('input',function(){
     if(!raw.trim()){prevEl.innerHTML='';prevEl.className='ip-preview';var be=document.getElementById('shrink-bar');if(be)be.classList.remove('active');return;}
     var shrunk=shrinkPrompt(raw);
     if(shrunk===raw||!shrunk){
-      prevEl.innerHTML='PromptShrink: no change';
+      prevEl.innerHTML=liveOn?'PromptShrink preview: no change (the backend shrinks on send)':'PromptShrink: no change';
       prevEl.className='ip-preview';
       var barEl=document.getElementById('shrink-bar');
       if(barEl)barEl.classList.remove('active');
@@ -1271,7 +1316,7 @@ inputEl.addEventListener('input',function(){
       var saved=estTokens(raw)-estTokens(shrunk);
       prevEl.className='ip-preview active';
       prevEl.innerHTML='';
-      prevEl.appendChild(document.createTextNode('PromptShrink: '));
+      prevEl.appendChild(document.createTextNode(liveOn?'PromptShrink preview (the backend shrinks on send): ':'PromptShrink: '));
       if(removed.length){var px=document.createElement('span');px.className='px';px.textContent=removed.join(' ');prevEl.appendChild(px);prevEl.appendChild(document.createTextNode(' '));}
       if(diff&&diff.added.length){var ad=document.createElement('span');ad.style.cssText='color:var(--amber);font-style:italic';ad.textContent='→ '+diff.added.join(' ');prevEl.appendChild(ad);prevEl.appendChild(document.createTextNode(' '));}
       var sv=document.createElement('span');sv.style.opacity='.7';sv.textContent=saved+' token'+(saved!==1?'s':'')+' saved';prevEl.appendChild(sv);
@@ -1290,8 +1335,10 @@ document.getElementById('sb').addEventListener('click',doSend);
 function doSend(){
   var v=inputEl.value;inputEl.value='';
   prevEl.innerHTML='';prevEl.className='ip-preview';cntEl.textContent='';
-  send(v);
+  ask(v);
 }
+/* Demo mode (default): canned, browser-only. Live mode: the backend answers. */
+function ask(raw){if(liveOn)sendLive(raw);else send(raw);}
 
 /* ── Clear (also wipes the saved session) ── */
 document.getElementById('cb').addEventListener('click',function(){
@@ -1306,6 +1353,7 @@ document.getElementById('cb').addEventListener('click',function(){
   document.getElementById('stats-panel').style.display='none';
   document.getElementById('hist-panel').style.display='none';
   document.getElementById('hist-list').innerHTML='';
+  resetLive();
   addWelcome();
   showToast('Chat cleared, saved session deleted.');
 });
@@ -1313,7 +1361,7 @@ document.getElementById('cb').addEventListener('click',function(){
 /* ── Export chat as Markdown (local Blob download, no server) ── */
 function pad2(n){return(n<10?'0':'')+n;}
 document.getElementById('export-btn').addEventListener('click',function(){
-  if(!turns.length){showToast('Nothing to export yet.');return;}
+  if(!turns.length&&!liveTurns.length){showToast('Nothing to export yet.');return;}
   var d=new Date();
   var stamp=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes())+pad2(d.getSeconds());
   var lbl={sprout:'Sprout',canopy:'Canopy',forest:'Forest'};
@@ -1338,6 +1386,16 @@ document.getElementById('export-btn').addEventListener('click',function(){
     '- GreenSearch tokens: '+totals.green,
     '- Tokens saved: '+totals.saved+' ('+pct+'%)',
     '- CO₂e saved (est.): '+totals.co2.toFixed(4)+' g','');
+  if(liveTurns.length){
+    L.push('## Live answers (from your backend, not the demo)','',
+      '> Real model answers from the backend URL you configured. Token counts are provider-reported; they are not included in the demo totals above.','');
+    liveTurns.forEach(function(t,i){
+      L.push('### Live '+(i+1)+'. '+short(t.raw).replace(/[#\n]/g,' '),'');
+      t.raw.split('\n').forEach(function(line){L.push('> '+line);});
+      L.push('',t.error?('**Error:** '+t.error):t.answer,'');
+      if(t.meta)L.push('- '+liveMetaLine(t.meta),'');
+    });
+  }
   var name='greensearch-chat-'+stamp+'.md';
   var url=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/markdown;charset=utf-8'}));
   var a=document.createElement('a');a.href=url;a.download=name;a.style.display='none';
@@ -1368,7 +1426,7 @@ var CATALOG=topicCatalog();
 var tbList=document.getElementById('tb-list'),tbSearch=document.getElementById('tb-search'),tbCount=document.getElementById('tb-count');
 function askTopic(q){
   if(isNarrow())setSide(false);
-  inputEl.value='';send(q);inputEl.focus();
+  inputEl.value='';ask(q);inputEl.focus();
 }
 function renderTopics(){
   var f=tbSearch.value.toLowerCase().trim(),shown=0;
@@ -1416,14 +1474,235 @@ var chipsEl=document.getElementById('chips');
 SAMPLES.forEach(function(s){
   var b=document.createElement('button');
   b.type='button';b.className='chip';b.textContent=s;
-  b.addEventListener('click',function(){inputEl.value='';send(s);inputEl.focus();});
+  b.addEventListener('click',function(){inputEl.value='';ask(s);inputEl.focus();});
   chipsEl.appendChild(b);
 });
+
+/* ═══ Live mode ═══
+   OFF on every page load. When ON, questions go to the backend URL below as
+   the raw text: the backend runs PromptShrink, cache, routing, the 4B→8B
+   cascade and the brevity trim, so nothing is shrunk twice. No API key ever
+   lives in this page. Live answers and totals are kept apart from the demo
+   ones and are not written to localStorage; only the backend URL is. */
+var LIVE_URL_KEY='greensearch-live-backend-url';
+var LIVE_DEFAULT_URL='http://localhost:8000/api/chat';
+var liveOn=false,liveTurns=[],liveTotals=zeroLive(),liveCtrls=[];
+var liveSession=newLiveSession();
+var liveToggle=document.getElementById('live-toggle');
+var liveUrlEl=document.getElementById('live-url');
+var liveBaselineEl=document.getElementById('live-baseline');
+function zeroLive(){return{calls:0,inTok:0,outTok:0,unreported:0,hits:0,esc:0,measured:0,saved:0};}
+function newLiveSession(){
+  var a=new Uint8Array(12),s='web-';
+  if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(a);
+  else for(var i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);
+  for(var j=0;j<a.length;j++)s+=(a[j]<16?'0':'')+a[j].toString(16);
+  return s;
+}
+function loadLiveUrl(){
+  try{var u=localStorage.getItem(LIVE_URL_KEY);if(u)return u;}catch(e){}
+  return LIVE_DEFAULT_URL;
+}
+liveUrlEl.value=loadLiveUrl();
+liveUrlEl.addEventListener('change',function(){
+  var u=liveUrlEl.value.trim()||LIVE_DEFAULT_URL;liveUrlEl.value=u;
+  try{localStorage.setItem(LIVE_URL_KEY,u);}catch(e){}
+});
+/* Browsers can restore checkbox state on reload: force both off. */
+liveToggle.checked=false;liveBaselineEl.checked=false;
+liveToggle.addEventListener('change',function(){setLive(liveToggle.checked);});
+liveBaselineEl.addEventListener('change',function(){
+  if(liveBaselineEl.checked)showToast('Measure baseline ON: every live message now costs two API calls.');
+});
+function setLive(on){
+  liveOn=on;
+  ['live-pill','live-opts','live-banner','totals-live','demo-tot-lbl'].forEach(function(id){document.getElementById(id).hidden=!on;});
+  document.getElementById('demo-pill').hidden=on;
+  document.getElementById('ft-note').textContent=on
+    ?'GreenSearch · LIVE mode · your prompts go to the backend you configured'
+    :'GreenSearch · portfolio demo · nothing leaves your browser';
+  if(!on)liveBaselineEl.checked=false;
+  renderLiveTotals();
+  showToast(on?'Live mode ON: prompts go to your backend.':'Live mode OFF: back to the browser-only demo.');
+}
+function resetLive(){
+  liveCtrls.forEach(function(c){try{c.abort();}catch(e){}});
+  liveCtrls=[];liveTurns=[];liveTotals=zeroLive();liveSession=newLiveSession();
+  renderLiveTotals();
+}
+function renderLiveTotals(){
+  var T=liveTotals;
+  function set(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+  set('lt-calls',T.calls);set('lt-in',T.inTok);set('lt-out',T.outTok);
+  set('lt-hits',T.hits);set('lt-esc',T.esc);
+  set('lt-unrep',T.unreported?('+'+T.unreported+' not reported'):'');
+  set('lt-saved',T.measured?T.saved:'—');
+  set('lt-saved-lbl',T.measured?('saved vs baseline (measured, '+T.measured+' msg'+(T.measured!==1?'s':'')+')'):'saved vs baseline (measured)');
+}
+function isNum(v){return typeof v==='number'&&isFinite(v);}
+function liveMetaLine(m){
+  var p=[];
+  p.push('mode: '+(m.mode==='full'?'forest':m.mode));
+  if(m.cache_hit)p.push('cache hit (0 new tokens'+(m.cached_from_model?', answer from '+m.cached_from_model:'')+')');
+  else p.push('model: '+m.model,m.escalated?'escalated':'not escalated');
+  if(isNum(m.input_tokens)&&isNum(m.output_tokens))p.push('tokens in '+m.input_tokens+' / out '+m.output_tokens);
+  else p.push('tokens not reported by provider');
+  if(isNum(m.latency_ms))p.push(m.latency_ms+' ms');
+  if(m.baseline){
+    if(m.baseline.error)p.push('baseline: '+m.baseline.error);
+    else if(isNum(m.baseline.saved_total_tokens))p.push('measured saving: '+m.baseline.saved_total_tokens+' tokens vs unconstrained baseline');
+    else p.push('baseline: '+(m.baseline.note||'not measured'));
+  }
+  return p.join(' · ');
+}
+function infoTag(text,title,cls){
+  var t=document.createElement('span');t.className='tag '+(cls||'tg-info');t.textContent=text;
+  if(title)t.title=title;return t;
+}
+function liveMetaRow(t){
+  var m=t.meta,mm=document.createElement('div');mm.className='mm';
+  mm.appendChild(infoTag('LIVE','Answered by your backend, not the demo','tg-live'));
+  mm.appendChild(modeTag(m.mode==='full'?'forest':m.mode,!!m.cache_hit,m.mode_source==='explicit'?'Mode chosen explicitly':'Mode picked by the backend router'));
+  if(!m.cache_hit){
+    mm.appendChild(infoTag(String(m.model),'Model that produced this answer'));
+    mm.appendChild(infoTag(m.escalated?'↑ escalated':'no escalation',m.escalation_reason||''));
+  } else if(m.cached_from_model){
+    mm.appendChild(infoTag('from '+m.cached_from_model+(m.cached_answer_was_escalated?' (escalated)':''),'Cached answer: no model was called for this message'));
+  }
+  mm.appendChild(infoTag(isNum(m.input_tokens)&&isNum(m.output_tokens)?(m.input_tokens+' in / '+m.output_tokens+' out'):'tokens not reported','Provider-reported tokens for this message'));
+  if(isNum(m.latency_ms))mm.appendChild(infoTag(m.latency_ms+' ms','Backend latency'));
+  if(m.baseline){
+    var b=m.baseline;
+    mm.appendChild(infoTag(b.error?'baseline failed':(isNum(b.saved_total_tokens)?'saved '+b.saved_total_tokens+' (measured)':'baseline: no counts'),b.error||b.note||''));
+  }
+  mm.appendChild(actBtn('⧉ Copy','Copy live answer to: '+short(t.raw),function(){copyText(t.answer,'Answer copied!');}));
+  return mm;
+}
+/* Minimal SSE block parser: "event: x" + "data: <json>" lines. */
+function parseSSEBlock(block){
+  var ev='message',data=[];
+  block.split(/\r?\n/).forEach(function(line){
+    if(!line||line.charAt(0)===':')return;
+    var i=line.indexOf(':'),f=i<0?line:line.slice(0,i),v=i<0?'':line.slice(i+1);
+    if(v.charAt(0)===' ')v=v.slice(1);
+    if(f==='event')ev=v;else if(f==='data')data.push(v);
+  });
+  if(!data.length)return null;
+  try{return{event:ev,data:JSON.parse(data.join('\n'))};}catch(e){return null;}
+}
+/* POST to the backend; on = {chunk(text), meta(obj), error(msg), done()}. */
+function liveRequest(url,body,on){
+  var ctrl=window.AbortController?new AbortController():null;
+  if(ctrl)liveCtrls.push(ctrl);
+  var settled=false,gotResponse=false;
+  function finish(){settled=true;if(ctrl)liveCtrls=liveCtrls.filter(function(c){return c!==ctrl;});}
+  function fail(msg){if(settled)return;finish();on.error(msg);}
+  function handle(block){
+    if(settled)return;
+    var e=parseSSEBlock(block);if(!e)return;
+    if(e.event==='chunk'&&e.data&&typeof e.data.text==='string')on.chunk(e.data.text);
+    else if(e.event==='meta')on.meta(e.data||{});
+    else if(e.event==='error')fail(e.data&&typeof e.data.error==='string'?e.data.error:'The backend reported an error.');
+    else if(e.event==='done'){finish();on.done();}
+  }
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream, application/json'},
+    body:JSON.stringify(body),credentials:'omit',cache:'no-store',signal:ctrl?ctrl.signal:undefined})
+  .then(function(res){
+    gotResponse=true;
+    var ct=res.headers.get('Content-Type')||'';
+    if(!res.ok){
+      return res.text().then(function(txt){
+        var msg=null;try{var j=JSON.parse(txt);if(j&&typeof j.error==='string')msg=j.error;}catch(e){}
+        fail(msg||('The backend returned an error (HTTP '+res.status+').'));
+      });
+    }
+    if(ct.indexOf('text/event-stream')<0){
+      /* Non-streaming JSON fallback: {answer, meta}. */
+      return res.json().then(function(j){
+        if(!j||typeof j.answer!=='string')throw new Error('bad shape');
+        on.chunk(j.answer);on.meta(j.meta||{});finish();on.done();
+      });
+    }
+    var reader=res.body.getReader(),dec=new TextDecoder(),buf='';
+    function pump(){
+      return reader.read().then(function(r){
+        if(r.done){
+          buf+=dec.decode();if(buf.trim())handle(buf);
+          fail('The answer stream ended early. Try again.');
+          return;
+        }
+        buf+=dec.decode(r.value,{stream:true});
+        var parts=buf.split(/\r?\n\r?\n/);buf=parts.pop();
+        parts.forEach(handle);
+        if(!settled)return pump();
+      });
+    }
+    return pump();
+  })
+  .catch(function(e){
+    if(e&&e.name==='AbortError'){finish();return;}
+    fail(gotResponse?'The backend sent a reply this page could not read. Try again.'
+      :'Could not reach the backend at '+url+'. Is it running, and does it allow this page\'s origin?');
+  });
+}
+function sendLive(raw){
+  if(!raw.trim())return;
+  var url=liveUrlEl.value.trim()||LIVE_DEFAULT_URL;
+  var t={live:true,raw:raw,seq:++seqCounter,answer:'',meta:null,error:null};
+  liveTurns.push(t);
+  var wrap=document.createElement('div');wrap.className='turn';t.el=wrap;
+  var urow=document.createElement('div');urow.className='mr user';
+  var ub=document.createElement('div');ub.className='bubble';ub.textContent=raw;
+  urow.appendChild(ub);wrap.appendChild(urow);chatEl.appendChild(wrap);
+  chatEl.scrollTop=chatEl.scrollHeight;
+  var ind=addTypingIndicator(wrap),bubble=null;
+  function ensureBubble(cls){
+    if(ind){ind.remove();ind=null;}
+    if(!bubble){
+      var row=document.createElement('div');row.className='mr bot';
+      bubble=document.createElement('div');bubble.className='bubble'+(cls?' '+cls:'');
+      row.appendChild(bubble);wrap.appendChild(row);
+    }
+    return bubble;
+  }
+  if(!/^https?:\/\//i.test(url)){
+    t.error='The backend URL must start with http:// or https://.';
+    ensureBubble('err').textContent=t.error;return;
+  }
+  liveRequest(url,{prompt:raw,session_id:liveSession,mode:'auto',stream:true,measure_baseline:!!liveBaselineEl.checked},{
+    chunk:function(text){
+      if(liveTurns.indexOf(t)<0)return;
+      t.answer+=text;ensureBubble('typing').textContent=t.answer;scrollBottom();
+    },
+    meta:function(m){t.meta=m;},
+    error:function(msg){
+      if(liveTurns.indexOf(t)<0)return;
+      t.error=msg;var b=ensureBubble('err');b.classList.remove('typing');b.classList.add('err');
+      b.textContent=(t.answer?t.answer+'\n\n':'')+'⚠ '+msg;
+      scrollBottom();announce('Live backend error: '+msg);
+    },
+    done:function(){
+      if(liveTurns.indexOf(t)<0)return;
+      var b=ensureBubble();b.classList.remove('typing');
+      var m=t.meta||{};t.meta=m;
+      wrap.appendChild(liveMetaRow(t));scrollBottom();
+      if(m.cache_hit)showCacheFlash();
+      var T=liveTotals;T.calls++;
+      if(m.cache_hit)T.hits++;
+      if(m.escalated)T.esc++;
+      if(isNum(m.input_tokens)&&isNum(m.output_tokens)){T.inTok+=m.input_tokens;T.outTok+=m.output_tokens;}
+      else T.unreported++;
+      if(m.baseline&&isNum(m.baseline.saved_total_tokens)){T.measured++;T.saved+=m.baseline.saved_total_tokens;}
+      renderLiveTotals();
+      announce('Live answer ('+liveMetaLine(m)+'): '+t.answer);
+    }
+  });
+}
 
 /* ── Restore the last session (no animation, no re-counting) ── */
 var saved=loadState();
 if(saved){
-  turns=saved.turns.map(function(t){return{raw:t.raw,bypass:!!t.bypass,r:t.r};});
+  turns=saved.turns.map(function(t){return{raw:t.raw,bypass:!!t.bypass,r:t.r,seq:++seqCounter};});
   var st=saved.totals;
   totals={calls:+st.calls||0,base:+st.base||0,green:+st.green||0,saved:+st.saved||0,co2:+st.co2||0};
   history=Array.isArray(saved.history)&&saved.history.length===turns.length?saved.history

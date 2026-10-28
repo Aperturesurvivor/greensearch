@@ -1,5 +1,56 @@
 # Changelog
 
+- **Unreleased -- Phase 2 (local only, not deployed, not pushed):**
+  - Built: `server/app.py`, a stdlib-only backend with `POST /api/chat`
+    and `GET /api/health` that also serves the website at `/`. The key,
+    models, threshold, CORS origins, rate limit and debug logging are read
+    from env only. The pipeline reuses shrink → cache (per session id,
+    mode-aware) → router → one call to the single primary model,
+    Qwen3-8B (`GREENSEARCH_MODEL`, default `qwen/qwen3-8b`), with logprobs
+    requested and no escalation call → `apply_brevity`. The
+    `run_cascade` path (same system prompt and cap, escalation only on a
+    present, below-threshold mean logprob, an escalation failure returns
+    502 with no answer) runs only if `GREENSEARCH_ESCALATION_MODEL` is set
+    to a different model. Answers go out as SSE chunk/meta/done events, or JSON
+    with `"stream": false`. The provider is called without streaming
+    because the brevity trim needs the full answer first; meta
+    reports `delivery` and `provider_streaming: false`. Errors are plain
+    messages with no provider detail or key. The server has an in-memory
+    per-IP rate limit (default 100/h), an exact-origin CORS allowlist (`*`
+    refused), prompts kept out of logs by default, and an opt-in
+    measured baseline. `providers.py` is unchanged.
+  - Built: website Live mode, a toggle that is off on every load, so the
+    demo is unchanged when it is off. It adds a LIVE pill, a "not
+    browser-only" banner, an editable backend URL stored under
+    `greensearch-live-backend-url`, the raw prompt sent with no client
+    double-shrink, streamed rendering, and model, escalation, cache-hit,
+    token and latency tags. Backend errors show as chat messages. A
+    separate LIVE totals row keeps live numbers out of the demo totals.
+    A Measure baseline checkbox (off by default, doubles API cost) is
+    included. The How-it-works privacy text now distinguishes demo mode
+    (no network) from live mode.
+  - Built: `tests/test_live_backend.py` (41 tests, fake providers, no key,
+    no network beyond loopback), `server/README.md` and `.env.example`
+    (placeholders only). Tests: 99 to 140.
+  - Changed: model decision. Phase 2 now uses Qwen3-8B only
+    (`qwen/qwen3-8b`), the model we already have data on.
+    `GREENSEARCH_MODEL_4B` / `GREENSEARCH_MODEL_8B` are replaced by one
+    `GREENSEARCH_MODEL`; `GREENSEARCH_ESCALATION_MODEL` is an optional
+    override that defaults to the primary model, and while the two are
+    equal no escalation call is made (`escalated: false`, reason "single
+    model: no separate escalation model configured"). `/api/health` now
+    reports `model`, `escalation_model` and `cascade_enabled` instead of
+    `model_4b` / `model_8b`; the measured baseline uses the primary model.
+    The 4B-first pipeline and the Qwen3-4B vs 8B comparison were dropped
+    by the user. `scripts/compare_qwen.py` remains in the tree but is not
+    needed for the model decision.
+  - Not verified: no real provider call has been made (no key), and the
+    Live-mode UI has not been clicked through in a real browser; its
+    request and stream code was run under Node against the local server.
+  - Still blocked: a provider API key, a provider data-policy check
+    (retention and training) before any privacy claim, a hosting account (Cloud Run europe-north1, Vercel or
+    Cloudflare, noted as future options only), and a domain.
+    `pyproject.toml` version not bumped.
 - **0.8.0 (2026-10-27, expanded demo library):** expanded the offline
   demo from 6 to 95 topics: `spec/templates.json` adds 89 canned
   topics (technology, science, math, history, business, health,
