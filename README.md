@@ -93,15 +93,26 @@ version stays 0.8.0.
   lists every env var. The key, base URL, model, cascade threshold, CORS
   origins, rate limit and debug logging all come from the environment
   only. Per request: PromptShrink → per-session, mode-aware cache → routing
-  → one call to **Qwen3-8B** (`qwen/qwen3-8b`, `GREENSEARCH_MODEL`) with
-  the brevity prompt, token cap and logprobs → `apply_brevity`. There is
+  → one call to the primary model (`GREENSEARCH_MODEL`, default
+  `openrouter/free`: OpenRouter's router over its free models, not a named
+  model; free models are rate-limited and rotate) with the brevity
+  prompt, token cap and logprobs → `apply_brevity`. If that call fails
+  with HTTP 429/404/502/503 (or 402 when the next model is free), the
+  models in `GREENSEARCH_MODEL_FALLBACKS` are tried in order; 401 never
+  falls back. If a provider rejects logprobs, the same model is retried
+  once without them. `meta.model` reports the model id that answered
+  (`openrouter/free` itself when the router answered; `meta.provider_model`
+  passes through the response's own `model` field, unverified live). There is
   no escalation call by default. The logprob cascade runs only if
   `GREENSEARCH_ESCALATION_MODEL` is set to a different model, and then an
   escalation failure returns an error, never a downgrade. Answers
   stream as SSE (chunk, meta, done), with a JSON fallback (`"stream": false`).
   The provider itself is called without streaming because the brevity
   trim (and the optional cascade) needs the full answer first. Errors are plain messages (503 not
-  configured, 502 provider unreachable, 429 rate limited, 400 invalid). It
+  configured, 401 key rejected, 402 no credits for a paid model, 404 model
+  not found or deprecated, 429 rate limited, 502 provider unreachable,
+  400 invalid). A final sentence cut off at the token cap is dropped, or
+  marked with `…` when it is the whole answer, and `meta.truncated` says so. It
   has a per-IP in-memory rate limit and an exact-origin CORS allowlist
   (never `*`). See [`server/README.md`](server/README.md).
 - **Website Live mode**: a labelled toggle, OFF on every load. With it off,
@@ -113,13 +124,14 @@ version stays 0.8.0.
   totals are in a separate LIVE row, never mixed with demo estimates. A
   **Measure baseline** checkbox (off by default) makes a second,
   unconstrained call to measure savings, which doubles API cost.
-- **`tests/test_live_backend.py`**: 41 tests, with fake providers only and
+- **`tests/test_live_backend.py`**: 61 tests, with fake providers only and
   no key or network (the HTTP tests use loopback).
-- **`.env.example`**: placeholders only, `GREENSEARCH_MODEL=qwen/qwen3-8b`.
+- **`.env.example`**: placeholders only, `GREENSEARCH_MODEL=openrouter/free`
+  and the default `GREENSEARCH_MODEL_FALLBACKS` list.
 
-Model decision: Phase 2 uses Qwen3-8B only, the model we already have data
-on. The earlier 4B-first pipeline and the Qwen3-4B vs 8B comparison were
-dropped by the user. `scripts/compare_qwen.py` remains in the tree but is
+Model decision: the default was Qwen3-8B (`qwen/qwen3-8b`) until OpenRouter
+deprecated it on 2026-10-09; it is now `openrouter/free` with a fallback
+chain of free models. `scripts/compare_qwen.py` remains in the tree but is
 not needed for the model decision.
 
 Still blocked, on accounts rather than code: a provider API key (so no

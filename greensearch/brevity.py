@@ -25,6 +25,10 @@ _SIGN_OFF = re.compile(
     re.IGNORECASE,
 )
 _FENCE = re.compile(r"```.*?```", re.DOTALL)
+# A complete sentence ends in . ! ? (or an ellipsis), optionally followed
+# by closing quotes, brackets or markdown emphasis markers.
+_COMPLETE_END = re.compile(r"[.!?\u2026][\"'\u201d\u2019)\]*_]*$")
+ELLIPSIS = "\u2026"
 
 # Whole filler sentences. A sentence is dropped only if it matches in full,
 # so "Please let me know if you have any questions about the report." is
@@ -120,7 +124,21 @@ def apply_brevity(text, mode="full"):
     """Return text trimmed to the mode's sentence budget.
 
     Raises ValueError on an unknown mode or non-string input. Never
-    returns a half-sentence, and never splits a fenced code block.
+    returns a half-sentence, and never splits a fenced code block. See
+    apply_brevity_with_flag for how a cut-off final sentence is handled.
+    """
+    return apply_brevity_with_flag(text, mode)[0]
+
+
+def apply_brevity_with_flag(text, mode="full"):
+    """Like apply_brevity, but returns (trimmed_text, truncated).
+
+    A model that hits its token cap stops mid-sentence. If the last kept
+    prose sentence does not end in . ! ? (closing quotes, brackets or
+    emphasis markers allowed), it is dropped when another unit survives,
+    or, when it is the only unit, kept with an ellipsis appended so the
+    cut is visible. truncated is True in either case. List items, code
+    blocks, headers and sign-offs are never treated as fragments.
     """
     if mode not in BUDGETS:
         raise ValueError(
@@ -142,7 +160,7 @@ def apply_brevity(text, mode="full"):
     ]
 
     remaining = BUDGETS[mode]
-    out_paragraphs = []
+    out_paragraphs = []  # paragraphs -> lines -> (text, counts, sep) units
     for paragraph in paragraphs:
         kept_lines = []
         for line in _paragraph_units(paragraph):
@@ -155,13 +173,38 @@ def apply_brevity(text, mode="full"):
                 elif remaining <= 0 and _sep != "keep" and not _SIGN_OFF.match(unit_text):
                     # Free header: keep only while there is budget left.
                     break
-                kept_units.append(unit_text)
+                kept_units.append((unit_text, counts, _sep))
             if kept_units:
-                kept_lines.append(" ".join(kept_units))
+                kept_lines.append(kept_units)
         if kept_lines:
-            out_paragraphs.append("\n".join(kept_lines))
+            out_paragraphs.append(kept_lines)
 
-    result = "\n\n".join(out_paragraphs)
+    truncated = _fix_trailing_fragment(out_paragraphs)
+    result = "\n\n".join(
+        "\n".join(" ".join(u[0] for u in line) for line in para)
+        for para in out_paragraphs
+    )
     for i, block in enumerate(fences):
         result = result.replace(f"\x00{i}\x00", block)
-    return result
+    return result, truncated
+
+
+def _fix_trailing_fragment(paragraphs):
+    """Drop or mark a cut-off final prose sentence in place. True if changed."""
+    if not paragraphs:
+        return False
+    last_line = paragraphs[-1][-1]
+    unit_text, counts, sep = last_line[-1]
+    if (not counts or sep != " " or "\x00" in unit_text
+            or _COMPLETE_END.search(unit_text.rstrip())):
+        return False
+    others = sum(u[1] for para in paragraphs for line in para for u in line) - 1
+    if others > 0:
+        last_line.pop()
+        if not last_line:
+            paragraphs[-1].pop()
+            if not paragraphs[-1]:
+                paragraphs.pop()
+    else:
+        last_line[-1] = (unit_text.rstrip() + ELLIPSIS, counts, sep)
+    return True

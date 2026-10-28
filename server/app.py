@@ -11,10 +11,14 @@ Pipeline per chat request, in order:
      mode-aware. A hit makes no model call: 0 new output tokens.
   3. Auto routing (greensearch.router), unless the client sent a mode.
   4. One call to the primary model (GREENSEARCH_MODEL, default
-     qwen/qwen3-8b) with the brevity system prompt and token cap,
-     logprobs requested. By default that is the only model call:
-     escalated=false, reason "single model: no separate escalation
-     model configured".
+     openrouter/free, OpenRouter's free-model router rather than a named
+     model) with the brevity system prompt and token cap, logprobs
+     requested. By default that is the only model call: escalated=false,
+     reason "single model: no separate escalation model configured".
+     If that call fails with HTTP 429/404/502/503 (or 402 when the next
+     model is free), each GREENSEARCH_MODEL_FALLBACKS model is tried in
+     order until one answers; 401 fails at once. If a provider rejects
+     logprobs, the same model is retried once without them first.
      Optional cascade: only if GREENSEARCH_ESCALATION_MODEL is set to a
      DIFFERENT model does the logprob-gated cascade run
      (greensearch.cascade): if avg_logprob is present and below the
@@ -22,7 +26,9 @@ Pipeline per chat request, in order:
      prompt and cap. Missing logprobs never escalate. An escalation
      failure is an error to the client, never a silent fallback to the
      primary answer.
-  5. apply_brevity as a safety-net trim (greensearch.brevity).
+  5. apply_brevity as a safety-net trim (greensearch.brevity). A
+     cut-off final sentence is dropped (or marked with an ellipsis), and
+     meta "truncated" says so.
 
 Delivery: the provider is called WITHOUT streaming, because step 5
 needs the complete text to trim (and, with the optional cascade, step 4
@@ -52,7 +58,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from greensearch.brevity import apply_brevity  # noqa: E402
+from greensearch.brevity import apply_brevity_with_flag  # noqa: E402
 from greensearch.cache import SessionCache, cache_key  # noqa: E402
 from greensearch.cascade import CascadeResult, run_cascade  # noqa: E402
 from greensearch.providers import (  # noqa: E402
@@ -73,6 +79,15 @@ MSG_NOT_CONFIGURED = "Live backend is not configured yet (no API key on the serv
 MSG_MISCONFIGURED = "Live backend is misconfigured on the server, check its settings"
 MSG_UNREACHABLE = "The model provider could not be reached, try again"
 MSG_RATE_LIMITED = "Too many requests, try again later"
+MSG_KEY_REJECTED = "The model provider rejected the API key, check the key on the server"
+MSG_NO_CREDITS = (
+    "The model provider reports no credits for this paid model: add credits "
+    "or switch GREENSEARCH_MODEL to a free model"
+)
+MSG_MODEL_NOT_FOUND = (
+    "The model was not found or is deprecated at the provider: check the "
+    "GREENSEARCH_MODEL id"
+)
 MSG_ESCALATION_FAILED = (
     "The escalation model could not be reached, so no answer was returned "
     "(the primary model's low-confidence answer was not used), try again"
@@ -82,7 +97,19 @@ MSG_INTERNAL = "Something went wrong on the server, try again"
 MSG_NOT_FOUND = "Not found"
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "qwen/qwen3-8b"
+# openrouter/free is OpenRouter's router over its free models, not a named
+# model: which model answers can change per request. Free models are
+# rate-limited and rotate, hence the fallback chain below.
+DEFAULT_MODEL = "openrouter/free"
+DEFAULT_FALLBACKS = (
+    "liquid/lfm-2.5-2.6b:free",
+    "google/gemma-4-31b-it:free",
+    "thinkingmachines/inkling-small:free",
+    "poolside/laguna-xs-2.1:free",
+)
+# Provider HTTP codes that move on to the next model. 402 is handled
+# separately (only towards a free model); 401 never falls back.
+FALLBACK_STATUSES = (429, 404, 502, 503)
 SINGLE_MODEL_REASON = "single model: no separate escalation model configured"
 DEFAULT_ORIGINS = ("http://localhost:8000", "http://127.0.0.1:8000")
 DEFAULT_PORT = 8000
@@ -109,6 +136,9 @@ ENV_VARS = [
     ("GREENSEARCH_BASE_URL", DEFAULT_BASE_URL,
      "OpenAI-compatible base URL (https; http only for localhost)."),
     ("GREENSEARCH_MODEL", DEFAULT_MODEL, "Primary model; answers every request."),
+    ("GREENSEARCH_MODEL_FALLBACKS", ",".join(DEFAULT_FALLBACKS),
+     "Comma-separated models tried in order when the primary call fails "
+     "(429/404/502/503, or 402 towards a free model). 'none' disables."),
     ("GREENSEARCH_ESCALATION_MODEL", "(= GREENSEARCH_MODEL: no escalation)",
      "Optional. Set to a DIFFERENT model to enable the logprob cascade."),
     ("GREENSEARCH_CASCADE_THRESHOLD", "-1.0",
@@ -141,6 +171,8 @@ class Config:
     api_key: str = ""
     base_url: str = DEFAULT_BASE_URL
     model: str = DEFAULT_MODEL
+    # Tried in order after the primary model fails; never contains it.
+    fallback_models: tuple = DEFAULT_FALLBACKS
     # Empty or equal to model = no escalation call at all.
     escalation_model: str = ""
     cascade_threshold: float = -1.0
@@ -151,6 +183,7 @@ class Config:
     def __post_init__(self):
         if not self.escalation_model:
             self.escalation_model = self.model
+        self.fallback_models = parse_fallbacks(self.fallback_models, self.model)
 
     @property
     def configured(self):
@@ -175,6 +208,13 @@ class Config:
             return value or default
 
         model = get("GREENSEARCH_MODEL", DEFAULT_MODEL)
+        raw_fallbacks = env.get("GREENSEARCH_MODEL_FALLBACKS", "").strip()
+        if not raw_fallbacks:
+            fallbacks = DEFAULT_FALLBACKS
+        elif raw_fallbacks.lower() == "none":
+            fallbacks = ()
+        else:
+            fallbacks = raw_fallbacks.split(",")
         try:
             threshold = float(get("GREENSEARCH_CASCADE_THRESHOLD", "-1.0"))
         except ValueError:
@@ -197,6 +237,7 @@ class Config:
             api_key=env.get("GREENSEARCH_API_KEY", "").strip(),
             base_url=get("GREENSEARCH_BASE_URL", DEFAULT_BASE_URL),
             model=model,
+            fallback_models=fallbacks,
             escalation_model=get("GREENSEARCH_ESCALATION_MODEL", model),
             cascade_threshold=threshold,
             allowed_origins=origins,
@@ -204,6 +245,20 @@ class Config:
             debug_log=env.get("GREENSEARCH_DEBUG_LOG", "").strip().lower()
             in ("1", "true", "yes", "on"),
         )
+
+
+def parse_fallbacks(models, primary):
+    """Strip, drop empties, the primary model and repeats; keep order."""
+    out = []
+    for model in models:
+        model = model.strip()
+        if model and model != primary and model not in out:
+            out.append(model)
+    return tuple(out)
+
+
+def is_free_model(model):
+    return model == "openrouter/free" or model.endswith(":free")
 
 
 # ---------------------------------------------------------------------------
@@ -348,11 +403,106 @@ def _sum_or_none(values):
     return sum(values)
 
 
+_HTTP_STATUS = re.compile(r"\bHTTP (\d{3})\b")
+_STATUS_MESSAGES = {
+    401: MSG_KEY_REJECTED,
+    402: MSG_NO_CREDITS,
+    404: MSG_MODEL_NOT_FOUND,
+    429: MSG_RATE_LIMITED,
+}
+
+
+def _http_status(exc):
+    """The provider HTTP status of a ProviderError, or None."""
+    status = getattr(exc, "status", None)
+    if isinstance(status, int):
+        return status
+    match = _HTTP_STATUS.search(str(exc))
+    return int(match.group(1)) if match else None
+
+
 def _provider_error(exc):
     """Map a ProviderError to a plain ClientError. The detail is dropped."""
-    if "HTTP 429" in str(exc):
-        return ClientError(429, MSG_RATE_LIMITED)
+    status = _http_status(exc)
+    if status in _STATUS_MESSAGES:
+        return ClientError(status, _STATUS_MESSAGES[status])
     return ClientError(502, MSG_UNREACHABLE)
+
+
+def _most_specific(errors):
+    """First error, unless a later one has a specific code (401/402/404/429)
+    and the first does not (e.g. a generic 502/503 or no status)."""
+    chosen = errors[0]
+    if _http_status(chosen) not in _STATUS_MESSAGES:
+        for exc in errors[1:]:
+            if _http_status(exc) in _STATUS_MESSAGES:
+                return exc
+    return chosen
+
+
+def _status_text(exc):
+    status = _http_status(exc)
+    return f"HTTP {status}" if status is not None else "no HTTP status"
+
+
+class _ModelChain:
+    """The primary side of a request: the primary model, then fallbacks.
+
+    Looks like a provider to run_cascade. On a ProviderError it retries
+    the same model once without logprobs if the error mentions logprobs,
+    then moves to the next model on 429/404/502/503 (402 only towards a
+    free model). 401 and any other error stop at once. After the call,
+    model is the model that answered. Logs carry the HTTP status and
+    model id only: never the key, the prompt or provider detail text.
+    """
+
+    def __init__(self, backend, models):
+        self.backend = backend
+        self.models = list(models)
+        self.model = self.models[0]
+        self.attempted = False
+        self.completion = None
+
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
+        self.attempted = True
+        errors = []
+        for i, model in enumerate(self.models):
+            role = "primary" if i == 0 else "fallback"
+            provider = self.backend._make(model)
+            try:
+                comp = self._call(provider, model, role, prompt, system,
+                                  max_tokens, logprobs)
+            except ProviderError as exc:
+                errors.append(exc)
+                self.backend.log(f"{role} call failed: {_status_text(exc)} model={model}")
+                status = _http_status(exc)
+                nxt = self.models[i + 1] if i + 1 < len(self.models) else None
+                if nxt is None or not (
+                    status in FALLBACK_STATUSES or (status == 402 and is_free_model(nxt))
+                ):
+                    break
+                continue
+            self.model = model
+            self.completion = comp
+            self.backend.log(f"answered by {role} model={model}")
+            return comp
+        raise _most_specific(errors)
+
+    def _call(self, provider, model, role, prompt, system, max_tokens, logprobs):
+        try:
+            return provider.complete_ex(
+                prompt, system=system, max_tokens=max_tokens, logprobs=logprobs
+            )
+        except ProviderError as exc:
+            if not logprobs or "logprob" not in str(exc).lower():
+                raise
+            self.backend.log(
+                f"{role} call failed: {_status_text(exc)} model={model} "
+                "(logprobs rejected); retrying once without logprobs"
+            )
+        return provider.complete_ex(
+            prompt, system=system, max_tokens=max_tokens, logprobs=False
+        )
 
 
 class Backend:
@@ -395,6 +545,7 @@ class Backend:
             "status": "ok",
             "configured": cfg.configured,
             "model": cfg.model,
+            "fallbacks": list(cfg.fallback_models),
             "escalation_model": cfg.escalation_model,
             "cascade_enabled": cfg.cascade_enabled,
             "cascade_threshold": cfg.cascade_threshold,
@@ -455,13 +606,14 @@ class Backend:
                     "new_output_tokens": 0,
                     "tokens_source": "cache hit: no model call, 0 new tokens",
                     "trimmed": False,
+                    "truncated": False,
                     "latency_ms": round((time.monotonic() - started) * 1000),
                 })
                 return {"answer": entry["answer"], "meta": meta}
 
-        # 4. Primary model; logprob-gated escalation only if a separate
-        #    escalation model is configured.
-        primary = _Recorder(self._make(cfg.model))
+        # 4. Primary model (then fallbacks); logprob-gated escalation only
+        #    if a separate escalation model is configured.
+        primary = _ModelChain(self, (cfg.model,) + cfg.fallback_models)
         escalation = _Recorder(self._make(cfg.escalation_model)) if cfg.cascade_enabled else None
         try:
             if escalation is not None:
@@ -483,8 +635,9 @@ class Backend:
             if escalation is not None and escalation.attempted:
                 self.log("escalation call failed; no answer returned")
                 raise ClientError(502, MSG_ESCALATION_FAILED)
-            self.log("primary call failed")
-            raise _provider_error(exc)
+            mapped = _provider_error(exc)
+            self.log(f"no model answered; returning {mapped.status}")
+            raise mapped
         except ValueError:
             self.log("pipeline rejected a value (see cascade/provider)")
             raise ClientError(500, MSG_INTERNAL)
@@ -494,9 +647,11 @@ class Backend:
 
         # 5. Safety-net trim.
         raw_text = comp.text.strip()
-        answer = apply_brevity(raw_text, mode).strip()
+        answer, fragment_fixed = apply_brevity_with_flag(raw_text, mode)
+        answer = answer.strip()
         if not answer:
             answer = raw_text  # nothing trimmable survived; show the model's text as-is
+            fragment_fixed = False
         output_tokens = _sum_or_none([c.completion_tokens for c in calls])
         input_tokens = _sum_or_none([c.prompt_tokens for c in calls])
         model_used = escalation.model if result.escalated else primary.model
@@ -513,6 +668,11 @@ class Backend:
             "cache_hit": False,
             "model": model_used,
             "primary_model": primary.model,
+            "requested_model": cfg.model,
+            "fallback_used": primary.model != cfg.model,
+            # What the provider's response said answered (e.g. the model
+            # openrouter/free routed to), or None if it did not say.
+            "provider_model": getattr(comp, "response_model", None),
             "escalated": result.escalated,
             "escalation_reason": result.reason,
             "avg_logprob": result.avg_logprob,
@@ -522,26 +682,28 @@ class Backend:
             "tokens_source": "provider-reported" if output_tokens is not None
             else "not reported by provider",
             "trimmed": answer != raw_text,
+            "truncated": fragment_fixed or getattr(comp, "finish_reason", None) == "length",
         })
 
         if req.measure_baseline:
-            meta["baseline"] = self._baseline(req.prompt, input_tokens, output_tokens)
+            meta["baseline"] = self._baseline(
+                req.prompt, input_tokens, output_tokens, primary.model)
 
         meta["latency_ms"] = round((time.monotonic() - started) * 1000)
         return {"answer": answer, "meta": meta}
 
-    def _baseline(self, original_prompt, input_tokens, output_tokens):
+    def _baseline(self, original_prompt, input_tokens, output_tokens, model):
         """One extra, unconstrained call: original prompt, no system prompt,
-        no token cap, same primary model. Doubles API cost; opt-in only.
+        no token cap, same model that answered the primary call (a fallback
+        if one was used). Doubles API cost; opt-in only. No fallback chain.
         A failure here never affects the answer already produced."""
-        cfg = self.config
         try:
-            base = self._make(cfg.model).complete_ex(original_prompt)
+            base = self._make(model).complete_ex(original_prompt)
         except (ProviderError, ValueError, ClientError):
             self.log("baseline call failed")
             return {"error": "Baseline call failed, savings were not measured"}
         out = {
-            "model": cfg.model,
+            "model": model,
             "input_tokens": base.prompt_tokens,
             "output_tokens": base.completion_tokens,
             "saved_output_tokens": None,
@@ -774,6 +936,7 @@ def main(argv=None):
         f"listening on http://{args.host}:{server.server_address[1]} | "
         f"live: {'configured' if config.configured else 'NOT configured (no API key)'} | "
         f"model: {config.model} | "
+        f"fallbacks: {', '.join(config.fallback_models) or 'none'} | "
         f"escalation: {config.escalation_model if config.cascade_enabled else 'off (single model)'} | "
         f"CORS: {', '.join(config.allowed_origins)} | "
         f"rate limit: {config.rate_limit_per_hour}/h | "

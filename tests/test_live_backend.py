@@ -19,12 +19,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from greensearch.brevity import apply_brevity  # noqa: E402
+from greensearch.brevity import ELLIPSIS, apply_brevity, apply_brevity_with_flag  # noqa: E402
 from greensearch.providers import BREVITY_SYSTEM, MAX_TOKENS, Completion, ProviderError  # noqa: E402
 from greensearch.router import route_mode  # noqa: E402
 from greensearch.shrink import shrink  # noqa: E402
 from server.app import (  # noqa: E402
+    DEFAULT_FALLBACKS,
     MSG_ESCALATION_FAILED,
+    MSG_KEY_REJECTED,
+    MSG_MODEL_NOT_FOUND,
+    MSG_NO_CREDITS,
     MSG_NOT_CONFIGURED,
     MSG_ORIGIN,
     MSG_RATE_LIMITED,
@@ -57,9 +61,12 @@ class FakeProvider:
     """Records every call; returns a fixed completion or raises."""
 
     def __init__(self, model, text=LONG_ANSWER, avg_logprob=None,
-                 completion_tokens=50, prompt_tokens=10, error=None):
+                 completion_tokens=50, prompt_tokens=10, error=None,
+                 logprobs_error=None, finish_reason=None):
         self.model = model
         self.text = text
+        self.logprobs_error = logprobs_error  # raised only when logprobs=True
+        self.finish_reason = finish_reason
         self.avg_logprob = avg_logprob
         self.completion_tokens = completion_tokens
         self.prompt_tokens = prompt_tokens
@@ -71,15 +78,18 @@ class FakeProvider:
                            "max_tokens": max_tokens, "logprobs": logprobs})
         if self.error is not None:
             raise self.error
+        if logprobs and self.logprobs_error is not None:
+            raise self.logprobs_error
         return Completion(
             text=self.text,
             completion_tokens=self.completion_tokens,
             prompt_tokens=self.prompt_tokens,
             avg_logprob=self.avg_logprob if logprobs else None,
+            finish_reason=self.finish_reason,
         )
 
 
-PRIMARY = "qwen/qwen3-8b"
+PRIMARY = "openrouter/free"
 # Only used by the opt-in cascade tests; not a model choice for Phase 2.
 ESCALATION = "example/escalation-model"
 
@@ -87,11 +97,14 @@ ESCALATION = "example/escalation-model"
 def make_backend(primary=None, big=None, baseline=None, **config_overrides):
     """A Backend whose models are fakes. Returns (backend, primary, big).
 
-    Default config: single model (qwen/qwen3-8b), no escalation model, so
-    big must never be built. Pass escalation_model=ESCALATION to enable
+    Default config: single model (openrouter/free), no escalation model and
+    no fallback models (these tests predate the fallback chain and assume
+    one primary model; FallbackTests covers the chain), so big must never
+    be built. Pass escalation_model=ESCALATION to enable
     the cascade. The primary model's first instance answers the pipeline;
     if baseline is given, later primary instances (the baseline call) use it.
     """
+    config_overrides.setdefault("fallback_models", ())
     config = Config(api_key=SENTINEL_KEY, **config_overrides)
     primary = primary or FakeProvider(config.model, avg_logprob=-0.2)
     big = big or FakeProvider(config.escalation_model, text="Escalated answer. Second sentence.",
@@ -171,7 +184,7 @@ class PipelineTests(unittest.TestCase):
 
 
 class SingleModelTests(unittest.TestCase):
-    """Default Phase 2 behaviour: Qwen3-8B only, never an escalation call."""
+    """Default behaviour: one primary model, never an escalation call."""
 
     def test_low_logprob_does_not_escalate_without_escalation_model(self):
         small = FakeProvider(PRIMARY, avg_logprob=-5.0)
@@ -358,7 +371,14 @@ class ErrorMappingTests(unittest.TestCase):
             (ProviderError("Could not reach live provider at https://openrouter.ai/api/v1: "
                            "[Errno -2] Name or service not known"), 502, MSG_UNREACHABLE),
             (ProviderError(f"Live provider returned HTTP 401: Invalid key {SENTINEL_KEY}"),
-             502, MSG_UNREACHABLE),
+             401, MSG_KEY_REJECTED),
+            (ProviderError("Live provider returned HTTP 402: Insufficient credits"),
+             402, MSG_NO_CREDITS),
+            (ProviderError("Live provider returned HTTP 404: No endpoints found for "
+                           "qwen/qwen3-8b"), 404, MSG_MODEL_NOT_FOUND),
+            (ProviderError("upstream said no", status=404), 404, MSG_MODEL_NOT_FOUND),
+            (ProviderError("Live provider returned HTTP 503: overloaded"), 502, MSG_UNREACHABLE),
+            (ProviderError("Live provider returned HTTP 500: boom"), 502, MSG_UNREACHABLE),
             (ProviderError("Live provider timed out after 60s."), 502, MSG_UNREACHABLE),
             (ProviderError("Live provider returned HTTP 429: slow down"), 429, MSG_RATE_LIMITED),
         ]
@@ -411,8 +431,9 @@ class ErrorMappingTests(unittest.TestCase):
         cfg = Config.from_env({})
         self.assertFalse(cfg.configured)
         self.assertEqual(cfg.base_url, "https://openrouter.ai/api/v1")
-        self.assertEqual(cfg.model, "qwen/qwen3-8b")
-        self.assertEqual(cfg.escalation_model, "qwen/qwen3-8b")
+        self.assertEqual(cfg.model, "openrouter/free")
+        self.assertEqual(cfg.escalation_model, "openrouter/free")
+        self.assertEqual(cfg.fallback_models, DEFAULT_FALLBACKS)
         self.assertFalse(cfg.cascade_enabled)
         self.assertFalse(hasattr(cfg, "model_4b"))
         self.assertEqual(cfg.cascade_threshold, -1.0)
@@ -423,12 +444,12 @@ class ErrorMappingTests(unittest.TestCase):
         self.assertEqual((cfg.model, cfg.escalation_model), ("other/model", "other/model"))
         self.assertFalse(cfg.cascade_enabled)
         cfg = Config.from_env({"GREENSEARCH_ESCALATION_MODEL": "big/model"})
-        self.assertEqual((cfg.model, cfg.escalation_model), ("qwen/qwen3-8b", "big/model"))
+        self.assertEqual((cfg.model, cfg.escalation_model), ("openrouter/free", "big/model"))
         self.assertTrue(cfg.cascade_enabled)
         # The old 4B/8B variables are no longer read.
         cfg = Config.from_env({"GREENSEARCH_MODEL_4B": "qwen/qwen3-4b",
                                "GREENSEARCH_MODEL_8B": "x/y"})
-        self.assertEqual((cfg.model, cfg.escalation_model), ("qwen/qwen3-8b", "qwen/qwen3-8b"))
+        self.assertEqual((cfg.model, cfg.escalation_model), ("openrouter/free", "openrouter/free"))
 
     def test_prompts_not_logged_by_default(self):
         log = io.StringIO()
@@ -581,8 +602,9 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         health = json.loads(data)
         self.assertFalse(health["configured"])
-        self.assertEqual(health["model"], "qwen/qwen3-8b")
-        self.assertEqual(health["escalation_model"], "qwen/qwen3-8b")
+        self.assertEqual(health["model"], "openrouter/free")
+        self.assertEqual(health["escalation_model"], "openrouter/free")
+        self.assertEqual(health["fallbacks"], list(DEFAULT_FALLBACKS))
         self.assertFalse(health["cascade_enabled"])
         self.assertNotIn("model_4b", health)
         self.assertNotIn("model_8b", health)
@@ -593,8 +615,8 @@ class HTTPTests(unittest.TestCase):
         backend, _, _ = make_backend(primary=small)
         port = self.start(backend)
         resp, data = self.request(port, "POST", "/api/chat", {"prompt": "Explain DNS"})
-        self.assertEqual(resp.status, 502)
-        self.assertEqual(json.loads(data), {"error": MSG_UNREACHABLE})
+        self.assertEqual(resp.status, 401)
+        self.assertEqual(json.loads(data), {"error": MSG_KEY_REJECTED})
         resp, health = self.request(port, "GET", "/api/health")
         for body in (data, health):
             self.assertNotIn(SENTINEL_KEY, body)
@@ -628,11 +650,12 @@ class EntryPointAndSiteTests(unittest.TestCase):
                              capture_output=True, text=True, timeout=30)
         self.assertEqual(out.returncode, 0)
         for name in ("GREENSEARCH_API_KEY", "GREENSEARCH_BASE_URL", "GREENSEARCH_MODEL",
-                     "GREENSEARCH_ESCALATION_MODEL",
+                     "GREENSEARCH_ESCALATION_MODEL", "GREENSEARCH_MODEL_FALLBACKS",
                      "GREENSEARCH_CASCADE_THRESHOLD", "GREENSEARCH_BACKEND_ORIGIN",
                      "GREENSEARCH_RATE_LIMIT_PER_HOUR", "GREENSEARCH_DEBUG_LOG", "PORT"):
             self.assertIn(name, out.stdout)
-        self.assertIn("qwen/qwen3-8b", out.stdout)
+        self.assertIn("openrouter/free", out.stdout)
+        self.assertIn(DEFAULT_FALLBACKS[0], out.stdout)
         self.assertNotIn("MODEL_4B", out.stdout)
         self.assertNotIn("qwen3-4b", out.stdout)
 
@@ -658,8 +681,307 @@ class EntryPointAndSiteTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertNotRegex(match.group(1), r"sk-[A-Za-z0-9]{10,}")
         self.assertIn(match.group(1).strip(), ("", "replace-me"))
-        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL=qwen/qwen3-8b$")
+        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL=openrouter/free$")
+        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL_FALLBACKS=" + re.escape(
+            ",".join(DEFAULT_FALLBACKS)) + "$")
         self.assertNotIn("MODEL_4B", text)
+
+
+def chain_backend(providers, **config_overrides):
+    """A Backend whose models are the given {model: FakeProvider} fakes.
+
+    The first key is the primary model, the rest are the fallbacks in
+    order. Returns (backend, built, log): built lists every model the
+    backend constructed a provider for, log is the server log stream.
+    """
+    models = list(providers)
+    config_overrides.setdefault("model", models[0])
+    config_overrides.setdefault("fallback_models", tuple(models[1:]))
+    config = Config(api_key=SENTINEL_KEY, **config_overrides)
+    built = []
+
+    def factory(model):
+        built.append(model)
+        if model not in providers:
+            raise AssertionError(f"unexpected model {model}")
+        return providers[model]
+
+    log = io.StringIO()
+    backend = Backend(config, provider_factory=factory, log_stream=log, quiet=False)
+    return backend, built, log
+
+
+def http_error(code, detail="detail"):
+    return ProviderError(f"Live provider returned HTTP {code}: {detail}", status=code)
+
+
+FREE_A = "liquid/lfm-2.5-2.6b:free"
+FREE_B = "google/gemma-4-31b-it:free"
+PAID = "example/paid-model"
+
+
+class FallbackTests(unittest.TestCase):
+    def test_fallback_answers_after_primary_404(self):
+        dead = FakeProvider("qwen/qwen3-8b", error=http_error(404, "deprecated"))
+        good = FakeProvider(FREE_A, text="Fallback answer. Second sentence.", avg_logprob=-0.3)
+        backend, built, log = chain_backend({"qwen/qwen3-8b": dead, FREE_A: good})
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        meta = result["meta"]
+        self.assertEqual(result["answer"], "Fallback answer. Second sentence.")
+        self.assertEqual(meta["model"], FREE_A)          # the model that answered
+        self.assertEqual(meta["primary_model"], FREE_A)
+        self.assertEqual(meta["requested_model"], "qwen/qwen3-8b")
+        self.assertTrue(meta["fallback_used"])
+        self.assertEqual(built, ["qwen/qwen3-8b", FREE_A])
+        self.assertEqual(len(good.calls), 1)
+        self.assertTrue(good.calls[0]["logprobs"])
+        text = log.getvalue()
+        self.assertIn("primary call failed: HTTP 404 model=qwen/qwen3-8b", text)
+        self.assertIn(f"answered by fallback model={FREE_A}", text)
+        self.assertNotIn("deprecated", text)              # no provider detail
+        self.assertNotIn("Explain DNS", text)              # no prompt
+        self.assertNotIn(SENTINEL_KEY, text)
+        # The cache remembers the answering model.
+        again = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))["meta"]
+        self.assertTrue(again["cache_hit"])
+        self.assertEqual(again["cached_from_model"], FREE_A)
+        self.assertFalse(again["truncated"])
+
+    def test_retries_each_fallback_code_and_stops_at_first_success(self):
+        for code in (429, 404, 502, 503):
+            with self.subTest(code=code):
+                first = FakeProvider(PRIMARY, error=http_error(code))
+                second = FakeProvider(FREE_A, error=http_error(429))
+                third = FakeProvider(FREE_B, text="Third model. Done.")
+                unused = FakeProvider("unused/model:free")
+                backend, built, log = chain_backend(
+                    {PRIMARY: first, FREE_A: second, FREE_B: third,
+                     "unused/model:free": unused})
+                meta = backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]
+                self.assertEqual(meta["model"], FREE_B)
+                self.assertEqual(built, [PRIMARY, FREE_A, FREE_B])
+                self.assertEqual(unused.calls, [])
+                self.assertIn(f"fallback call failed: HTTP 429 model={FREE_A}", log.getvalue())
+
+    def test_401_does_not_fall_back(self):
+        bad_key = FakeProvider(PRIMARY, error=http_error(401, f"bad key {SENTINEL_KEY}"))
+        fallback = FakeProvider(FREE_A)
+        backend, built, log = chain_backend({PRIMARY: bad_key, FREE_A: fallback})
+        with self.assertRaises(ClientError) as ctx:
+            backend.chat(ChatRequest(prompt="Explain DNS"))
+        self.assertEqual((ctx.exception.status, ctx.exception.message), (401, MSG_KEY_REJECTED))
+        self.assertIn("key", ctx.exception.message.lower())
+        self.assertEqual(built, [PRIMARY])
+        self.assertEqual(fallback.calls, [])
+        self.assertNotIn(SENTINEL_KEY, log.getvalue())
+
+    def test_unknown_failure_does_not_fall_back(self):
+        timeout = FakeProvider(PRIMARY, error=ProviderError("Live provider timed out after 60s."))
+        fallback = FakeProvider(FREE_A)
+        backend, built, log = chain_backend({PRIMARY: timeout, FREE_A: fallback})
+        with self.assertRaises(ClientError) as ctx:
+            backend.chat(ChatRequest(prompt="Explain DNS"))
+        self.assertEqual((ctx.exception.status, ctx.exception.message), (502, MSG_UNREACHABLE))
+        self.assertEqual(fallback.calls, [])
+        self.assertIn(f"primary call failed: no HTTP status model={PRIMARY}", log.getvalue())
+
+    def test_402_falls_back_to_free_model_only(self):
+        broke = FakeProvider(PAID, error=http_error(402, "Insufficient credits"))
+        free = FakeProvider(FREE_A, text="Free answer.")
+        backend, built, _ = chain_backend({PAID: broke, FREE_A: free})
+        self.assertEqual(backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]["model"], FREE_A)
+
+        broke = FakeProvider(PAID, error=http_error(402))
+        other_paid = FakeProvider("example/other-paid")
+        backend, built, _ = chain_backend({PAID: broke, "example/other-paid": other_paid})
+        with self.assertRaises(ClientError) as ctx:
+            backend.chat(ChatRequest(prompt="Explain DNS"))
+        self.assertEqual((ctx.exception.status, ctx.exception.message), (402, MSG_NO_CREDITS))
+        self.assertEqual(other_paid.calls, [])
+        self.assertEqual(built, [PAID])
+
+        # openrouter/free counts as free.
+        broke = FakeProvider(PAID, error=http_error(402))
+        router = FakeProvider("openrouter/free", text="Router answer.")
+        backend, _, _ = chain_backend({PAID: broke, "openrouter/free": router})
+        self.assertEqual(backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]["model"],
+                         "openrouter/free")
+
+    def test_all_fail_returns_first_error_unless_later_is_more_specific(self):
+        cases = [
+            ((429, 404), 429, MSG_RATE_LIMITED),       # first is specific: kept
+            ((503, 404), 404, MSG_MODEL_NOT_FOUND),    # later specific beats generic
+            ((502, 503), 502, MSG_UNREACHABLE),        # all generic: first
+            ((503, 429), 429, MSG_RATE_LIMITED),
+        ]
+        for codes, status, message in cases:
+            with self.subTest(codes=codes):
+                providers = {PRIMARY: FakeProvider(PRIMARY, error=http_error(codes[0])),
+                             FREE_A: FakeProvider(FREE_A, error=http_error(codes[1]))}
+                backend, built, _ = chain_backend(providers)
+                with self.assertRaises(ClientError) as ctx:
+                    backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+                self.assertEqual((ctx.exception.status, ctx.exception.message),
+                                 (status, message))
+                self.assertEqual(built, [PRIMARY, FREE_A])
+
+    def test_fallback_list_parsing(self):
+        cfg = Config.from_env({"GREENSEARCH_MODEL": "a/b",
+                               "GREENSEARCH_MODEL_FALLBACKS": " x/y:free , ,a/b, z/w ,x/y:free"})
+        self.assertEqual(cfg.fallback_models, ("x/y:free", "z/w"))
+        cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "none"})
+        self.assertEqual(cfg.fallback_models, ())
+        cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "   "})
+        self.assertEqual(cfg.fallback_models, DEFAULT_FALLBACKS)
+        cfg = Config.from_env({"GREENSEARCH_MODEL": DEFAULT_FALLBACKS[1]})
+        self.assertNotIn(DEFAULT_FALLBACKS[1], cfg.fallback_models)
+        self.assertEqual(len(cfg.fallback_models), len(DEFAULT_FALLBACKS) - 1)
+
+    def test_cascade_primary_side_falls_back_escalation_does_not(self):
+        dead = FakeProvider(PRIMARY, error=http_error(429))
+        low = FakeProvider(FREE_A, avg_logprob=-3.0)
+        big = FakeProvider(ESCALATION, text="Escalated answer. Second sentence.")
+        backend, built, _ = chain_backend({PRIMARY: dead, FREE_A: low, ESCALATION: big},
+                                          escalation_model=ESCALATION)
+        meta = backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]
+        self.assertTrue(meta["escalated"])
+        self.assertEqual(meta["model"], ESCALATION)
+        self.assertEqual(meta["primary_model"], FREE_A)
+        # An escalation failure is still the escalation error, no fallback.
+        dead = FakeProvider(PRIMARY, error=http_error(429))
+        low = FakeProvider(FREE_A, avg_logprob=-3.0)
+        big = FakeProvider(ESCALATION, error=http_error(429))
+        backend, built, _ = chain_backend({PRIMARY: dead, FREE_A: low, ESCALATION: big},
+                                          escalation_model=ESCALATION)
+        with self.assertRaises(ClientError) as ctx:
+            backend.chat(ChatRequest(prompt="Explain DNS"))
+        self.assertEqual((ctx.exception.status, ctx.exception.message),
+                         (502, MSG_ESCALATION_FAILED))
+        self.assertEqual(len(big.calls), 1)
+
+
+class LogprobsFallbackTests(unittest.TestCase):
+    def test_retries_same_model_without_logprobs(self):
+        picky = FakeProvider(PRIMARY, avg_logprob=-0.2, logprobs_error=http_error(
+            400, "This model does not support Logprobs"))
+        fallback = FakeProvider(FREE_A)
+        backend, built, log = chain_backend({PRIMARY: picky, FREE_A: fallback})
+        meta = backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]
+        self.assertEqual([c["logprobs"] for c in picky.calls], [True, False])
+        self.assertEqual(fallback.calls, [])
+        self.assertEqual(meta["model"], PRIMARY)
+        self.assertIsNone(meta["avg_logprob"])
+        self.assertFalse(meta["escalated"])
+        self.assertIn("retrying once without logprobs", log.getvalue())
+
+    def test_logprob_retry_then_cascade_does_not_fire(self):
+        picky = FakeProvider(PRIMARY, avg_logprob=-5.0,
+                             logprobs_error=ProviderError("logprobs not supported"))
+        big = FakeProvider(ESCALATION)
+        backend, _, _ = chain_backend({PRIMARY: picky, ESCALATION: big},
+                                      escalation_model=ESCALATION)
+        meta = backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]
+        self.assertFalse(meta["escalated"])
+        self.assertIsNone(meta["avg_logprob"])
+        self.assertIn("logprobs unavailable", meta["escalation_reason"])
+        self.assertEqual(big.calls, [])
+
+    def test_unrelated_error_is_not_retried_without_logprobs(self):
+        dead = FakeProvider(PRIMARY, error=http_error(404))
+        backend, _, _ = chain_backend({PRIMARY: dead}, fallback_models=())
+        with self.assertRaises(ClientError):
+            backend.chat(ChatRequest(prompt="Explain DNS"))
+        self.assertEqual(len(dead.calls), 1)
+
+    def test_failed_logprob_retry_moves_to_fallback(self):
+        picky = FakeProvider(PRIMARY, error=http_error(429, "logprobs and rate limit"))
+        fallback = FakeProvider(FREE_A, text="Fallback answer.")
+        backend, _, _ = chain_backend({PRIMARY: picky, FREE_A: fallback})
+        meta = backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]
+        self.assertEqual([c["logprobs"] for c in picky.calls], [True, False])
+        self.assertEqual(meta["model"], FREE_A)
+
+
+class FragmentTests(unittest.TestCase):
+    def test_drops_trailing_fragment_after_complete_sentence(self):
+        text = "Machine learning finds patterns in data. Machine learning is a type"
+        self.assertEqual(apply_brevity_with_flag(text, "sprout"),
+                         ("Machine learning finds patterns in data.", True))
+        self.assertEqual(apply_brevity(text, "sprout"), "Machine learning finds patterns in data.")
+
+    def test_single_fragment_gets_ellipsis(self):
+        self.assertEqual(apply_brevity_with_flag("Machine learning is a type", "sprout"),
+                         ("Machine learning is a type" + ELLIPSIS, True))
+
+    def test_complete_endings_are_kept(self):
+        for text in ('He said "stop."', "It works (mostly.)", "Really?", "Yes!",
+                     "It is **done.**", "First. Second?"):
+            with self.subTest(text=text):
+                self.assertEqual(apply_brevity_with_flag(text, "full"), (text, False))
+
+    def test_lists_code_and_sign_offs_are_not_fragments(self):
+        for text in ("Steps:\n- install it\n- run it",
+                     "Use this:\n\n```\nls -la\n```",
+                     "Hi there.\n\nThanks,\nGrant"):
+            with self.subTest(text=text):
+                self.assertFalse(apply_brevity_with_flag(text, "full")[1])
+
+    def test_server_marks_truncated(self):
+        small = FakeProvider(PRIMARY, text="Machine learning is a type", completion_tokens=120)
+        backend, _, _ = make_backend(primary=small)
+        result = backend.chat(ChatRequest(prompt="Explain machine learning", mode="sprout"))
+        self.assertEqual(result["answer"], "Machine learning is a type" + ELLIPSIS)
+        self.assertTrue(result["meta"]["truncated"])
+
+        small = FakeProvider(PRIMARY, text="ML learns from data. Machine learning is a type")
+        backend, _, _ = make_backend(primary=small)
+        result = backend.chat(ChatRequest(prompt="Explain machine learning", mode="sprout"))
+        self.assertEqual(result["answer"], "ML learns from data.")
+        self.assertTrue(result["meta"]["truncated"])
+
+    def test_finish_reason_length_marks_truncated(self):
+        small = FakeProvider(PRIMARY, text="Complete sentence.", finish_reason="length")
+        backend, _, _ = make_backend(primary=small)
+        self.assertTrue(backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]["truncated"])
+        small = FakeProvider(PRIMARY, text="Complete sentence.", finish_reason="stop")
+        backend, _, _ = make_backend(primary=small)
+        self.assertFalse(backend.chat(ChatRequest(prompt="Explain DNS"))["meta"]["truncated"])
+
+
+class ProviderParsingTests(unittest.TestCase):
+    """OpenAICompatibleProvider response parsing, with urlopen stubbed out."""
+
+    def call(self, body=None, http_code=None):
+        import urllib.error
+        from unittest import mock
+        from greensearch.providers import OpenAICompatibleProvider
+
+        provider = OpenAICompatibleProvider("https://example.invalid/v1",
+                                            api_key=SENTINEL_KEY, model="m")
+        if http_code is not None:
+            err = urllib.error.HTTPError("u", http_code, "x", {},
+                                         io.BytesIO(b'{"error":{"message":"nope"}}'))
+            patch = mock.patch("urllib.request.urlopen", side_effect=err)
+        else:
+            resp = io.BytesIO(json.dumps(body).encode())
+            resp.__enter__ = lambda *a: resp
+            resp.__exit__ = lambda *a: False
+            patch = mock.patch("urllib.request.urlopen", return_value=resp)
+        with patch:
+            return provider.complete_ex("hi")
+
+    def test_finish_reason_and_model_parsed(self):
+        comp = self.call({"model": "routed/model:free", "choices": [
+            {"message": {"content": "Hi."}, "finish_reason": "length"}]})
+        self.assertEqual((comp.finish_reason, comp.response_model), ("length", "routed/model:free"))
+        comp = self.call({"choices": [{"message": {"content": "Hi."}}]})
+        self.assertEqual((comp.finish_reason, comp.response_model), (None, None))
+
+    def test_http_error_carries_status(self):
+        with self.assertRaises(ProviderError) as ctx:
+            self.call(http_code=404)
+        self.assertEqual(ctx.exception.status, 404)
+        self.assertIn("HTTP 404", str(ctx.exception))
 
 
 if __name__ == "__main__":

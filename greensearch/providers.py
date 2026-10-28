@@ -36,7 +36,15 @@ class ProviderError(Exception):
     The CLI catches this and exits 2 with the message. HTTP status,
     connection failures, timeouts, and malformed responses all become
     this one readable error type.
+
+    status is the provider's HTTP status code when there was one (None
+    for connection failures, timeouts and malformed responses), so
+    callers can branch on it without parsing the message.
     """
+
+    def __init__(self, message="", status=None):
+        super().__init__(message)
+        self.status = status
 
 
 @dataclass
@@ -50,6 +58,12 @@ class Completion:
     # reported logprobs. None means "no confidence signal available" --
     # never invent one from answer length or any other proxy.
     avg_logprob: Optional[float] = None
+    # choices[0].finish_reason as reported ("stop", "length", ...), or None.
+    # "length" means the token cap cut the answer off.
+    finish_reason: Optional[str] = None
+    # The response's top-level "model" field, when reported. A router id
+    # such as openrouter/free may report the model it routed to here.
+    response_model: Optional[str] = None
 
 
 # Generation-side brevity: asking the model for a short answer (and capping
@@ -275,7 +289,7 @@ class OpenAICompatibleProvider:
             except ValueError:
                 detail = ""
             raise ProviderError(
-                f"Live provider returned HTTP {exc.code}{detail}"
+                f"Live provider returned HTTP {exc.code}{detail}", status=exc.code
             ) from exc
         except urllib.error.URLError as exc:
             raise ProviderError(
@@ -307,7 +321,21 @@ class OpenAICompatibleProvider:
             completion_tokens=_int_or_none(usage.get("completion_tokens")),
             prompt_tokens=_int_or_none(usage.get("prompt_tokens")),
             avg_logprob=_avg_logprob(data),
+            finish_reason=_str_or_none(_first_choice(data).get("finish_reason")),
+            response_model=_str_or_none(data.get("model")),
         )
+
+
+def _first_choice(data):
+    try:
+        choice = data["choices"][0]
+    except (KeyError, IndexError, TypeError):
+        return {}
+    return choice if isinstance(choice, dict) else {}
+
+
+def _str_or_none(value):
+    return value if isinstance(value, str) and value else None
 
 
 def _avg_logprob(data):

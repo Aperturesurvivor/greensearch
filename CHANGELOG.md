@@ -1,6 +1,39 @@
 # Changelog
 
 - **Unreleased -- Phase 2 (local only, not deployed, not pushed):**
+  - Fixed after the first local live run (2026-10-27, OpenRouter key in a
+    local `.env`), tested with fake providers only:
+    - Default model is now `openrouter/free` (server default and
+      `.env.example`). It is OpenRouter's router over its free models, not
+      a named model; free models are rate-limited and rotate. The old
+      default `qwen/qwen3-8b` was deprecated on OpenRouter on 2026-10-09.
+      `GREENSEARCH_MODEL` still overrides it.
+    - New `GREENSEARCH_MODEL_FALLBACKS` (comma-separated; default
+      `liquid/lfm-2.5-2.6b:free,google/gemma-4-31b-it:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free`;
+      `none` disables). The primary call (and the primary side of the
+      optional cascade) tries each fallback in order on HTTP 429, 404, 502
+      or 503, and on 402 only when the next model is free. 401 fails at
+      once. `meta.model` reports the model that answered; new meta fields
+      `requested_model`, `fallback_used` and `provider_model` (the
+      response's own `model` field, passed through, not verified live).
+      `/api/health` lists `fallbacks`. Escalation failures are unchanged.
+    - Logprobs fallback: if the primary call with logprobs fails with an
+      error mentioning logprobs, the same model is retried once without
+      them; the cascade then does not fire for that request.
+    - Fragment fix: `apply_brevity` drops a final sentence cut off at the
+      token cap (it showed "Machine learning is a type"), or appends `…`
+      when the fragment is the whole answer. New
+      `apply_brevity_with_flag` returns `(text, truncated)`; `apply_brevity`
+      still returns a string. New `meta.truncated` is true for that case or
+      when the provider reports `finish_reason: "length"` (now parsed into
+      `Completion.finish_reason`, default None).
+    - Error messages: provider 401, 402 and 404 now get their own status
+      and message (key rejected; no credits for a paid model; model not
+      found or deprecated) instead of the generic 502. 429 and the generic
+      502 are unchanged. Logs record the HTTP status and model of every
+      failed attempt, never the key, the prompt or the provider's text.
+      `ProviderError` now carries `status`.
+    - Tests: 140 to 160.
   - Built: `server/app.py`, a stdlib-only backend with `POST /api/chat`
     and `GET /api/health` that also serves the website at `/`. The key,
     models, threshold, CORS origins, rate limit and debug logging are read
