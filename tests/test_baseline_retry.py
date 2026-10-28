@@ -28,6 +28,14 @@ class Always429:
         raise ProviderError("Live provider returned HTTP 429", status=429)
 
 
+class DailyCap:
+    live = True
+    calls = 0
+    def complete_ex(self, prompt, system=None, max_tokens=None):
+        DailyCap.calls += 1
+        raise ProviderError("Live provider returned HTTP 429: Rate limit exceeded: free-models-per-day", status=429)
+
+
 class BadKey:
     live = True
     def complete_ex(self, prompt, system=None, max_tokens=None):
@@ -45,6 +53,12 @@ class TestBaselineRetry(unittest.TestCase):
         with self.assertRaises(ProviderError) as ctx:
             _complete_with_retry(Always429(), "hi", None, None, retries=2, base_delay=1, sleep=lambda s: None)
         self.assertEqual(ctx.exception.status, 429)
+
+    def test_daily_cap_not_retried(self):
+        DailyCap.calls = 0
+        with self.assertRaises(ProviderError):
+            _complete_with_retry(DailyCap(), "hi", None, None, retries=5, base_delay=1, sleep=lambda s: None)
+        self.assertEqual(DailyCap.calls, 1)
 
     def test_non_429_not_retried(self):
         with self.assertRaises(ProviderError) as ctx:

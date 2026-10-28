@@ -1,5 +1,8 @@
 # Changelog
 
+- **Unreleased -- Baseline study does not retry a daily-cap 429:**
+  - A `free-models-per-day` 429 now aborts immediately instead of retrying, because OpenRouter counts failed attempts toward the daily free-model quota. Per-minute 429s still retry with backoff. Held from push pending a working baseline run.
+
 - **Unreleased -- Baseline study survives free-model throttling:**
   - `scripts/baseline_study.py` now retries HTTP 429 only (15s, 30s, 60s, 120s, 240s backoff) and waits 3s between live calls; other errors still abort immediately. Previously the first 429 killed the whole 24-call run and wrote nothing.
   - New flags: `--retries`, `--retry-delay`, `--inter-call-delay`. Server behaviour unchanged (it already has its own fallback logic).

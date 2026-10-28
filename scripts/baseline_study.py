@@ -65,6 +65,16 @@ def _complete_with_retry(provider, prompt, system, max_tokens,
         try:
             return provider.complete_ex(prompt, system=system, max_tokens=max_tokens)
         except ProviderError as exc:
+            # Daily-cap 429s must NOT be retried: OpenRouter counts failed
+            # attempts toward the daily free-model quota, so retrying a
+            # "free-models-per-day" error burns the quota instead of
+            # waiting it out. Abort immediately and let the user decide
+            # (wait for the midnight-UTC reset, or unlock 1,000/day).
+            if "free-models-per-day" in str(exc).lower():
+                print("Daily free-model cap reached (free-models-per-day): "
+                      "stopping, not retrying, so retries do not burn more quota.",
+                      file=sys.stderr)
+                raise
             if getattr(exc, "status", None) != 429 or attempt >= retries:
                 raise
             delay = base_delay * (2 ** attempt)
