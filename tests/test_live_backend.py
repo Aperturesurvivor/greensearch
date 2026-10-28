@@ -709,18 +709,21 @@ class EntryPointAndSiteTests(unittest.TestCase):
         self.assertNotIn("MODEL_4B", out.stdout)
         self.assertNotIn("qwen3-4b", out.stdout)
 
-    def test_website_live_mode_off_by_default(self):
+    def test_website_live_only(self):
+        """Live-only site: no toggle, no demo mode, no demo totals, no saved chat."""
         html = (ROOT / "website" / "index.html").read_text(encoding="utf-8")
-        toggle = re.search(r'<input[^>]*id="live-toggle"[^>]*>', html)
+        self.assertNotIn('id="live-toggle"', html)
+        self.assertNotIn('id="demo-pill"', html)
+        self.assertNotIn('id="totals"', html)
+        self.assertNotIn("STORE_KEY", html)
+        self.assertIn('id="live-pill"', html)
+        self.assertIn('id="totals-live"', html)
         baseline = re.search(r'<input[^>]*id="live-baseline"[^>]*>', html)
-        self.assertIsNotNone(toggle)
         self.assertIsNotNone(baseline)
-        self.assertNotIn("checked", toggle.group(0))
         self.assertNotIn("checked", baseline.group(0))
         self.assertIn("greensearch-live-backend-url", html)
         self.assertIn("http://localhost:8000/api/chat", html)
         self.assertIn("Live mode sends your prompt to the backend you configured", html)
-        self.assertIn("STORE_KEY='greensearch-demo-v1'", html)
         # The page must never handle a provider key.
         self.assertNotIn("Authorization", html)
         self.assertNotRegex(html, r"api_key|apiKey|GREENSEARCH_API_KEY")

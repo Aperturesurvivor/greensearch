@@ -287,17 +287,6 @@ body {
   border-radius: 0;
   border: none;
 }
-.demo-pill {
-  font-size: 10px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-  padding: 3px 10px;
-  border-radius: 4px;
-  background: var(--pill-bg);
-  color: var(--pill-fg);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
 
 .hd-nav {
   display: flex;
@@ -872,8 +861,7 @@ a:hover { text-decoration-color: var(--teal) }
 <header class="hd">
   <div class="hd-l">
     <div class="logo"><div class="logo-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 3C14 3 6 8 6 16c0 4.4 3.6 8 8 8s8-3.6 8-8C22 8 14 3 14 3z" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M14 10v12M14 14c-2.5-1.5-4-3-4-3M14 17c2-1 3.5-2.5 3.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>Arboris</div>
-    <span class="demo-pill" id="demo-pill">demo</span>
-    <span class="live-pill" id="live-pill" hidden title="Live mode: prompts go to the hosted backend. On by default here, off elsewhere.">live</span><span class="live-help">Live mode sends your prompt to the backend you configured.</span>
+    <span class="live-pill" id="live-pill" title="Live mode: prompts go to the hosted backend. On by default here, off elsewhere.">live</span><span class="live-help">Live mode sends your prompt to the backend you configured.</span>
   </div>
   <nav class="hd-nav">
       <a class="nav-link" href="#features">Features</a>
@@ -881,7 +869,7 @@ a:hover { text-decoration-color: var(--teal) }
       <a class="nav-link" href="https://github.com/succulentsdev/greensearch" target="_blank" rel="noopener">GitHub</a>
     </nav>
     <div class="hd-r">
-    <button class="icon-btn" id="how-btn" type="button" aria-label="How this demo works" aria-haspopup="dialog" title="How this demo works"><span aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span><span class="lbl">How it works</span></button>
+    <button class="icon-btn" id="how-btn" type="button" aria-label="How Arboris works" aria-haspopup="dialog" title="How Arboris works"><span aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span><span class="lbl">How it works</span></button>
     <button class="icon-btn" id="export-btn" type="button" aria-label="Export chat as a Markdown file" title="Export chat (.md)"><span aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></span><span class="lbl">Export</span></button>
     <button class="icon-btn" id="copy-btn" type="button" aria-label="Copy session stats" title="Copy session stats"><span aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 2H7a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2h-2"/></svg></span></button>
     <button class="icon-btn" id="theme-btn" type="button" aria-label="Toggle theme" title="Toggle light/dark"><span class="theme-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span></button>
@@ -891,27 +879,11 @@ a:hover { text-decoration-color: var(--teal) }
 <section class="hero">
   <h1 class="hero-title">Lower-carbon <em>AI chat</em></h1>
   <p class="hero-sub">Shorter prompts, right-sized answers, less energy per conversation.</p>
-  <div class="hero-input-wrap">
-    <div class="hero-input-row">
-      <input class="hero-input" id="hero-ci" type="text" placeholder="Ask anything, try ‘Explain DNS simply’" autocomplete="off">
-      <button class="hero-send" id="hero-sb" type="button">Send</button>
-    </div>
-    <div class="hero-chips">
-      <button class="hero-chip" type="button">Explain DNS simply</button>
-      <button class="hero-chip" type="button">Write a follow-up email</button>
-      <button class="hero-chip" type="button">What is photosynthesis</button>
-      <button class="hero-chip" type="button">Give me a workout plan</button>
-    </div>
-  </div>
-  <div class="hero-scroll-hint" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></div>
+  
+  
 </section>
 
-<div class="stats-bar" id="stats">
-  <div class="stat-item"><div class="stat-num">89+</div><div class="stat-label">topics covered</div></div>
-<div class="stat-item"><div class="stat-num">~40%</div><div class="stat-label">fewer tokens</div></div>
-<div class="stat-item"><div class="stat-num">0</div><div class="stat-label">dependencies</div></div>
-<div class="stat-item"><div class="stat-num">3</div><div class="stat-label">verbosity modes</div></div>
-</div>
+
 
 <div class="feat-section" id="features">
   <h2 class="feat-section-title">How Arboris trims the cost of every conversation</h2>
@@ -923,15 +895,8 @@ a:hover { text-decoration-color: var(--teal) }
 
 
 
-<div class="totals" id="totals" aria-label="Session totals">
-  <div class="ti-lbl" id="demo-tot-lbl" hidden>DEMO<br>estimates</div>
-  <div class="ti"><span class="tn" id="t-calls">0</span><span class="tl">messages</span></div>
-  <div class="ti"><span class="tn" id="t-base">0</span><span class="tl">baseline tokens</span></div>
-  <div class="ti"><span class="tn" id="t-green">0</span><span class="tl">Arboris tokens</span></div>
-  <div class="ti"><span class="tn" id="t-saved">0</span><span class="tl">tokens saved</span></div>
-  <div class="ti"><span class="tn" id="t-co2">0.00g</span><span class="tl">CO₂e saved (est.)</span><span class="te" id="t-eq"></span></div>
-</div>
-<div class="totals totals-live" id="totals-live" aria-label="Live totals (provider-reported, kept separate from demo totals)" hidden>
+
+<div class="totals totals-live" id="totals-live" aria-label="Live totals (provider-reported)" hidden>
   <div class="ti-lbl">LIVE<br>provider-reported</div>
   <div class="ti"><span class="tn" id="lt-calls">0</span><span class="tl">live answers</span></div>
   <div class="ti"><span class="tn" id="lt-in">0</span><span class="tl">input tokens</span></div>
@@ -942,7 +907,7 @@ a:hover { text-decoration-color: var(--teal) }
 </div>
 
 <div class="main">
-  <button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="sidebar"><span>Topics, stats &amp; how it works</span><span class="chev" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></button>
+  
   <div class="cp">
     <div class="cs" id="chat" role="region" aria-label="Conversation"></div>
     <div class="sr-only" id="sr-live" aria-live="polite" aria-atomic="true"></div>
@@ -956,69 +921,17 @@ a:hover { text-decoration-color: var(--teal) }
         <button class="btn-s" id="sb" type="button">Send</button>
         <button class="btn-cl" id="cb" type="button" title="Clear chat" aria-label="Clear chat and saved session"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       </div>
-      <div class="chips" id="chips" role="group" aria-label="Sample questions"></div>
+      
       <div class="shrink-bar" id="shrink-bar"><div class="shrink-bar-fill" id="shrink-bar-fill"></div></div>
-      <p class="hint">Enter to send · 95 topics · try anything</p>
+      <p class="hint">Enter to send</p>
     </div>
   </div>
 
-  <aside class="sidebar" id="sidebar" aria-label="About Arboris">
-    <div class="panel">
-      <div class="pt">How it works</div>
-      <p>Every message runs through three steps before answering:</p>
-      <ul>
-        <li><b>PromptShrink</b>: strips filler from your question (watch the preview as you type)</li>
-        <li><b>Session cache</b>: reuses a previous answer if you asked before</li>
-        <li><b>Routing</b>: picks the shortest sufficient answer length</li>
-      </ul>
-      <details>
-        <summary>Routing thresholds</summary>
-        <p><b>Sprout</b> ≤12 words → ~2 sentences<br>
-        <b>Canopy</b> 13–34 words → ~4 sentences<br>
-        <b>Forest</b> 35+ words, complexity marker, or 2+ questions → ~6 sentences</p>
-      </details>
-    </div>
-
-    <div class="panel" id="topic-panel">
-      <div class="pt"><label for="tb-search">Topic browser</label></div>
-      <input class="tb-search" id="tb-search" type="search" placeholder="Search 95 topics…" autocomplete="off" aria-label="Search topics" aria-controls="tb-list">
-      <p class="tb-count" id="tb-count" role="status"></p>
-      <div class="tb-list" id="tb-list"></div>
-    </div>
-
-    <div class="panel">
-      <div class="pt">Finland &amp; carbon</div>
-      <p>Designed to run on nearly carbon-free electricity. Reference: <b>Google Cloud Finland: 98% carbon-free, 30 gCO₂eq/kWh.</b></p>
-      <div class="callout"><b>Note:</b> this demo runs in your browser, not in Finland. Savings shown come from fewer tokens only. Clean-energy hosting is a separate lever for a live version.</div>
-      <p style="font-size:11px"><a href="https://cloud.google.com/sustainability/region-carbon" target="_blank" rel="noopener">Google Cloud region carbon data</a></p>
-      <details>
-        <summary>How numbers are calculated</summary>
-        <p><b>Tokens:</b> words × 1.33, min 1.<br><b>CO₂e:</b> tokens × 0.0018 g.<br>
-        <b>Baseline:</b> original question + Forest answer, no trimming or routing.<br>
-        <b>Arboris:</b> shrunk question + routed answer (0 on cache hit).<br>
-        Published per-prompt figures for real models differ by 10× or more.</p>
-      </details>
-      <details>
-        <summary>Honest limits</summary>
-        <p>Live mode is on by default on the hosted site and off by default elsewhere. Demo mode has no live model: answers are pre-written for 95 topics, and anything outside the library gets an honest fallback, not a made-up answer. If the backend is unavailable, switch Live off to use the demo..</p>
-      </details>
-    </div>
-
-    <div class="panel" id="stats-panel" style="display:none">
-      <div class="pt">This session</div>
-      <div id="live-stats"></div>
-    </div>
-
-    <div class="panel" id="hist-panel" style="display:none">
-      <div class="pt">Message history</div>
-      <div id="hist-list"></div>
-    </div>
-  </aside>
+  
 </div>
 
 <div hidden aria-hidden="true" style="display:none">
   <div id="live-bar"></div>
-  <input id="live-toggle" type="checkbox">
   <input id="live-url" type="url">
   <input id="live-baseline" type="text">
   <div id="live-opts"></div>
@@ -1026,7 +939,7 @@ a:hover { text-decoration-color: var(--teal) }
 </div>
 <footer class="site-footer">
   <div class="footer-line">
-    <span id="ft-note">Arboris. Live answers from a real model. Demo answers stay in your browser.</span>
+    <span id="ft-note">Arboris · Live only · your prompts go to the hosted backend</span>
     <span class="footer-sep">·</span>
     <span>Grant O'Brien</span>
     <span class="footer-sep">·</span>
@@ -1042,37 +955,28 @@ a:hover { text-decoration-color: var(--teal) }
 <dialog class="how" id="how-dlg" aria-labelledby="how-title">
   <div class="how-in">
     <div class="how-hd">
-      <h2 id="how-title">How this demo works</h2>
-      <button class="icon-btn" id="how-close" type="button" aria-label="Close how this demo works"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      <h2 id="how-title">How Arboris works</h2>
+      <button class="icon-btn" id="how-close" type="button" aria-label="Close how Arboris works"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </div>
-    <h3>Live first, demo as fallback</h3>
-    <p>Live answers on this page come from a real model through the backend: on the hosted site that backend is already running, and on your own machine it is <code>python server/app.py</code>. Demo answers are the fallback: pre-written templates for 95 topics (six hand-written in three lengths: email follow-ups, APIs, workouts, backups, Portcullis firewalls, DNS; and 89 more, each written once and cut to 2, 4 or 6 sentences depending on the route). In demo mode, a question outside the library gets an honest "not in the library" reply, never a made-up answer. In live mode, the model answers anything.</p>
-    <h3>What the steps really do</h3>
+    <h3>Live only</h3>
+    <p>Every question goes to a live backend and is answered by a real model. There is no demo library and no demo fallback. On the hosted site the backend is the same-origin <code>/api/chat</code>; on your own machine it is <code>python server/app.py</code> at <code>http://localhost:8000/api/chat</code>.</p>
+    <h3>What the backend does</h3>
     <ul>
-      <li><b>PromptShrink</b> runs on your actual text: it removes filler and wordy phrases and leaves code blocks alone.</li>
+      <li><b>PromptShrink</b> removes filler and wordy phrases from your question, leaving code blocks alone.</li>
       <li><b>Routing</b> picks Sprout, Canopy or Forest from word count, complexity words and question marks.</li>
-      <li><b>Session cache</b> reuses an earlier answer when the trimmed question matches one you already asked. <b>Regenerate</b> skips the cache.</li>
+      <li><b>Session cache</b> on the backend reuses an earlier live answer when the trimmed question matches. The input preview in this page is an estimate only; the backend does the real shrinking.</li>
+      <li><b>Logprob cascade:</b> a small model answers first, and the question goes to a larger model only when the small model&apos;s own token log-probabilities show low confidence.</li>
     </ul>
-    <h3>The numbers are estimates</h3>
+    <h3>The numbers</h3>
     <ul>
-      <li><b>Tokens</b> are estimated as words × 1.33 (minimum 1). There is no real tokenizer.</li>
-      <li><b>CO₂e</b> is tokens × 0.0018 g. That factor is an assumption, not a measurement of any data centre.</li>
-      <li><b>The baseline is assumed, not measured.</b> It counts your original question plus the Forest (longest) answer, with no trimming, routing or reuse. It is not a measured ChatGPT or Gemini comparison. Published per-prompt figures for real models vary by 10× or more.</li>
+      <li><b>Tokens</b> in live totals are provider-reported, not estimates.</li>
+      <li><b>Saved vs baseline</b> is measured only when Measure baseline is on (every live message then costs two API calls). Otherwise it shows as not measured.</li>
+      <li><b>The systematic baseline is not yet run.</b> The repo&apos;s <code>scripts/baseline_study.py</code> can measure real token counts against a live model, but that run has not been completed, so no live savings figure is claimed here.</li>
     </ul>
-    <h3>The live backend is running; the measured baseline is not</h3>
-    <p>The repo includes a baseline study script (<code>scripts/baseline_study.py</code>) that can measure real token counts against a live model. The hosted backend is already running with a configured API key, and live answers work. What has not been done yet is a systematic measured baseline, so no live savings numbers have been made up to fill the gap. The repo's current <code>BASELINE.md</code> uses the offline canned provider and says so. No live numbers have been made up to fill the gap.</p>
-    <h3>What changed with a live model</h3>
-    <ul>
-      <li><b>A backend.</b> An API key can't safely sit in a browser page, so a small server makes the model calls. On the hosted site that server is already running; locally it is <code>python server/app.py</code>.</li>
-      <li><b>A real tokenizer.</b> Live token counts come from the model provider instead of words × 1.33. Demo counts are still estimates.</li>
-      <li><b>A logprob cascade.</b> A small model answers first, and the question goes to a larger model only when the small model's own token log-probabilities show low confidence. The Python package and the live backend do this; demo mode does not.</li>
-      <li><b>Finland hosting.</b> Running in Google Cloud Finland (europe-north1, about 98% carbon-free energy) is a separate lever on top of token savings. The hosted backend currently runs in us-central1, not Finland, so Finland is a future option, not a current claim.</li>
-      <li>All the savings still need to be measured again against the live model. The demo percentages shown here do not carry over automatically.</li>
-    </ul>
-    <h3>Live mode (on by default on the hosted site)</h3>
-    <p>The <b>Live mode</b> switch sends each question to an Arboris backend. On the hosted site the default is the same-origin backend (<code>/api/chat</code> on this site); on your own machine the default is <code>http://localhost:8000/api/chat</code>, i.e. <code>python server/app.py</code>. You can enter a different backend URL in the Live row at the top. The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a <b>truncated</b> marker when the answer hit the token cap. Live totals sit in their own LIVE row and are never added to the demo estimates. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers aren't saved in localStorage; only the backend URL is, under <code>greensearch-live-backend-url</code>.</p>
-    <h3>Privacy</h3>
-    <p>In demo mode the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
+    <h3>Finland and carbon</h3>
+    <p>Running in Google Cloud Finland (europe-north1, about 98% carbon-free energy, 30 gCO2eq/kWh) is a separate lever on top of token savings. The hosted backend currently runs in us-central1, not Finland, so Finland is a future option, not a current claim.</p>
+    <h3>Privacy and memory</h3>
+    <p>Your prompts go to the backend you configured; the API key never lives in this page. Live answers are not saved to localStorage, and this site keeps no conversation memory: nothing is restored on reload, and any old demo session stored under the old key is deleted on load. Only a backend URL you set yourself is saved, as configuration.</p>
   </div>
 </dialog>
 
@@ -1179,306 +1083,10 @@ function routeMode(shrunk){
   if(words<=SPROUT_MAX)return'sprout';
   return'canopy';
 }
-/* Expanded topic library (89 topics, from spec/templates.json) */
-var EXPANDED_TOPICS=[
-  {id:"password",kw:[/\bpasswords?\b/i,/\bpassphrase\b/i],a:"A strong password is at least 12 characters and mixes letters, numbers, and symbols so it cannot be guessed or brute-forced quickly. A password manager generates and stores unique passwords for every account, so you only memorize one master password. Never reuse passwords across sites, because one breach hands attackers the key to every account that shares it. Turn on two-factor authentication wherever it is offered \u2014 it adds a second check even if your password leaks. Change a password immediately if a service reports a breach, and check haveibeenpwned.com to see if your email has appeared in known leaks. Treat your master password like a house key: long, unique, and never written on a sticky note."},
-  {id:"vpn",kw:[/\bvpns?\b/i,/\bvirtual private network\b/i],a:"A VPN encrypts your internet traffic and routes it through a server elsewhere, so your ISP and anyone on the same Wi-Fi cannot see what you are doing. It is useful on public Wi-Fi, for bypassing region locks, and for keeping your browsing private from your network provider. A VPN does not make you anonymous \u2014 the VPN provider can still see your traffic, so pick one with a no-logs policy and an independent audit. It will not protect you from phishing, malware, or a site that already has your data. Speed usually drops a little because traffic takes an extra hop, and some streaming services block known VPN addresses. Think of it as a private tunnel, not an invisibility cloak."},
-  {id:"cloud",kw:[/\bcloud computing\b/i,/\bcloud storage\b/i,/\bthe cloud\b/i],a:"Cloud computing means using someone else's servers over the internet instead of buying and maintaining your own hardware. You rent exactly the compute, storage, or services you need, and scale up or down without buying new equipment. The main models are IaaS (virtual machines you manage), PaaS (a platform that handles the infrastructure), and SaaS (finished software you just log into). Benefits include lower upfront cost, automatic backups, and access from anywhere with internet. The trade-offs are ongoing subscription costs, dependence on your provider's uptime, and the fact that your data lives on someone else's machines. For most small businesses, cloud storage and SaaS tools are the easiest starting point."},
-  {id:"ml",kw:[/\bmachine learning\b/i,/\bml\b/i,/\bneural networks?\b/i],a:"Machine learning is a branch of AI where a program learns patterns from data instead of following hand-written rules. You feed it labeled examples \u2014 thousands of photos tagged 'cat' or 'dog' \u2014 and it finds the features that distinguish them. A neural network is one popular approach: layers of simple math functions that adjust their weights during training until predictions improve. The result is a model that can classify new data it has never seen, though it only works well on inputs similar to its training set. Overfitting happens when the model memorizes training data instead of learning general patterns, which is why you always test on data held back from training. The field is powerful but not magic \u2014 garbage data in means garbage predictions out."},
-  {id:"blockchain",kw:[/\bblockchains?\b/i,/\bcryptocurrenc(?:y|ies)\b/i,/\bbitcoin\b/i,/\bethereum\b/i],a:"A blockchain is a shared ledger where every transaction is recorded in blocks that are chained together cryptographically, so changing one old record would break the chain and get noticed. Bitcoin uses this to let strangers transfer value without a bank in the middle \u2014 the network agrees on who owns what through a consensus process. Ethereum extended the idea with smart contracts: programs that run automatically when conditions are met, no middleman needed. The trade-off is speed and energy: proof-of-work blockchains use enormous amounts of electricity, though newer proof-of-stake systems are far more efficient. Cryptocurrencies are volatile and largely unregulated, so treat them as speculative investments, not savings accounts. The underlying technology \u2014 tamper-evident shared records \u2014 has uses beyond currency, from supply-chain tracking to voting."},
-  {id:"cybersecurity",kw:[/\bcybersecurity\b/i,/\bcyber security\b/i,/\bhacking\b/i,/\bphishing\b/i],a:"Cybersecurity is the practice of protecting systems, networks, and data from unauthorized access or damage. The most common attack vector is phishing \u2014 fake emails or messages that trick people into clicking a link or entering credentials \u2014 and it works because it targets humans, not software. Keep software updated, because patches fix known vulnerabilities that attackers scan for. Use strong unique passwords with a manager, enable two-factor authentication, and back up your data so ransomware cannot hold it hostage. For businesses, the biggest risk is usually an untrained employee clicking the wrong link, so regular awareness training matters more than expensive tools. Think of security as layers: no single measure is enough, but together they make an attacker's job much harder."},
-  {id:"cookies",kw:[/\bcookies\b/i,/\btracking cookies\b/i,/\bweb cookies\b/i],a:"A web cookie is a small text file a website stores in your browser to remember information between visits. Session cookies keep you logged in as you click through pages, and they disappear when you close the browser. Persistent cookies remember preferences or shopping carts across visits, which is why a site can greet you by name days later. Third-party tracking cookies are set by advertisers embedded on many sites, letting them follow your browsing across the web to build an ad profile. Most browsers now block third-party cookies by default, and regulations like GDPR require sites to ask your consent before setting non-essential ones. Clearing cookies logs you out of everything and resets preferences, but it also removes trackers."},
-  {id:"ram",kw:[/\bram\b/i,/\bmemory vs storage\b/i,/\bram vs\b/i],a:"RAM (random access memory) is your computer's short-term workspace \u2014 it holds whatever you are actively using so the processor can reach it fast. Storage (a hard drive or SSD) is the long-term filing cabinet where files live even when the power is off. RAM is much faster but loses everything when you shut down, while storage is slower but permanent. When you open a program, it loads from storage into RAM; when you save, it writes from RAM back to storage. If you run out of RAM, the system swaps data to storage, which slows everything down dramatically. For most people, 8 GB of RAM handles everyday tasks, 16 GB is comfortable for multitasking, and 32 GB or more is for video editing or heavy development."},
-  {id:"git",kw:[/\bgit\b/i,/\bversion control\b/i,/\bgithub\b/i],a:"Git is a version control system that tracks every change to your code so you can go back to any previous state. Each save point is called a commit, and commits form a history you can browse, compare, or revert. Branches let you work on a feature without touching the main codebase, then merge it back when it is ready. GitHub, GitLab, and Bitbucket are hosting platforms that store your Git repositories online and add collaboration features like pull requests and issue tracking. The basic workflow is: make changes, stage them, commit with a message explaining what you did, and push to the remote. Even solo developers benefit from Git, because it turns 'I broke everything and cannot undo it' into a one-command fix."},
-  {id:"linux",kw:[/\blinux\b/i,/\bubuntu\b/i,/\bcommand line\b/i,/\bterminal\b/i],a:"Linux is a free, open-source operating system used on everything from phones (Android) to most of the world's servers and supercomputers. Unlike Windows or macOS, anyone can inspect, modify, and distribute its source code. Distributions like Ubuntu, Fedora, and Debian package the Linux kernel with different desktop environments and default software to suit different users. The command line (terminal) is where Linux shines: you can automate tasks, manage servers, and install software with a few typed commands. Common commands to start with are ls (list files), cd (change directory), cp (copy), mv (move), and man (read the manual for any command). If you are comfortable in a terminal, Linux gives you more control than any other desktop OS."},
-  {id:"http",kw:[/\bhttps?\b/i,/\bssl\b/i,/\btls\b/i],a:"HTTP is the protocol your browser uses to request web pages from a server, and HTTPS is the secure version that encrypts the connection with TLS. When you see the padlock icon in your address bar, it means HTTPS is active and nobody between you and the server can read or tamper with the data in transit. Without HTTPS, anyone on the same network \u2014 a coffee-shop hacker, your ISP \u2014 can see exactly what you send and receive, including passwords and form data. TLS works by the server presenting a certificate that proves its identity, then both sides agreeing on encryption keys for the session. Every modern website should use HTTPS; browsers now warn you when a site does not. If you run a site, free certificates from Let's Encrypt make there no excuse to skip it."},
-  {id:"encryption",kw:[/\bencryption\b/i,/\bencrypt\b/i,/\bdecrypt\b/i,/\bcryptography\b/i],a:"Encryption scrambles data so only someone with the right key can read it, turning readable text into gibberish that is useless to anyone who intercepts it. Symmetric encryption uses the same key to lock and unlock, which is fast but means both sides need to share that key securely. Asymmetric encryption uses a public key anyone can see and a private key only you hold \u2014 someone encrypts a message with your public key, and only your private key can decrypt it. HTTPS, messaging apps, and disk encryption all rely on these building blocks. End-to-end encryption means only the sender and receiver can read the messages, not even the service provider in the middle. The main risk is losing your key: encrypted data without its key is gone for good."},
-  {id:"database",kw:[/\bdatabases?\b/i,/\bsql\b/i,/\bnosql\b/i,/\bmysql\b/i,/\bpostgres\b/i],a:"A database is organized storage designed to let you find, add, update, and delete data efficiently. Relational databases like PostgreSQL and MySQL store data in tables with rows and columns, linked by keys, and you query them with SQL. NoSQL databases like MongoDB store flexible documents (JSON-like), which is handy when your data does not fit neatly into fixed columns. Relational databases are best when data integrity and complex queries matter, like financial records. NoSQL is better for rapidly changing schemas, large-scale horizontal scaling, or document-heavy workloads. For most projects, start with a relational database \u2014 it handles the widest range of needs, and you can always add a specialized store later."},
-  {id:"docker",kw:[/\bdocker\b/i,/\bcontainers?\b/i,/\bkubernetes\b/i],a:"A container packages an application with everything it needs \u2014 code, libraries, settings \u2014 so it runs the same way on any machine. Docker is the most popular tool for building and running containers, and it solves the classic 'works on my machine' problem. Unlike a virtual machine, a container shares the host's OS kernel, so it starts in seconds and uses far less memory. A Dockerfile describes how to build the image, docker-compose orchestrates multiple containers that work together, and Kubernetes manages containers at scale across many servers. The typical workflow is: write a Dockerfile, build an image, push it to a registry, and deploy it anywhere. Containers are now the standard way to ship server software because they make deployments reproducible and rollbacks trivial."},
-  {id:"ssh",kw:[/\bssh\b/i,/\bsecure shell\b/i],a:"SSH (Secure Shell) is a protocol for logging into a remote computer securely over an untrusted network. It encrypts everything \u2014 commands, passwords, files \u2014 so no one between you and the server can eavesdrop. You connect by typing ssh user@hostname, and the server authenticates you with either a password or, better, an SSH key pair. Key-based auth is safer because there is no password to guess: you keep a private key on your machine, and the server holds the matching public key. SSH also lets you tunnel other traffic through the encrypted connection, copy files with scp or sftp, and forward ports. If you manage any server, SSH is the tool you will use every day."},
-  {id:"gravity",kw:[/\bgravity\b/i,/\bgravitation\b/i],a:"Gravity is the force that pulls objects with mass toward each other \u2014 it is why you stay on the ground and why planets orbit the sun. Newton described it as a force proportional to mass and inversely proportional to the square of the distance between two objects. Einstein's general relativity went further: massive objects bend the fabric of spacetime, and other objects follow those curves, which we experience as gravity. On Earth's surface, gravity accelerates everything at about 9.8 meters per second squared, regardless of mass (air resistance aside). Gravity is the weakest of the four fundamental forces, but it acts over infinite distance, which is why it dominates at the scale of planets, stars, and galaxies. We still do not have a complete quantum theory of gravity, which is one of the biggest open problems in physics."},
-  {id:"photosynthesis",kw:[/\bphotosynthesis\b/i],a:"Photosynthesis is how plants, algae, and some bacteria convert sunlight into chemical energy they can use as food. The process happens mainly in chloroplasts, using the green pigment chlorophyll to absorb light energy. In the light reactions, water molecules are split and the energy is captured as ATP and NADPH. In the Calvin cycle, that stored energy is used to fix carbon dioxide from the air into glucose, a sugar the plant can burn for energy or build into cellulose. The byproduct is oxygen, which is why life on Earth depends on photosynthesis for breathable air. Plants are most efficient with red and blue light \u2014 they reflect green light, which is why they look green."},
-  {id:"evolution",kw:[/\bevolution\b/i,/\bnatural selection\b/i,/\bdarwin\b/i],a:"Evolution is the change in inherited traits within a population over generations, driven mainly by natural selection. Organisms that are better suited to their environment tend to survive and reproduce more, passing those advantageous traits to their offspring. Over many generations, this process can produce new species. Mutations \u2014 random changes in DNA \u2014 introduce the variation that selection acts on. Evolution does not have a goal or direction; it simply means populations change over time in response to their environment. The evidence comes from fossils, DNA comparisons, observed speciation, and shared anatomical structures across species."},
-  {id:"atoms",kw:[/\batoms?\b/i,/\batomic structure\b/i,/\bprotons?\b/i,/\bneutrons?\b/i,/\belectrons?\b/i],a:"An atom is the smallest unit of a chemical element that still behaves like that element. It has a dense nucleus made of positively charged protons and neutral neutrons, surrounded by a cloud of negatively charged electrons. The number of protons defines which element it is \u2014 hydrogen has 1, carbon has 6, iron has 26. Electrons occupy energy levels (shells) around the nucleus, and the outermost electrons determine how the atom bonds with others. Atoms are almost entirely empty space: if the nucleus were a marble, the nearest electron would be about a football field away. Everything you can touch is made of atoms, and they are so small that a single drop of water contains about 5 sextillion of them."},
-  {id:"blackhole",kw:[/\bblack holes?\b/i],a:"A black hole is a region of space where gravity is so strong that nothing, not even light, can escape once it crosses the boundary called the event horizon. They form when a massive star collapses at the end of its life, crushing its core into an infinitely dense point called a singularity. Stellar black holes are a few times the mass of our sun, while supermassive black holes at the centers of galaxies can be billions of solar masses. Despite their reputation, black holes do not suck in everything around them \u2014 at a safe distance, their gravity is no different from any other object of the same mass. We detect them by observing their effects: stars orbiting invisible partners, X-rays from superheated infalling gas, and gravitational waves when two black holes merge. The first direct image of a black hole's shadow was captured by the Event Horizon Telescope in 2019."},
-  {id:"vaccine",kw:[/\bvaccines?\b/i,/\bvaccination\b/i,/\bimmunization\b/i],a:"A vaccine trains your immune system to recognize and fight a specific pathogen without you getting sick from the real disease. It works by introducing a harmless piece of the germ \u2014 a weakened form, a dead version, or just a protein from its surface \u2014 so your body produces antibodies and memory cells. If you later encounter the real pathogen, your immune system recognizes it immediately and responds fast enough to prevent or greatly reduce illness. Herd immunity happens when enough people are vaccinated that the disease cannot spread easily, protecting those who cannot be vaccinated, like newborns or immunocompromised individuals. Side effects like a sore arm or mild fever are signs your immune system is responding, and serious reactions are extremely rare. Vaccines have eliminated smallpox, nearly eliminated polio, and prevent millions of deaths every year."},
-  {id:"climate",kw:[/\bclimate change\b/i,/\bglobal warming\b/i,/\bgreenhouse\b/i],a:"Climate change refers to long-term shifts in temperatures and weather patterns, primarily driven by human activities since the Industrial Revolution. Burning fossil fuels releases carbon dioxide and other greenhouse gases that trap heat in the atmosphere, raising global average temperatures. Effects include rising sea levels, more extreme weather events, shifting ecosystems, and ocean acidification. The scientific consensus, supported by thousands of studies, is that human activity is the dominant cause of warming since the mid-20th century. Limiting warming to 1.5\u00b0C above pre-industrial levels requires cutting global emissions roughly in half by 2030 and reaching net zero by 2050. Individual actions help, but systemic changes in energy, transportation, agriculture, and industry are where the largest reductions come from."},
-  {id:"dna",kw:[/\bdna\b/i,/\bgenetics?\b/i,/\bgenes?\b/i,/\bgenome\b/i],a:"DNA (deoxyribonucleic acid) is a molecule that carries the genetic instructions for building and maintaining every living organism. It is shaped like a twisted ladder \u2014 the famous double helix \u2014 with rungs made of pairs of four chemical bases: adenine, thymine, guanine, and cytosine. A gene is a specific sequence of these bases that encodes instructions for making a protein, and proteins do most of the work in your cells. The human genome contains about 20,000 genes spread across 23 pairs of chromosomes, but genes make up only about 2 percent of your total DNA \u2014 the rest has regulatory and structural roles scientists are still mapping. DNA replication copies the molecule before a cell divides, and errors during copying are the source of mutations. Your DNA is 99.9 percent identical to every other human's; the 0.1 percent accounts for all our individual variation."},
-  {id:"electricity",kw:[/\belectricity\b/i,/\belectric current\b/i,/\bvoltage\b/i,/\bcircuits?\b/i],a:"Electricity is the flow of charged particles, usually electrons, through a conductor like a wire. Voltage is the pressure pushing those electrons (like water pressure in a pipe), current is how many flow past a point per second (measured in amps), and resistance is how much the material opposes the flow (measured in ohms). Ohm's law ties them together: voltage equals current times resistance. A circuit needs a complete loop for current to flow \u2014 break the loop and the flow stops, which is exactly what a switch does. Alternating current (AC) reverses direction many times per second and is what comes out of your wall outlets, while direct current (DC) flows one way and is what batteries produce. Understanding these basics is enough to wire a lamp, read a circuit diagram, or figure out why a fuse keeps blowing."},
-  {id:"solarsystem",kw:[/\bsolar system\b/i,/\bplanets?\b/i,/\bmercury\b/i,/\bvenus\b/i,/\bmars\b/i,/\bjupiter\b/i,/\bsaturn\b/i],a:"Our solar system has eight planets orbiting the Sun: Mercury, Venus, Earth, and Mars (the rocky inner planets), then Jupiter, Saturn, Uranus, and Neptune (the gas and ice giants). The Sun contains 99.86 percent of the system's total mass, and gravity from that mass keeps everything in orbit. The asteroid belt sits between Mars and Jupiter, and beyond Neptune lies the Kuiper Belt, home to Pluto and other dwarf planets. Jupiter is the largest planet \u2014 you could fit over 1,300 Earths inside it \u2014 and its Great Red Spot is a storm larger than Earth that has been raging for centuries. The solar system formed about 4.6 billion years ago from a collapsing cloud of gas and dust. Light from the Sun takes about 8 minutes to reach Earth and over 4 hours to reach Neptune."},
-  {id:"fractions",kw:[/\bfractions?\b/i,/\bnumerator\b/i,/\bdenominator\b/i],a:"A fraction represents a part of a whole, written as a numerator (top number) over a denominator (bottom number). The denominator says how many equal parts the whole is divided into, and the numerator says how many of those parts you have. To add or subtract fractions, you need a common denominator \u2014 rewrite them so the bottom numbers match, then work with the tops. To multiply fractions, multiply the numerators together and the denominators together. To divide by a fraction, flip it and multiply. Always simplify your answer by dividing the top and bottom by their greatest common factor."},
-  {id:"percentages",kw:[/\bpercentages?\b/i,/\bpercent\b/i],a:"A percentage is a number expressed as a fraction of 100 \u2014 25 percent means 25 out of 100, or one quarter. To convert a decimal to a percentage, multiply by 100: 0.75 becomes 75 percent. To find a percentage of a number, convert the percentage to a decimal and multiply: 20 percent of 80 is 0.20 times 80, which is 16. Percentage increase is the difference divided by the original, times 100. A common trap is confusing percentage points with percentages: going from 10 percent to 15 percent is a 5-percentage-point increase but a 50-percent increase. Once you remember that 'percent' literally means 'per hundred,' the rest is just arithmetic."},
-  {id:"algebra",kw:[/\balgebra\b/i,/\bequations?\b/i,/\bsolve for\b/i],a:"Algebra is math with unknowns: you use letters (variables) to stand for numbers you do not know yet, then solve equations to find them. The core idea is balance \u2014 whatever you do to one side of the equals sign, you must do to the other. To solve a simple equation like 2x + 5 = 13, subtract 5 from both sides to get 2x = 8, then divide both sides by 2 to get x = 4. Algebra shows up everywhere: calculating tips, figuring out loan payments, scaling recipes, and converting units. The key skill is isolating the variable by undoing operations in reverse order. Once you are comfortable with one-variable equations, the same logic extends to two variables, quadratics, and beyond."},
-  {id:"statistics",kw:[/\bstatistics\b/i,/\bmean\b.*\bmedian\b/i,/\bstandard deviation\b/i],a:"Statistics is the science of collecting, analyzing, and interpreting data to find patterns and make decisions. The three most common measures of center are the mean (average), median (middle value when sorted), and mode (most frequent value). The mean is sensitive to outliers \u2014 one millionaire in a room of students skews the average income \u2014 so the median often gives a better picture. Standard deviation measures how spread out the data is: a small standard deviation means values cluster near the mean, a large one means they are scattered. Correlation measures whether two variables move together, but correlation does not prove causation \u2014 ice cream sales and drownings both rise in summer, but one does not cause the other. Learning to ask 'what does this number actually measure?' is the single most useful statistical skill."},
-  {id:"probability",kw:[/\bprobability\b/i,/\bodds\b/i,/\bchance\b/i],a:"Probability measures how likely an event is to happen, on a scale from 0 (impossible) to 1 (certain). A fair coin has a 0.5 probability of heads because there are two equally likely outcomes and one is heads. To find the probability of two independent events both happening, multiply their individual probabilities: the chance of flipping two heads in a row is 0.5 times 0.5, which is 0.25. The gambler's fallacy is the mistaken belief that past results change future odds \u2014 a coin does not 'remember' its last flip. Expected value multiplies each outcome by its probability and sums them, which is how casinos guarantee long-run profit even when individual bets are random. Understanding probability helps with everything from evaluating medical test results to deciding whether an umbrella is worth carrying."},
-  {id:"ww2",kw:[/\bworld war (ii|2|two)\b/i,/\bww2\b/i,/\bwwii\b/i],a:"World War II (1939\u20131945) was the deadliest conflict in human history, involving most of the world's nations in two opposing alliances: the Allies and the Axis powers. It began with Germany's invasion of Poland and expanded as Japan attacked Pearl Harbor, drawing the United States into the war. Key turning points included the Battle of Stalingrad, D-Day (the Allied invasion of Normandy), and the island-hopping campaign in the Pacific. The war ended with Germany's unconditional surrender in May 1945 and Japan's surrender in August after the atomic bombings of Hiroshima and Nagasaki. An estimated 70\u201385 million people died, including roughly 6 million Jews murdered in the Holocaust. The aftermath reshaped global politics: the United Nations was founded, Europe was rebuilt under the Marshall Plan, and the Cold War between the US and Soviet Union began."},
-  {id:"industrialrev",kw:[/\bindustrial revolution\b/i],a:"The Industrial Revolution, beginning in Britain in the late 1700s, was the shift from hand production to machine manufacturing that transformed the global economy. Key inventions like the steam engine, spinning jenny, and power loom made mass production possible for the first time. Factories drew workers from farms to cities, creating an urban working class and sparking both economic growth and harsh labor conditions. Coal became the dominant energy source, powering steam engines for factories, trains, and ships. The second wave in the late 1800s brought electricity, steel, and the internal combustion engine. Its effects \u2014 urbanization, fossil-fuel dependence, mass production, and the modern economy \u2014 are still the foundation of how we live today."},
-  {id:"coldwar",kw:[/\bcold war\b/i],a:"The Cold War (roughly 1947\u20131991) was a decades-long geopolitical rivalry between the United States and the Soviet Union that never erupted into direct military conflict between the two superpowers. Instead, it played out through proxy wars (Korea, Vietnam, Afghanistan), nuclear arms races, espionage, and competing space programs. The Iron Curtain divided Europe into Western democracies aligned with NATO and Eastern communist states under the Warsaw Pact. Key crises included the Berlin Blockade, the Cuban Missile Crisis, and the Soviet invasion of Afghanistan. The arms race produced enough nuclear weapons to destroy civilization many times over, which paradoxically helped prevent direct war through mutually assured destruction (MAD). The Cold War ended with the fall of the Berlin Wall in 1989 and the dissolution of the Soviet Union in 1991."},
-  {id:"renaissance",kw:[/\brenaissance\b/i],a:"The Renaissance was a cultural and intellectual movement that began in Italy around the 14th century and spread across Europe over the next 300 years. It marked a revival of interest in classical Greek and Roman art, philosophy, and science after the Middle Ages. Key figures include Leonardo da Vinci (art and engineering), Michelangelo (sculpture and painting), Galileo (astronomy), and Machiavelli (political philosophy). The invention of the printing press by Gutenberg around 1440 accelerated the spread of ideas and made books accessible beyond the clergy and wealthy. Renaissance art introduced perspective, realistic anatomy, and humanist themes that broke from the flat, symbolic style of medieval art. The movement laid the groundwork for the Scientific Revolution and the Enlightenment that followed."},
-  {id:"ancientciv",kw:[/\bancient civilizations?\b/i,/\bancient (egypt|rome|greece|mesopotamia)\b/i],a:"The earliest civilizations arose independently around river systems: Mesopotamia (Tigris-Euphrates), Egypt (Nile), the Indus Valley, and China (Yellow River), all between roughly 3500 and 2000 BCE. They share common features: agriculture that produced food surpluses, writing systems for record-keeping, cities, social hierarchies, and specialized labor. Ancient Egypt built the pyramids and developed hieroglyphics, Mesopotamia invented the wheel and cuneiform writing, and the Indus Valley had planned cities with advanced drainage. Ancient Greece gave us democracy, philosophy, and the foundations of Western science, while Rome built an empire spanning three continents with roads, aqueducts, and a legal system still influential today. Each civilization fell or transformed for different reasons \u2014 invasion, climate change, internal collapse \u2014 but their innovations accumulated. Modern writing, law, math, engineering, and governance all trace back to these earliest societies."},
-  {id:"budgeting",kw:[/\bbudget(?:ing|s)?\b/i,/\bpersonal finance\b/i],a:"A budget is a plan for where your money goes each month, and the simplest starting framework is 50/30/20: 50 percent to needs (rent, food, utilities), 30 percent to wants (dining out, hobbies), and 20 percent to savings and debt repayment. Track every dollar for one month to see where it actually goes \u2014 most people are surprised. Automate savings by setting up a transfer on payday so the money moves before you can spend it. An emergency fund covering 3\u20136 months of expenses protects you from debt when something breaks or a job disappears. Review your budget monthly and adjust \u2014 it is a living document, not a set-and-forget rule. The point is not to restrict yourself; it is to spend deliberately so you can afford the things that matter most."},
-  {id:"investing",kw:[/\binvesting\b/i,/\binvestments?\b/i,/\bportfolio\b/i],a:"Investing means putting money into assets that you expect to grow in value over time, such as stocks, bonds, real estate, or index funds. The key principle is compound growth: returns earn their own returns, so starting early matters far more than starting big. Diversification \u2014 spreading money across many investments \u2014 reduces risk because a loss in one is offset by gains in others. Index funds that track the broad market (like the S&P 500) have historically outperformed most actively managed funds over the long term, with lower fees. The trade-off between risk and return is real: higher potential returns come with higher potential losses, which is why your time horizon matters. This is general information, not financial advice \u2014 talk to a licensed advisor before making investment decisions."},
-  {id:"stockmarket",kw:[/\bstock market\b/i,/\bstocks?\b/i,/\bshares?\b/i,/\bwall street\b/i],a:"The stock market is where shares of publicly traded companies are bought and sold, letting companies raise capital and investors own a piece of the business. When you buy a stock, you own a fraction of that company and benefit if its value grows or it pays dividends. Stock prices move based on supply and demand, which in turn reflect earnings reports, economic conditions, investor sentiment, and countless other factors. Major indexes like the S&P 500, Dow Jones, and Nasdaq track baskets of stocks to show overall market direction. Over the long term, the US stock market has returned an average of about 10 percent per year before inflation, but individual years can swing wildly. Past performance does not guarantee future results, and short-term trading is closer to speculation than investing."},
-  {id:"compoundinterest",kw:[/\bcompound interest\b/i,/\bcompounding\b/i],a:"Compound interest is interest calculated on both the initial principal and the accumulated interest from previous periods \u2014 it is interest on interest. The formula is A = P(1 + r/n)^(nt), where P is principal, r is the annual rate, n is how often it compounds, and t is time in years. The power of compounding is time: $1,000 at 7 percent for 30 years grows to about $7,600 without adding another dollar. This is why starting to save in your 20s beats starting in your 40s even with smaller contributions. Compounding works against you with debt: credit card balances grow the same way, which is why minimum payments barely dent the principal. Einstein may not have actually called it the eighth wonder of the world, but the math makes a strong case."},
-  {id:"taxes",kw:[/\btaxes\b/i,/\btax(?:ation|able)?\b/i,/\bincome tax\b/i],a:"Taxes are mandatory payments to the government that fund public services like roads, schools, defense, and social programs. In a progressive income tax system, higher income is taxed at higher rates, but only the portion in each bracket is taxed at that bracket's rate \u2014 moving into a higher bracket does not retroactively increase the tax on your lower income. Common tax-advantaged accounts include 401(k)s and IRAs for retirement, and HSAs for medical expenses, which reduce your taxable income now or let investments grow tax-free. Deductions lower your taxable income, while credits directly reduce the tax you owe, making credits generally more valuable dollar for dollar. Filing on time avoids penalties, and keeping receipts for deductible expenses can save hundreds or thousands. Tax laws vary by country and change frequently, so consult a tax professional for specific advice."},
-  {id:"resume",kw:[/\bresumes?\b/i,/\bcv\b/i,/\bcurriculum vitae\b/i],a:"A resume is a one- or two-page summary of your skills, experience, and education that gets you an interview \u2014 it is not meant to tell your whole story. Lead with a clear header (name, contact, LinkedIn), then either a skills summary or your most recent experience, depending on what is stronger. Each job entry should list accomplishments with measurable results ('Reduced page load time by 40%') rather than vague duties ('Responsible for website performance'). Tailor your resume for each application by matching keywords from the job description, because many companies use automated screening tools that filter by keyword. Keep formatting clean and simple \u2014 fancy designs often break when parsed by applicant tracking systems. Proofread twice, then have someone else read it: a single typo can cost you the interview."},
-  {id:"negotiation",kw:[/\bnegotiat(?:ion|ing|e)\b/i,/\bbargain(?:ing)?\b/i],a:"Negotiation is a conversation where two or more parties try to reach an agreement that works for everyone, and it happens more often than most people realize \u2014 salaries, rent, contracts, even where to eat dinner. The most important preparation is knowing your BATNA (Best Alternative To a Negotiated Agreement): the best outcome you can get if this deal falls through. Anchor the conversation by stating your desired terms first, because the first number mentioned tends to pull the final number toward it. Listen more than you talk \u2014 understanding what the other side actually needs often reveals creative solutions that cost you little. Separate the people from the problem: be firm on your interests but respectful toward the person. Most people leave money on the table by simply not asking, so the first skill is just being willing to negotiate."},
-  {id:"marketing",kw:[/\bmarketing\b/i,/\badvertising\b/i,/\bseo\b/i],a:"Marketing is how you get the right people to know about and buy your product or service, and it starts with understanding who those right people are. Define your target audience first \u2014 demographics, needs, where they spend time online \u2014 because trying to reach everyone reaches no one effectively. Content marketing (blogs, videos, social media) builds trust over time by providing value before asking for a sale. SEO (search engine optimization) means structuring your website so it ranks higher in Google results for the terms your audience searches for. Paid advertising (Google Ads, social media ads) gets immediate visibility but stops the moment you stop paying, so combine it with organic efforts for long-term growth. Track what works by measuring specific metrics \u2014 conversion rate, cost per acquisition, customer lifetime value \u2014 not just likes and impressions."},
-  {id:"startup",kw:[/\bstartups?\b/i,/\bentrepreneur\b/i,/\bbusiness plan\b/i],a:"A startup is a new business built to grow quickly, typically around a product or service that solves a specific problem better than existing options. Start by validating demand before building: talk to potential customers, run a survey, or build a minimal version (MVP) to see if people will actually pay. A business plan does not need to be 50 pages \u2014 a one-page lean canvas covering the problem, solution, target customers, revenue model, and key metrics is enough to start. Funding options range from bootstrapping (your own money) to angel investors, venture capital, and small business loans, each with different trade-offs in control and speed. Most startups fail not because of bad ideas but because of poor execution, running out of cash, or building something nobody wants. The fastest way to learn is to ship something, get real feedback, and iterate."},
-  {id:"supplydemand",kw:[/\bsupply and demand\b/i,/\beconomics\b/i,/\bsupply\b.*\bdemand\b/i],a:"Supply and demand is the most fundamental concept in economics: the price of a good tends to settle where the amount producers want to sell equals the amount consumers want to buy. When demand increases but supply stays the same, prices rise \u2014 think concert tickets or GPUs during a shortage. When supply increases but demand stays the same, prices fall \u2014 this is why seasonal produce is cheaper in harvest months. The equilibrium price is where the supply and demand curves cross on a graph. Government interventions like price ceilings (rent control) or price floors (minimum wage) shift this balance and create shortages or surpluses. Understanding supply and demand explains most price movements you see in everyday life, from gas prices to housing costs."},
-  {id:"nutrition",kw:[/\bnutrition\b/i,/\bmacros\b/i,/\bcalories\b/i,/\bdiet\b/i],a:"Nutrition is about fueling your body with the right balance of macronutrients (protein, carbs, fats) and micronutrients (vitamins, minerals) to support your health and activity level. Protein builds and repairs tissue (aim for roughly 0.7\u20131 gram per pound of body weight if you are active), carbs are your body's primary energy source, and fats support hormones and absorb vitamins. Calories are a measure of energy: eat more than you burn and you gain weight, eat less and you lose it, regardless of the food source. Whole foods \u2014 vegetables, fruits, lean protein, whole grains \u2014 provide more nutrients per calorie than processed alternatives. No single food is magic or poison; it is the overall pattern over weeks and months that matters. If a diet plan sounds too good to be true or eliminates entire food groups, it probably is not sustainable."},
-  {id:"sleep",kw:[/\bsleep\b/i,/\binsomnia\b/i,/\bcircadian\b/i],a:"Sleep is when your body repairs tissue, consolidates memories, and regulates hormones \u2014 it is not downtime, it is maintenance. Most adults need 7\u20139 hours per night, and consistently getting less is linked to impaired focus, weakened immunity, and increased risk of chronic disease. Your circadian rhythm is an internal clock that responds to light: blue light from screens signals daytime to your brain, which is why phone use before bed delays sleep onset. Good sleep hygiene includes a consistent schedule (even on weekends), a cool and dark room, no caffeine after early afternoon, and winding down for 30 minutes before bed. If you lie awake for more than 20 minutes, get up and do something quiet until you feel sleepy rather than tossing and turning. Chronic insomnia that does not improve with these habits is worth discussing with a doctor."},
-  {id:"stress",kw:[/\bstress\b/i,/\banxiety\b/i,/\brelax(?:ation)?\b/i,/\bcoping\b/i],a:"Stress is your body's response to demands or threats \u2014 in small doses it sharpens focus, but chronic stress wears down your health, mood, and ability to think clearly. The physical response (cortisol, elevated heart rate, muscle tension) evolved for short-term danger, not months of deadlines and worry. Effective management starts with identifying what you can control versus what you cannot, then acting on the first and releasing the second. Regular exercise, adequate sleep, and social connection are the three highest-impact stress reducers, backed by extensive research. Techniques like deep breathing (inhale 4 seconds, hold 4, exhale 6) can calm the nervous system in minutes. If stress or anxiety is interfering with daily life consistently, talking to a mental health professional is a practical step, not a last resort."},
-  {id:"firstaid",kw:[/\bfirst aid\b/i,/\bcpr\b/i,/\bemergency\b.*\bmedical\b/i],a:"First aid is immediate care given before professional medical help arrives, and knowing the basics can save a life. For any emergency, start with scene safety (make sure you are not in danger), then check responsiveness and call emergency services. CPR for an unresponsive person with no normal breathing: push hard and fast in the center of the chest at about 100\u2013120 compressions per minute, and use an AED if one is available. For severe bleeding, apply direct pressure with a clean cloth and keep pressing until help arrives. Burns should be cooled under running water for at least 10 minutes \u2014 not ice, not butter. A basic first aid course through the Red Cross or a similar organization takes only a few hours and is one of the most practical skills you can learn."},
-  {id:"hydration",kw:[/\bhydration\b/i,/\bwater intake\b/i,/\bdrinking water\b/i,/\bdehydrat(?:ion|ed)\b/i],a:"Your body is roughly 60 percent water, and it uses water for temperature regulation, joint lubrication, nutrient transport, and waste removal. A common guideline is about 8 cups (2 liters) a day, but actual needs vary with body size, activity level, climate, and diet \u2014 thirst is a reasonable guide for most healthy adults. Signs of mild dehydration include dark urine, headache, fatigue, and difficulty concentrating, all of which improve quickly with fluids. Plain water is the best choice; coffee and tea count toward your intake despite being mild diuretics, since the fluid outweighs the diuretic effect. During intense exercise or heat, you also lose electrolytes (sodium, potassium) through sweat, so a sports drink or salted snack helps in those situations. Overhydration is rare but real \u2014 drinking extreme amounts can dilute blood sodium to dangerous levels."},
-  {id:"posture",kw:[/\bposture\b/i,/\bergonomics?\b/i,/\bback pain\b/i],a:"Good posture means aligning your body so muscles and joints are under the least strain, whether you are sitting, standing, or moving. At a desk, keep your feet flat, knees at roughly 90 degrees, monitor at eye level, and arms relaxed at your sides with elbows near 90 degrees. The biggest posture killer is staying in any one position too long \u2014 even 'perfect' posture becomes a problem if you hold it for hours without moving. Set a timer to stand or stretch every 30\u201345 minutes: a brief walk or a few shoulder rolls resets the muscles that tighten from sitting. Strengthening your core and upper back (planks, rows, face pulls) addresses the root cause more effectively than just reminding yourself to sit up straight. If pain persists despite adjustments, a physical therapist can identify the specific imbalance."},
-  {id:"meditation",kw:[/\bmeditat(?:ion|e|ing)\b/i,/\bmindfulness\b/i],a:"Meditation is a practice of focused attention or open awareness that trains your mind to stay present rather than getting pulled into worry about the future or rumination about the past. The simplest form is breath meditation: sit comfortably, close your eyes, and focus on the sensation of breathing \u2014 when your mind wanders (it will), gently bring it back without judging yourself. Start with just 5 minutes a day; consistency matters more than duration. Research shows regular meditation can reduce stress, improve focus, lower blood pressure, and increase emotional regulation over time. Mindfulness is a related practice of paying attention to whatever you are doing right now \u2014 eating, walking, listening \u2014 without multitasking. It is not about emptying your mind or achieving a special state; it is about noticing what is already happening."},
-  {id:"publicspeaking",kw:[/\bpublic speaking\b/i,/\bpresentation\b/i,/\bspeech\b/i],a:"Public speaking is a skill that improves with practice, not a talent you are born with \u2014 most confident speakers started out nervous. Structure your talk with a clear opening (hook the audience), a body (three main points maximum), and a closing (what you want them to remember or do). Rehearse out loud, not just in your head, because speaking and thinking feel very different \u2014 record yourself to catch filler words and pacing issues. Nervousness is normal and even useful: it means you care, and the audience rarely perceives it as strongly as you feel it. Make eye contact with individuals (not the back wall), pause instead of saying 'um,' and speak more slowly than feels natural \u2014 audiences need time to absorb. The single best way to improve is to do it: join a group like Toastmasters, volunteer for presentations, or just practice explaining things to friends."},
-  {id:"grammar",kw:[/\bgrammar\b/i,/\bpunctuation\b/i,/\bspelling\b/i],a:"Grammar is the set of rules that govern how words combine into meaningful sentences, and getting the basics right makes your writing clearer and more credible. The most common errors are subject-verb agreement ('the team are' vs 'the team is'), its/it's confusion (its = possessive, it's = it is), and comma splices (joining two full sentences with just a comma). Use active voice ('The dog bit the man') more than passive ('The man was bitten by the dog') for clearer, more direct writing. Read your work aloud \u2014 your ear catches awkward phrasing, run-on sentences, and missing words that your eyes skip over. A style guide like Strunk and White's 'Elements of Style' covers the essentials in under 100 pages. Perfect grammar matters less than clear communication, but basic errors distract readers and undermine your message."},
-  {id:"coverletter",kw:[/\bcover letters?\b/i],a:"A cover letter is a one-page document that accompanies your resume and explains why you are a strong fit for a specific role. Open with the position you are applying for and one sentence on why you are excited about it \u2014 generic openings get skipped. The body should connect two or three of your accomplishments directly to requirements from the job description, showing you have read it and can do the work. Use specific numbers and outcomes, just like your resume: 'I led a team that reduced onboarding time by 30%' beats 'I have leadership experience.' Close by stating your interest clearly and suggesting a next step, like a call or meeting. Keep the tone professional but human \u2014 if it reads like a form letter or a thesaurus exploded, rewrite it in your own voice."},
-  {id:"technicalwriting",kw:[/\btechnical writing\b/i,/\bdocumentation\b/i],a:"Technical writing explains complex information clearly so the reader can understand and act on it, whether it is a user guide, API documentation, or a how-to article. Know your audience first: a guide for developers reads very differently from one for end users, even if it covers the same feature. Use short sentences, active voice, and concrete examples \u2014 'Click the blue Save button in the top-right corner' beats 'The save functionality can be accessed via the interface.' Structure content with headings, numbered steps for procedures, and bullet points for lists so readers can scan and find what they need. Test your documentation by having someone follow it without help: if they get stuck, the docs need fixing, not the reader. Good technical writing is invisible \u2014 the reader just gets the answer and moves on."},
-  {id:"mealprep",kw:[/\bmeal prep\b/i,/\bmeal planning\b/i],a:"Meal prep is cooking and portioning meals in advance so healthy eating during the week takes minutes instead of an hour every night. Start simple: pick 2\u20133 proteins, 2\u20133 vegetables, and a starch, cook them in bulk on Sunday, and mix and match throughout the week. Invest in good containers \u2014 glass lasts longer and reheats better than plastic \u2014 and label everything with the date. Most cooked meals last 3\u20134 days in the fridge and 2\u20133 months in the freezer, so you can rotate without eating the same thing five days straight. Batch cooking staples like rice, roasted vegetables, and grilled chicken takes about 1\u20132 hours and saves 5\u20137 hours of weeknight cooking. The biggest benefit is not time savings but decision fatigue: when dinner is already made, you are far less likely to order takeout."},
-  {id:"foodsafety",kw:[/\bfood safety\b/i,/\bfood poisoning\b/i,/\bfoodborne\b/i],a:"Food safety is about preventing foodborne illness, which affects an estimated 48 million people in the US every year. The four core principles are clean (wash hands and surfaces), separate (do not cross-contaminate raw meat with ready-to-eat food), cook (use a thermometer \u2014 chicken to 165\u00b0F, ground beef to 160\u00b0F, pork to 145\u00b0F), and chill (refrigerate leftovers within 2 hours, or 1 hour if it is above 90\u00b0F outside). The danger zone for bacterial growth is 40\u2013140\u00b0F, and food left in that range for more than 2 hours should be thrown out. Thaw food in the refrigerator, in cold water, or in the microwave \u2014 never on the counter at room temperature. Leftovers are safe for 3\u20134 days in the fridge; when in doubt, throw it out. A cheap instant-read thermometer is the single most important food safety tool in any kitchen."},
-  {id:"cooking",kw:[/\bknife skills\b/i,/\bcooking basics\b/i,/\blearn to cook\b/i,/\bcooking tips?\b/i],a:"Learning to cook starts with a few foundational skills: how to hold a knife safely, how to control heat, and how to season food. For knife work, curl your fingers on the guiding hand (claw grip) and let the knuckle guide the blade \u2014 speed comes after safety and consistency. The most useful cuts to learn first are the dice (even cubes), the mince (very fine), and the julienne (thin strips), because they cover most recipes. Heat control matters more than recipes: high heat for searing and stir-frying, medium for saut\u00e9ing, low for simmering and braising. Salt enhances flavor at every stage \u2014 season as you cook, not just at the end, and taste as you go. Start with simple dishes you actually want to eat (scrambled eggs, pasta with sauce, stir-fried vegetables) and build from there."},
-  {id:"baking",kw:[/\bbaking\b/i,/\bbread\b/i,/\bpastry\b/i,/\bcakes?\b/i],a:"Baking is more precise than cooking \u2014 small changes in measurements or technique can make the difference between fluffy and flat. Always measure flour by weight (a kitchen scale) rather than by volume, because scooping packs the flour and can add 20 percent more than the recipe intends. Room-temperature butter and eggs mix more evenly and create a better texture than cold ingredients straight from the fridge. Overmixing develops gluten, which is great for bread (chewy) but bad for cakes and muffins (tough). Know your oven \u2014 most run hot or cold by 10\u201325 degrees, so use an oven thermometer and adjust accordingly. Start with simple recipes like banana bread, basic cookies, or a no-knead bread to build confidence before tackling pastry or sourdough."},
-  {id:"seasoning",kw:[/\bseasoning\b/i,/\bspices\b/i,/\bherbs?\b/i,/\bflavor\b/i],a:"Seasoning is what separates bland food from delicious food, and the foundation is salt \u2014 it does not make food taste salty when used correctly, it makes food taste more like itself. Acid (lemon juice, vinegar) brightens flavors and balances richness \u2014 if a dish tastes flat, a squeeze of citrus often fixes it. Fat (butter, olive oil) carries flavor and adds richness, which is why restaurant food often tastes better than home cooking. Build layers by seasoning at multiple stages: salt the water, season the protein before cooking, and adjust at the end. The five starter spices for most cuisines are salt, black pepper, garlic powder, cumin, and paprika \u2014 they cover an enormous range of dishes. Fresh herbs go in at the end (they lose flavor with heat), while dried herbs and whole spices go in early to bloom."},
-  {id:"homemaintenance",kw:[/\bhome maintenance\b/i,/\bhome repair\b/i,/\bhouse maintenance\b/i],a:"Regular home maintenance prevents small problems from becoming expensive emergencies, and most of it is simple enough to do yourself. Check and replace HVAC filters every 1\u20133 months \u2014 a dirty filter makes your system work harder and raises your energy bill. Clean gutters twice a year (spring and fall) to prevent water damage to your roof, walls, and foundation. Test smoke and carbon monoxide detectors monthly and replace batteries yearly, or when they chirp. Caulk around windows, doors, and bathtubs when seals crack to prevent water intrusion and air leaks. Keep a basic toolkit (hammer, screwdrivers, pliers, adjustable wrench, tape measure, level) and a maintenance calendar \u2014 15 minutes of prevention saves hours of repair."},
-  {id:"plumbing",kw:[/\bplumbing\b/i,/\bleaky\b.*\bfaucet\b/i,/\bclogged\b.*\bdrain\b/i],a:"Basic plumbing knowledge saves you from calling (and paying) a plumber for simple fixes. A running toilet is usually a worn flapper valve \u2014 a $5 part you can replace in 10 minutes by following the instructions on the package. Clogged drains respond to a plunger first, then a drain snake \u2014 chemical drain cleaners can damage pipes over time, so use them sparingly. Know where your main water shutoff valve is before you need it, because a burst pipe floods fast and every second counts. Dripping faucets waste thousands of gallons a year and usually need a new washer or cartridge, which is a 20-minute fix with a YouTube video. If a repair involves the main line, gas pipes, or anything you are not confident about, call a licensed plumber \u2014 water damage from a botched fix costs far more than the service call."},
-  {id:"painting",kw:[/\bpainting\b.*\b(walls?|room|house)\b/i,/\bpaint a room\b/i],a:"A good paint job is 80 percent preparation and 20 percent painting. Clean the walls, fill holes with spackle, sand smooth, and tape edges carefully before you open a can of paint. Use primer on bare drywall, stains, or when making a drastic color change \u2014 skipping it means extra coats and uneven coverage. Cut in the edges with a brush first (around trim, ceiling, and corners), then roll the large areas in a W pattern for even coverage. Two thin coats look better and last longer than one thick coat, and let each coat dry fully before applying the next. Invest in quality brushes and rollers \u2014 cheap ones leave bristles and lint in your finish and cost more in frustration than you save."},
-  {id:"organizing",kw:[/\borganiz(?:ing|ation|e)\b/i,/\bdeclutter\b/i,/\btidy\b/i],a:"Organizing starts with decluttering: get rid of what you do not use, need, or value before you buy any bins or shelves. The one-year rule is a practical filter \u2014 if you have not used or worn it in a year and it has no sentimental value, it can go. Group similar items together and give everything a specific home, because the most common cause of clutter is not having a place to put things back. Use clear containers and labels so you can find what you need without opening every box. The 'one in, one out' rule keeps things from re-accumulating: every time something new comes in, something old leaves. Maintenance is easier than overhaul, so spend 10 minutes at the end of each day putting things back where they belong."},
-  {id:"carmaintenance",kw:[/\bcar maintenance\b/i,/\boil change\b/i,/\btire\b.*\bpressure\b/i,/\bvehicle maintenance\b/i],a:"Regular car maintenance extends your vehicle's life and prevents breakdowns, and the owner's manual is your best guide for what to do and when. Change the oil and filter at the intervals the manual specifies \u2014 typically every 5,000\u20137,500 miles for synthetic oil. Check tire pressure monthly (the correct PSI is on a sticker inside the driver's door, not the tire sidewall), because underinflated tires waste fuel and wear unevenly. Replace windshield wipers once a year and keep washer fluid full \u2014 it sounds minor until you cannot see in a rainstorm. Brake pads, air filters, and coolant all have replacement schedules in the manual; staying on top of them costs hundreds, while ignoring them costs thousands. Learn to jump-start a battery and change a tire \u2014 both take 15 minutes and can save you a long wait for roadside assistance."},
-  {id:"studytechniques",kw:[/\bstudy\b.*\b(techniques?|tips?|habits?|methods?)\b/i,/\bhow to study\b/i],a:"The most effective study technique is active recall: testing yourself on the material instead of passively rereading notes. Spaced repetition \u2014 reviewing information at increasing intervals (1 day, 3 days, 7 days, 14 days) \u2014 takes advantage of how memory works and dramatically improves long-term retention. Interleaving (mixing different topics in one study session) feels harder but produces better learning than blocking (studying one topic at a time until you 'get it'). Teach the material to someone else, even an imaginary audience \u2014 explaining forces you to find and fill gaps in your understanding. Study in focused 25-minute blocks (the Pomodoro technique) with 5-minute breaks to maintain concentration without burnout. Highlighting and rereading are the least effective common study methods \u2014 they feel productive but do not build the neural pathways that recall requires."},
-  {id:"notetaking",kw:[/\bnote.?taking\b/i,/\bnotes\b/i],a:"Good note-taking captures ideas in your own words rather than transcribing verbatim, because reprocessing information is what builds understanding. The Cornell method divides the page into three sections: a narrow left column for cue words and questions, a wide right column for notes during class, and a bottom section for a summary you write afterward. Mind maps work well for visual thinkers and topics with many connections \u2014 start with a central concept and branch outward. Write by hand when possible for learning: research suggests handwriting engages deeper processing than typing, even if typing is faster. Review and revise notes within 24 hours, while the material is fresh enough to fill in gaps but distant enough that recall takes effort. The best note system is one you actually use consistently, so pick a format and stick with it."},
-  {id:"timemanagement",kw:[/\btime management\b/i,/\bproductivity\b/i,/\bprocrastinat(?:ion|ing|e)\b/i],a:"Time management is less about managing time and more about managing attention \u2014 you have the same 24 hours as everyone else, but how you focus them determines what gets done. The Eisenhower matrix sorts tasks into four quadrants: urgent and important (do now), important but not urgent (schedule), urgent but not important (delegate), and neither (drop). Time-blocking \u2014 assigning specific tasks to specific hours on your calendar \u2014 prevents the day from being consumed by whatever feels most urgent at the moment. The two-minute rule helps with small tasks: if it takes less than two minutes, do it now instead of adding it to a list where it costs more mental energy to track. Batch similar tasks (all emails at once, all calls in a block) to reduce the switching cost between different types of work. Procrastination is usually not laziness \u2014 it is avoidance of discomfort, and the fix is making the first step so small that starting feels effortless."},
-  {id:"memory",kw:[/\bmemory techniques?\b/i,/\bmemorization\b/i,/\bmnemonics?\b/i],a:"Memory works best when information is meaningful, visual, and connected to what you already know, which is why raw repetition is one of the least efficient memorization methods. Mnemonics convert abstract information into vivid images or stories: ROY G BIV for rainbow colors, or the memory palace technique where you place items along a familiar route in your mind. Chunking groups information into manageable units \u2014 a phone number as three groups rather than ten individual digits \u2014 because short-term memory holds about 4\u20137 chunks. Sleep consolidates memories, so studying before bed and reviewing in the morning is more effective than cramming at midnight. Elaborative encoding means connecting new facts to things you already understand: you remember that mitochondria are the 'powerhouse of the cell' because the analogy sticks. The forgetting curve drops steeply after learning, so one review at 24 hours and another at a week locks in more than five reviews in one day."},
-  {id:"python",kw:[/\bpython\b/i],a:"Python is a high-level programming language known for readable syntax and a massive ecosystem of libraries. Its 'batteries included' standard library covers file I/O, networking, math, and text processing, and packages like NumPy, pandas, and scikit-learn make it the dominant language for data science and machine learning. Python uses indentation instead of braces to define code blocks, which enforces clean formatting and makes it one of the easiest languages to read. It is dynamically typed, so you do not declare variable types \u2014 this speeds up prototyping but means type errors appear at runtime rather than compile time. Common uses include web development (Django, Flask), automation scripts, data analysis, and teaching. If you are learning to program for the first time, Python is an excellent starting point because you can write useful code on day one."},
-  {id:"javascript",kw:[/\bjavascript\b/i,/\bjs\b/i,/\bnode\.?js\b/i,/\breact\b/i],a:"JavaScript is the language of the web: it runs in every browser and powers the interactive parts of almost every website you use. On the front end, frameworks like React, Vue, and Angular help build complex user interfaces from reusable components. On the back end, Node.js lets you run JavaScript on a server, so you can use one language for the entire stack. JavaScript is dynamically typed, event-driven, and asynchronous by nature \u2014 understanding callbacks, promises, and async/await is essential for working with it effectively. The language has evolved dramatically: modern JavaScript (ES6+) includes arrow functions, destructuring, template literals, and modules that make code much cleaner than older styles. It has quirks (loose equality, type coercion, 'this' binding) that trip up beginners, but learning its patterns makes you effective on both the browser and the server."},
-  {id:"htmlcss",kw:[/\bhtml\b/i,/\bcss\b/i,/\bweb design\b/i,/\bwebsite\b.*\bbuild\b/i],a:"HTML (HyperText Markup Language) defines the structure and content of a web page, while CSS (Cascading Style Sheets) controls how it looks \u2014 colors, layout, fonts, spacing. HTML uses tags like <h1> for headings, <p> for paragraphs, <a> for links, and <div> for sections, creating a nested tree of elements called the DOM. CSS selectors target those elements and apply styles: .classname targets a class, #id targets an ID, and element targets all instances of a tag. Flexbox and CSS Grid are the modern layout tools \u2014 Flexbox handles one-dimensional alignment (rows or columns), and Grid handles two-dimensional layouts. Responsive design uses media queries to adjust the layout for different screen sizes, so the same page works on a phone and a desktop. Start by building a simple page with just HTML, then layer on CSS \u2014 seeing the structure first makes the styling easier to understand."},
-  {id:"debugging",kw:[/\bdebugging\b/i,/\bdebug\b/i,/\bbug fix\b/i],a:"Debugging is the process of finding and fixing errors in code, and it is a skill you build through practice rather than a talent. Start by reading the error message carefully \u2014 it usually tells you the file, line number, and type of problem, which narrows the search dramatically. Reproduce the bug consistently before trying to fix it: if you cannot trigger it on demand, you cannot confirm it is actually fixed. Use print statements or a debugger to inspect variable values at each step and find where the actual behavior diverges from what you expected. Rubber duck debugging \u2014 explaining your code line by line to an inanimate object (or a person) \u2014 forces you to articulate your assumptions, and the bug often reveals itself mid-explanation. When you fix a bug, write a test that catches it so it cannot come back silently in the future."},
-  {id:"datastructures",kw:[/\bdata structures?\b/i,/\barrays?\b/i,/\blinked lists?\b/i,/\bhash (?:tables?|maps?)\b/i],a:"Data structures are ways of organizing information in a computer so it can be accessed and modified efficiently. Arrays store elements in contiguous memory, giving fast access by index (O(1)) but slow insertion in the middle (O(n)). Linked lists use nodes with pointers, making insertion and deletion fast (O(1) at a known position) but requiring traversal for access (O(n)). Hash tables (dictionaries in Python, objects in JavaScript) map keys to values and give average O(1) lookups, making them ideal for fast retrieval by key. Trees organize data hierarchically, and binary search trees keep elements sorted for efficient searching. Choosing the right data structure depends on what operations you perform most \u2014 there is no universally 'best' structure, only the best one for your specific access pattern."},
-  {id:"algorithms",kw:[/\balgorithms?\b/i,/\bsorting\b/i,/\bbig o\b/i,/\btime complexity\b/i],a:"An algorithm is a step-by-step procedure for solving a problem, and understanding common ones is fundamental to writing efficient code. Big O notation describes how an algorithm's time or space grows with input size: O(1) is constant, O(log n) is logarithmic, O(n) is linear, O(n log n) is typical for good sorting, and O(n\u00b2) is quadratic. Common sorting algorithms include quicksort and mergesort (both O(n log n) average), and knowing when each is appropriate matters in practice. Binary search finds an element in a sorted array in O(log n) by repeatedly halving the search space \u2014 it is one of the most useful algorithms to internalize. Graph algorithms like BFS (breadth-first search) and DFS (depth-first search) are essential for network problems, pathfinding, and tree traversal. The goal is not to memorize algorithms but to recognize problem patterns and match them to known solutions."},
-  {id:"testing",kw:[/\bunit test(?:s|ing)?\b/i,/\btesting\b/i,/\btest-driven\b/i,/\btdd\b/i],a:"Software testing verifies that code does what it is supposed to do and catches bugs before users find them. Unit tests check individual functions or methods in isolation \u2014 they are fast, focused, and form the base of the testing pyramid. Integration tests verify that multiple components work together correctly, like a function that reads from a database and returns formatted results. Test-driven development (TDD) means writing the test first, watching it fail, then writing just enough code to make it pass \u2014 it sounds backwards but produces cleaner, more modular code. Aim for tests that are independent (one test failing should not cascade), deterministic (same result every run), and fast (so you actually run them). A codebase without tests is a codebase where every change is a gamble \u2014 tests turn 'I hope this works' into 'I know this works.'"},
-  {id:"regex",kw:[/\bregex\b/i,/\bregular expressions?\b/i,/\bregexp\b/i],a:"A regular expression (regex) is a pattern that matches text, used for searching, validating, and transforming strings. Basic building blocks include . (any character), * (zero or more), + (one or more), ? (zero or one), \\d (digit), \\w (word character), and \\b (word boundary). Character classes like [a-z] match a range, and groups with parentheses capture matched text for extraction or backreference. Common use cases include validating email formats, extracting phone numbers from text, and search-and-replace operations across files. Regex can become unreadable fast, so comment your patterns and prefer multiple simple expressions over one monolithic one. Test your regex with tools like regex101.com, which shows matches in real time and explains what each part of the pattern does."},
-  {id:"networking",kw:[/\bnetworking\b.*\bcomputer\b/i,/\btcp\b.*\bip\b/i,/\bip address\b/i,/\brouter\b.*\bnetwork\b/i],a:"Computer networking is how devices communicate, built on layers of protocols that each handle one part of the problem. An IP address identifies a device on a network (like a street address), and a port number identifies which program on that device should receive the data (like an apartment number). TCP provides reliable, ordered delivery by breaking data into packets, numbering them, and requesting retransmission of anything lost. A router connects different networks and forwards packets toward their destination based on IP addresses. Your home network typically uses a router that assigns local IP addresses (like 192.168.x.x) via DHCP and uses NAT to share one public IP address with all your devices. Understanding the basics \u2014 IP, TCP, DNS, HTTP \u2014 covers about 80 percent of the networking questions most developers encounter."},
-  {id:"ai",kw:[/\bartificial intelligence\b/i,/\bai\b/i,/\bchatgpt\b/i,/\bllm\b/i,/\blarge language model\b/i],a:"Artificial intelligence is a broad field of computer science focused on building systems that can perform tasks that typically require human intelligence, like understanding language, recognizing images, or making decisions. Modern AI is dominated by machine learning, where models learn patterns from large datasets rather than following hand-coded rules. Large language models (LLMs) like GPT are trained on massive text datasets and generate text by predicting the next token in a sequence \u2014 they are extremely capable but do not 'understand' in the human sense. AI excels at pattern recognition, classification, generation, and optimization, but struggles with reasoning, common sense, and tasks outside its training distribution. The technology raises important questions about bias (models learn from biased data), job displacement, privacy, and safety. AI is a powerful tool, not magic \u2014 the best results come from understanding what it can and cannot do and using it accordingly."},
-  {id:"climateaction",kw:[/\bclimate action\b/i,/\bcarbon footprint\b/i,/\bsustainab(?:ility|le)\b/i,/\brecycl(?:ing|e)\b/i,/\brenewable energy\b/i],a:"Reducing your carbon footprint starts with the biggest levers: how you travel, what you eat, and how you power your home. Transportation is the largest source of household emissions in many countries \u2014 driving less, flying less, and using public transit or electric vehicles make the biggest difference. Eating less red meat and dairy reduces agricultural emissions significantly, since livestock farming produces methane and uses far more land and water than plant-based food. At home, improving insulation, switching to LED bulbs, and choosing a renewable energy provider (or installing solar) reduce energy-related emissions. Recycling helps, but reducing consumption and reusing items has a much larger impact \u2014 the most sustainable product is the one you did not buy. Individual action matters, but systemic change through policy, corporate accountability, and infrastructure investment is where the largest reductions will come from."},
-  {id:"writingtips",kw:[/\bwriting tips\b/i,/\bimprove.*writing\b/i,/\bwrite better\b/i,/\bcreative writing\b/i],a:"Good writing is clear thinking made visible, and the first step is knowing what you want to say before you start typing. Write a rough first draft without editing \u2014 trying to write and edit at the same time is like driving with one foot on the gas and one on the brake. Cut ruthlessly: remove words that add no meaning ('very,' 'really,' 'quite,' 'just'), replace vague language with specifics, and shorten long sentences. Read your work aloud \u2014 awkward rhythm, missing words, and unclear sentences reveal themselves when you hear them. Vary sentence length: short sentences punch; longer ones carry nuance and rhythm, but too many in a row exhaust the reader. The single best way to improve your writing is to read widely and write regularly \u2014 there is no shortcut."},
-  {id:"photography",kw:[/\bphotography\b/i,/\bcamera\b.*\b(settings?|tips?)\b/i,/\bcomposition\b/i],a:"Photography is about capturing light, and understanding three settings \u2014 aperture, shutter speed, and ISO \u2014 gives you control over exposure and creative effects. Aperture (f-stop) controls depth of field: a wide aperture (f/1.8) blurs the background for portraits, while a narrow one (f/11) keeps everything sharp for landscapes. Shutter speed controls motion: fast (1/500s) freezes action, slow (1/30s or longer) creates motion blur. ISO controls sensitivity to light: low ISO (100\u2013400) is clean, high ISO (1600+) introduces noise but lets you shoot in dim conditions. The rule of thirds \u2014 placing subjects along imaginary lines that divide the frame into a 3x3 grid \u2014 is the simplest composition improvement most beginners can make. The best camera is the one you have with you, and the best way to improve is to shoot regularly and study photos you admire to understand why they work."},
-  {id:"music",kw:[/\bmusic theory\b/i,/\bchords?\b/i,/\bscales?\b/i,/\blearn.*\b(guitar|piano|music)\b/i],a:"Music theory is a framework for understanding how music works \u2014 it describes patterns you already hear, it does not replace creativity. A scale is a set of notes that sound good together, and the major scale (do re mi fa sol la ti do) is the foundation of Western music. Chords are built by stacking notes from a scale \u2014 a major chord sounds bright, a minor chord sounds darker, and the pattern of major and minor chords in a key is what gives songs their harmonic character. Rhythm is the pattern of strong and weak beats: most pop music is in 4/4 time (four beats per measure), and learning to count and keep time is as important as learning notes. Start with one instrument and three or four chords \u2014 you can play hundreds of songs with just G, C, D, and E minor on guitar. Consistent daily practice of 15 minutes beats occasional marathon sessions, because muscle memory and ear training build gradually."},
-  {id:"mentalmodels",kw:[/\bmental models?\b/i,/\bcritical thinking\b/i,/\bdecision making\b/i],a:"Mental models are frameworks for understanding how the world works, and collecting a few powerful ones dramatically improves your decision-making. First principles thinking means breaking a problem down to its fundamental truths and reasoning up from there, instead of following convention or analogy. Inversion asks 'what would guarantee failure?' and then avoids those things \u2014 it is often easier to identify what not to do than to find the perfect path. The Pareto principle (80/20 rule) observes that roughly 80 percent of results come from 20 percent of efforts, so identify and focus on the high-leverage activities. Confirmation bias is the tendency to seek information that supports what you already believe \u2014 actively looking for disconfirming evidence is the antidote. No single model captures reality completely, so the goal is to have many models from different disciplines and apply the most relevant one to each situation."},
-  {id:"spreadsheets",kw:[/\bspreadsheets?\b/i,/\bexcel\b/i,/\bgoogle sheets\b/i],a:"Spreadsheets are one of the most versatile tools in any office: they handle everything from simple lists to financial models, and learning a few core features covers most use cases. VLOOKUP (or the newer XLOOKUP) finds a value in one column and returns a corresponding value from another, which is how you merge data from different tables. Pivot tables summarize large datasets by grouping, counting, and averaging without writing any formulas \u2014 they are the single most underused feature in Excel. Conditional formatting highlights cells based on rules (red for negatives, green for above target), making patterns visible at a glance. SUMIF, COUNTIF, and AVERAGEIF let you calculate on subsets of data: 'sum of sales where region is West' in one formula. Name your ranges, use absolute references ($A$1) when copying formulas, and keep raw data on one sheet with analysis on another \u2014 these habits prevent the tangled mess that makes most spreadsheets unmaintainable."},
-  {id:"typesofenergy",kw:[/\btypes? of energy\b/i,/\bkinetic energy\b/i,/\bpotential energy\b/i,/\bthermodynamics\b/i],a:"Energy is the ability to do work, and it comes in several forms that can convert into each other but never be created or destroyed (the first law of thermodynamics). Kinetic energy is the energy of motion \u2014 a moving car, a thrown ball, molecules vibrating as heat. Potential energy is stored energy waiting to be released: a ball at the top of a hill (gravitational), a compressed spring (elastic), or chemical bonds in food and fuel (chemical). Electrical energy is the flow of charged particles, and it powers nearly everything in modern life. Nuclear energy comes from splitting heavy atoms (fission) or fusing light ones (fusion), releasing enormous amounts of energy from tiny amounts of matter. The second law of thermodynamics says that energy conversions always lose some energy as waste heat, which is why no engine can ever be 100 percent efficient."},
-  {id:"watercycle",kw:[/\bwater cycle\b/i,/\bevaporation\b/i,/\bcondensation\b/i,/\bprecipitation\b/i],a:"The water cycle is the continuous movement of water between Earth's surface and the atmosphere, driven by solar energy. Evaporation turns liquid water from oceans, lakes, and rivers into water vapor that rises into the atmosphere. As the vapor rises and cools, it condenses around tiny particles to form clouds \u2014 this is condensation. When cloud droplets combine and grow heavy enough, they fall as precipitation: rain, snow, sleet, or hail, depending on temperature. Water that lands on the ground either soaks in (infiltration) to replenish groundwater, flows across the surface into streams and rivers (runoff), or is taken up by plant roots and released back to the air (transpiration). The cycle has no beginning or end \u2014 the water in your glass has been cycling through the atmosphere, oceans, and ground for billions of years."},
-  {id:"periodictable",kw:[/\bperiodic table\b/i,/\belements?\b.*\bchemistry\b/i,/\bchemical elements?\b/i],a:"The periodic table organizes all known chemical elements by increasing atomic number (number of protons) into rows (periods) and columns (groups) that reveal patterns in their properties. Elements in the same column share similar chemical behavior because they have the same number of electrons in their outer shell \u2014 this is why lithium, sodium, and potassium all react vigorously with water. Metals (left side) tend to lose electrons and conduct electricity, nonmetals (right side) tend to gain electrons, and metalloids (along the staircase line) have properties of both. The table currently holds 118 confirmed elements, from hydrogen (1 proton) to oganesson (118 protons), though only about 90 occur naturally. Mendeleev's original 1869 table famously predicted elements that had not yet been discovered, based on gaps in the pattern. Understanding the periodic table is the foundation of chemistry \u2014 it tells you how elements bond, react, and behave before you run a single experiment."},
-];
-function detectTopic(shrunk){
-  var p=stripCodeFences(shrunk).toLowerCase();
-  var tests=[['email',/\b(emails?|follow-ups?|follow ups?)\b/],['api',/\bapis?\b/],['workout',/\b(workouts?|exercises?)\b/],['backup',/\bbackups?\b/],['firewall',/\b(firewalls?|portcullis)\b/],['dns',/\b(dns|domain name)\b/]];
-  for(var i=0;i<tests.length;i++){if(tests[i][1].test(p))return tests[i][0];}
-  /* Expanded library (89 topics) */
-  for(var j=0;j<EXPANDED_TOPICS.length;j++){
-    var t=EXPANDED_TOPICS[j];
-    for(var k=0;k<t.kw.length;k++){if(t.kw[k].test(p))return'_exp:'+t.id;}
-  }
-  return null;
-}
-/* Topic browser metadata: id -> [category, label, sample question]. Answers stay in
-   TEMPLATES / EXPANDED_TOPICS; every sample must route back to its own id via detectTopic. */
-var TOPIC_CATEGORIES=['Original six','Technology','Programming','Science','Math','History','Business','Health','Cooking','Home maintenance','Learning & skills'];
-var TOPIC_META={
-  dns:['Original six','DNS','Explain DNS simply'],
-  api:['Original six','APIs','Could you please explain APIs to a 10-year-old?'],
-  email:['Original six','Follow-up email','Write a follow-up email about our missed call'],
-  backup:['Original six','Backups','Why do backups matter for a small office?'],
-  workout:['Original six','Beginner workout','Give me a 3-day workout plan for beginners'],
-  firewall:['Original six','Portcullis firewall','Explain the Portcullis firewall in plain English'],
-  password:['Technology','Passwords','How do I make a strong password?'],
-  vpn:['Technology','VPNs','Do I need a VPN?'],
-  cloud:['Technology','Cloud computing','What is cloud computing?'],
-  ml:['Technology','Machine learning','What is machine learning?'],
-  blockchain:['Technology','Blockchain','How does a blockchain work?'],
-  cybersecurity:['Technology','Cybersecurity','How do I spot phishing?'],
-  cookies:['Technology','Web cookies','What are web cookies?'],
-  ram:['Technology','RAM vs storage','What does RAM do?'],
-  linux:['Technology','Linux','Is Linux worth learning?'],
-  http:['Technology','HTTPS','Why does HTTPS matter?'],
-  encryption:['Technology','Encryption','How does encryption keep data safe?'],
-  ssh:['Technology','SSH','What is SSH used for?'],
-  networking:['Technology','Networking','How does an IP address work?'],
-  ai:['Technology','Artificial intelligence','What is artificial intelligence?'],
-  spreadsheets:['Technology','Spreadsheets','How do spreadsheets help a small business?'],
-  git:['Programming','Git','How does Git work?'],
-  database:['Programming','Databases','SQL vs NoSQL databases'],
-  docker:['Programming','Docker','What is Docker?'],
-  python:['Programming','Python','Why learn Python?'],
-  javascript:['Programming','JavaScript','What is JavaScript used for?'],
-  htmlcss:['Programming','HTML & CSS','How do HTML and CSS work together?'],
-  debugging:['Programming','Debugging','How do I get better at debugging?'],
-  datastructures:['Programming','Data structures','What are common data structures?'],
-  algorithms:['Programming','Algorithms','What is a sorting algorithm?'],
-  testing:['Programming','Testing','Why does unit testing matter?'],
-  regex:['Programming','Regular expressions','How do regular expressions work?'],
-  gravity:['Science','Gravity','How does gravity work?'],
-  photosynthesis:['Science','Photosynthesis','How does photosynthesis work?'],
-  evolution:['Science','Evolution','How does evolution work?'],
-  atoms:['Science','Atoms','What are atoms made of?'],
-  blackhole:['Science','Black holes','What is a black hole?'],
-  vaccine:['Science','Vaccines','How do vaccines work?'],
-  climate:['Science','Climate change','What causes climate change?'],
-  dna:['Science','DNA','What does DNA do?'],
-  electricity:['Science','Electricity','How does electricity work?'],
-  solarsystem:['Science','Solar system','How many planets are in the solar system?'],
-  typesofenergy:['Science','Types of energy','What are the types of energy?'],
-  watercycle:['Science','Water cycle','Explain the water cycle'],
-  periodictable:['Science','Periodic table','How does the periodic table work?'],
-  climateaction:['Science','Climate action','How can I shrink my carbon footprint?'],
-  fractions:['Math','Fractions','How do fractions work?'],
-  percentages:['Math','Percentages','How do I calculate percentages?'],
-  algebra:['Math','Algebra','How do I solve an algebra equation?'],
-  statistics:['Math','Statistics','What is standard deviation?'],
-  probability:['Math','Probability','How does probability work?'],
-  ww2:['History','World War II','What caused World War II?'],
-  industrialrev:['History','Industrial Revolution','What caused the Industrial Revolution?'],
-  coldwar:['History','Cold War','What was the Cold War?'],
-  renaissance:['History','Renaissance','What was the Renaissance?'],
-  ancientciv:['History','Ancient civilizations','What was life like in ancient Rome?'],
-  budgeting:['Business','Budgeting','How do I make a monthly budget?'],
-  investing:['Business','Investing','How should a beginner start investing?'],
-  stockmarket:['Business','Stock market','How does the stock market work?'],
-  compoundinterest:['Business','Compound interest','What is compound interest?'],
-  taxes:['Business','Taxes','How do income taxes work?'],
-  resume:['Business','Resumes','How do I write a good resume?'],
-  negotiation:['Business','Negotiation','How do I negotiate a higher salary?'],
-  marketing:['Business','Marketing','What is marketing for a small business?'],
-  startup:['Business','Startups','How do I launch a startup?'],
-  supplydemand:['Business','Supply and demand','Explain supply and demand'],
-  coverletter:['Business','Cover letters','How do I write a cover letter?'],
-  nutrition:['Health','Nutrition','What is a healthy diet?'],
-  sleep:['Health','Sleep','How can I sleep better?'],
-  stress:['Health','Stress','How do I manage stress?'],
-  firstaid:['Health','First aid','What first aid basics should I know?'],
-  hydration:['Health','Hydration','How much drinking water do I need?'],
-  posture:['Health','Posture','How do I fix my posture at a desk?'],
-  meditation:['Health','Meditation','How do I start meditation?'],
-  mealprep:['Cooking','Meal prep','How do I start meal prep?'],
-  foodsafety:['Cooking','Food safety','How do I avoid food poisoning?'],
-  cooking:['Cooking','Cooking basics','Give me some cooking tips'],
-  baking:['Cooking','Baking','How do I start baking bread?'],
-  seasoning:['Cooking','Seasoning','How do I use spices well?'],
-  homemaintenance:['Home maintenance','Home maintenance','What home maintenance should I do each year?'],
-  plumbing:['Home maintenance','Plumbing','How do I fix basic plumbing problems?'],
-  painting:['Home maintenance','Painting','Tips for painting a room'],
-  organizing:['Home maintenance','Organizing','How do I start organizing my closet?'],
-  carmaintenance:['Home maintenance','Car maintenance','How often do I need an oil change?'],
-  publicspeaking:['Learning & skills','Public speaking','How do I get better at public speaking?'],
-  grammar:['Learning & skills','Grammar','Common grammar mistakes to avoid'],
-  technicalwriting:['Learning & skills','Technical writing','How do I write good documentation?'],
-  writingtips:['Learning & skills','Writing tips','How can I improve my writing?'],
-  studytechniques:['Learning & skills','Study techniques','What are the best study techniques?'],
-  notetaking:['Learning & skills','Note-taking','How should I approach note-taking?'],
-  timemanagement:['Learning & skills','Time management','How do I beat procrastination?'],
-  memory:['Learning & skills','Memory techniques','What are good memory techniques?'],
-  photography:['Learning & skills','Photography','Give me photography tips for beginners'],
-  music:['Learning & skills','Music theory','What is music theory?'],
-  mentalmodels:['Learning & skills','Mental models','What are mental models?']
-};
-/* Catalog derived from the live topic data: the original six (TEMPLATES) plus EXPANDED_TOPICS. */
-function topicCatalog(){
-  var ids=['dns','api','email','backup','workout','firewall'].map(function(id){return{key:id,id:id};})
-    .concat(EXPANDED_TOPICS.map(function(t){return{key:'_exp:'+t.id,id:t.id};}));
-  return ids.map(function(x){
-    var m=TOPIC_META[x.id]||['Learning & skills',x.id,'Tell me about '+x.id];
-    return{key:x.key,id:x.id,cat:m[0],label:m[1],sample:m[2]};
-  });
-}
-function cacheKey(shrunk){return shrunk.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();}
-var TEMPLATES={
-  email:{
-    sprout:'Subject: Quick follow-up\n\nHi, just circling back on our missed call. Happy to reschedule at your convenience.\n\nThanks,\nGrant',
-    canopy:'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you?\n\nThanks,\nGrant',
-    forest:'Subject: Quick follow-up\n\nHi, just circling back on our call. Happy to reschedule at your convenience, or send a summary by email if easier. What works best for you? If mornings are tight, an afternoon slot works just as well. Just let me know a day that suits you.\n\nThanks,\nGrant'
-  },
-  api:{
-    sprout:'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for.',
-    canopy:'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result.',
-    forest:'An API is a waiter for software: your app orders from a menu, and the API brings back exactly what was asked for. Your app never needs to see how the other program works inside. It just gets the result. That separation is why apps can use maps, payments, or weather data without building those systems themselves, and why a change inside one program does not have to break the other.'
-  },
-  workout:{
-    sprout:'Day 1: Squats, push-ups, glute bridges, 3×10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3×10.',
-    canopy:'Day 1: Squats, push-ups, glute bridges, 3×10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3×10. Rest 60s between sets, keep form clean, and add reps weekly.',
-    forest:'Day 1: Squats, push-ups, glute bridges, 3×10 each. Day 2: Rest or walk 20 min. Day 3: Lunges, wall push-ups, dead bugs, 3×10. Rest 60s between sets, keep form clean, and add reps weekly. Start lighter than you think you need to, stop a set if your form breaks down, and repeat the same three days next week before adding weight or reps.'
-  },
-  backup:{
-    sprout:'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time.',
-    canopy:'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site.',
-    forest:'Backups matter because hardware fails, files get deleted, and ransomware encrypts, usually at the worst time. A tested backup turns a business-ending day into a bad morning. Rule of thumb: 3 copies, 2 media types, 1 off-site. The key word is tested: a backup you have never restored from is a hope, not a plan, so restore a file now and then to prove it works.'
-  },
-  firewall:{
-    sprout:'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions.',
-    canopy:'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean.',
-    forest:'A portcullis firewall is a gatekeeper for a network: it checks what software is running and flags known-vulnerable versions. Portcullis does this through your AI agent instead of a dashboard. It runs a daily check and stays silent when everything is clean. When something is at risk, it explains the risk in plain English. For a small business, that means catching one outdated, exploitable program before it becomes a breach, without hiring a full security team.'
-  },
-  dns:{
-    sprout:'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it.',
-    canopy:'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers.',
-    forest:'DNS is the internet phone book: it turns a name like example.com into the number (IP address) a computer needs to reach it. You type the name, DNS looks up the matching address, and your browser connects there, so you never have to memorize numbers. If DNS cannot find a name, the site will not load even when your connection is fine, which is why a DNS problem can look like the whole internet is down.'
-  }
-};
-/* Split text into sentences for deriving mode variants from a full answer. */
-function splitSentences(text){
-  return text.match(/[^.!?]+[.!?]+(?:\s|$)/g)||[text];
-}
-function greenAnswer(topic,topicText,mode){
-  if(topic&&TEMPLATES[topic])return TEMPLATES[topic][mode];
-  /* Expanded topic: derive mode variant by sentence count */
-  if(topic&&topic.indexOf('_exp:')===0){
-    var expId=topic.slice(5);
-    for(var i=0;i<EXPANDED_TOPICS.length;i++){
-      if(EXPANDED_TOPICS[i].id===expId){
-        var full=EXPANDED_TOPICS[i].a;
-        var sents=splitSentences(full);
-        var budget=mode==='sprout'?2:mode==='canopy'?4:6;
-        return sents.slice(0,budget).join('').trim();
-      }
-    }
-  }
-  var cleaned=topicText.replace(/\s+/g,' ').trim();
-  var name=cleaned.length>80?cleaned.slice(0,80).trim()+'...':cleaned;
-  return 'That topic is not in the demo library yet. You asked about: \''+name+'\'. Try rephrasing with a clearer keyword, or switch to live mode for a real model response. The demo covers 95 topics including technology, science, math, history, business, health, cooking, home maintenance, and programming.';
-}
 var CO2G=0.0018;
 function estTokens(text){return Math.max(1,Math.round(text.trim().split(/\s+/).length*1.33));}
-function integrateChat(raw,cache){
-  var shrunk=shrinkPrompt(raw);
-  var key=cacheKey(shrunk);
-  var origIn=estTokens(raw),shrunkIn=estTokens(shrunk);
-  var prose=stripCodeFences(shrunk);
-  var topic=detectTopic(shrunk);
-  var forestAnswer=greenAnswer(topic,prose,'forest');
-  var forestOut=estTokens(forestAnswer);
-  var baselineTotal=origIn+forestOut;
-  if(!raw.trim()||!shrunk)return{empty:true,shrunk:shrunk};
-  var route,mode,answer,outTokens,cacheHit=false;
-  if(cache&&key&&Object.prototype.hasOwnProperty.call(cache,key)){
-    cacheHit=true;route='Cache hit';mode=cache[key].mode;answer=cache[key].answer;outTokens=0;
-  } else {
-    mode=routeMode(shrunk);route=mode.charAt(0).toUpperCase()+mode.slice(1);
-    answer=greenAnswer(topic,prose,mode);outTokens=estTokens(answer);
-    if(cache&&key)cache[key]={mode:mode,answer:answer};
-  }
-  var integratedTotal=shrunkIn+outTokens;
-  var savingPct=baselineTotal?Math.round((1-integratedTotal/baselineTotal)*100):0;
-  return{raw:raw,shrunk:shrunk,diff:wordDiff(raw,shrunk),
-    topic:topic,route:route,mode:mode,answer:answer,cacheHit:cacheHit,empty:false,
-    origIn:origIn,shrunkIn:shrunkIn,forestOut:forestOut,outTokens:outTokens,
-    baselineTotal:baselineTotal,integratedTotal:integratedTotal,
-    tokensSaved:baselineTotal-integratedTotal,savingPct:savingPct,
-    baseCO2:+(baselineTotal*CO2G).toFixed(4),
-    intCO2:+(integratedTotal*CO2G).toFixed(4),
-    savedCO2:+((baselineTotal-integratedTotal)*CO2G).toFixed(4)};
-}
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={shrinkPrompt,routeMode,detectTopic,greenAnswer,estTokens,integrateChat};
+  module.exports={shrinkPrompt,routeMode,estTokens};
 }
 
 /* ═══════════════════════════════════════════════
@@ -1504,13 +1112,8 @@ themeBtn.addEventListener('click',function(){
   setThemeBtn(!isDark);
 });
 
-/* State. turns[] is the source of truth: each turn is {raw, bypass, r} where r is the
-   integrateChat result. totals and history are adjusted per turn (never re-added). */
-var STORE_KEY='greensearch-demo-v1';
-function zeroTotals(){return{calls:0,base:0,green:0,saved:0,co2:0};}
-var cache={},totals=zeroTotals(),history=[],turns=[];
+/* State: live turns only. No demo turns, no totals, no history, no saved session. */
 var epoch=0;          /* bumped on clear/edit so in-flight animations stop */
-var restored=false;   /* show the 'Restored' note after re-renders */
 var seqCounter=0;     /* display order shared by demo turns and live turns */
 var reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 var chatEl=document.getElementById('chat');
@@ -1519,121 +1122,7 @@ var prevEl=document.getElementById('ip-prev');
 var cntEl=document.getElementById('ip-cnt');
 var liveEl=document.getElementById('sr-live');
 
-function round4(v){return Math.round(v*10000)/10000;}
-function addContribution(r,sign){
-  totals.calls+=sign;totals.base+=sign*r.baselineTotal;totals.green+=sign*r.integratedTotal;
-  totals.saved+=sign*r.tokensSaved;totals.co2=round4(totals.co2+sign*r.savedCO2);
-}
-function histEntry(raw,r){return{q:raw,pct:r.savingPct,mode:r.mode,tok:r.tokensSaved,co2:r.savedCO2};}
-function hasKey(o,k){return Object.prototype.hasOwnProperty.call(o,k);}
-/* bypass=true: skip the cache lookup (Regenerate), but still seed the cache if this
-   question is new, exactly as a normal first ask would. */
-function runTurn(raw,bypass){
-  if(!bypass)return integrateChat(raw,cache);
-  var r=integrateChat(raw,null);
-  var k=r.empty?'':cacheKey(r.shrunk);
-  if(k&&!hasKey(cache,k))cache[k]={mode:r.mode,answer:r.answer};
-  return r;
-}
-/* Rebuild cache, totals and history from scratch by replaying every turn in order. */
-function replayAll(){
-  cache={};totals=zeroTotals();history=[];
-  turns.forEach(function(t){
-    t.r=runTurn(t.raw,t.bypass);
-    addContribution(t.r,1);history.push(histEntry(t.raw,t.r));
-  });
-}
 
-/* ── Persistence (localStorage) ── */
-function saveState(){
-  try{
-    localStorage.setItem(STORE_KEY,JSON.stringify({v:1,savedAt:new Date().toISOString(),
-      turns:turns.map(function(t){return{raw:t.raw,bypass:!!t.bypass,r:t.r};}),
-      totals:totals,history:history}));
-  }catch(e){/* storage full or disabled: the chat still works, it just won't persist */}
-}
-function clearState(){try{localStorage.removeItem(STORE_KEY);}catch(e){}}
-function loadState(){
-  var s;
-  try{s=JSON.parse(localStorage.getItem(STORE_KEY)||'null');}catch(e){return null;}
-  if(!s||s.v!==1||!Array.isArray(s.turns)||!s.turns.length||!s.totals)return null;
-  var ok=s.turns.every(function(t){return t&&typeof t.raw==='string'&&t.r&&typeof t.r.answer==='string'&&typeof t.r.shrunk==='string';});
-  return ok?s:null;
-}
-
-/* ── Animated counter ── */
-var _ctimers={};
-function animNum(id,target,fmt,instant){
-  if(_ctimers[id])cancelAnimationFrame(_ctimers[id]);
-  var el=document.getElementById(id);if(!el)return;
-  var from=parseFloat(el.dataset.v||0)||0,diff=target-from;
-  if(instant||reduceMotion||Math.abs(diff)<0.0001){el.textContent=fmt(target);el.dataset.v=target;el.classList.remove('pop');return;}
-  var dur=550,t0=null;
-  el.classList.add('pop');
-  function step(ts){
-    if(!t0)t0=ts;
-    var p=Math.min((ts-t0)/dur,1),ease=1-Math.pow(1-p,3);
-    el.textContent=fmt(from+diff*ease);
-    if(p<1){_ctimers[id]=requestAnimationFrame(step);}
-    else{el.textContent=fmt(target);el.dataset.v=target;el.classList.remove('pop');}
-  }
-  _ctimers[id]=requestAnimationFrame(step);
-}
-function fmtInt(v){return Math.round(v).toString();}
-function fmtCO2(v){return v.toFixed(2)+'g';}
-
-/* ── CO₂ equivalence ── */
-function co2eq(g){
-  if(g<0.001)return'';
-  var ph=g/0.005;
-  if(ph>=0.1)return'≈'+(ph<1?ph.toFixed(1):Math.round(ph))+' phone charge'+(ph>=2?'s':'');
-  var led=g/((9/1000)*400/3600);
-  return led>=1?'≈'+Math.round(led)+'s LED':'<1s LED';
-}
-
-/* ── Render totals ── */
-function renderTotals(instant){
-  animNum('t-calls',totals.calls,fmtInt,instant);
-  animNum('t-base',totals.base,fmtInt,instant);
-  animNum('t-green',totals.green,fmtInt,instant);
-  animNum('t-saved',totals.saved,fmtInt,instant);
-  animNum('t-co2',totals.co2,fmtCO2,instant);
-  var eq=document.getElementById('t-eq');
-  if(eq)eq.textContent=co2eq(totals.co2);
-  var sp=document.getElementById('stats-panel');
-  if(totals.calls>0){
-    sp.style.display='';
-    var pct=totals.base?Math.round((1-totals.green/totals.base)*100):0;
-    document.getElementById('live-stats').innerHTML=
-      '<div class="sr"><span>Token reduction</span><span class="sv">'+pct+'%</span></div>'+
-      '<div class="sr"><span>Avg saved / msg</span><span class="sv">'+Math.round(totals.saved/totals.calls)+' tokens</span></div>'+
-      '<div class="sr"><span>Avg CO₂e / msg</span><span class="sv">'+(totals.co2/totals.calls).toFixed(4)+'g</span></div>';
-  } else sp.style.display='none';
-}
-
-/* ── History panel ── */
-function renderHistory(){
-  var panel=document.getElementById('hist-panel');
-  var list=document.getElementById('hist-list');
-  if(!history.length){panel.style.display='none';list.innerHTML='';return;}
-  panel.style.display='';
-  list.innerHTML='';
-  history.slice().reverse().forEach(function(h){
-    var item=document.createElement('button');
-    item.type='button';item.className='hist-item';item.setAttribute('aria-expanded','false');
-    var hi=document.createElement('span');hi.className='hi';
-    var q=document.createElement('span');q.className='hist-q';q.textContent=h.q.slice(0,42)+(h.q.length>42?'…':'');
-    var pc=document.createElement('span');pc.className='hist-pct';pc.textContent='-'+h.pct+'%';
-    hi.appendChild(q);hi.appendChild(pc);
-    var meta=document.createElement('span');meta.className='hist-meta';
-    meta.textContent='mode: '+h.mode+' · saved '+h.tok+' tokens · '+h.co2.toFixed(4)+'g CO₂e';
-    item.appendChild(hi);item.appendChild(meta);
-    item.addEventListener('click',function(){
-      var open=item.classList.toggle('open');item.setAttribute('aria-expanded',open?'true':'false');
-    });
-    list.appendChild(item);
-  });
-}
 
 /* ── Smart scroll: only auto-scroll when user is already near the bottom ── */
 function nearBottom(){return chatEl.scrollHeight-chatEl.scrollTop-chatEl.clientHeight<90;}
@@ -1644,11 +1133,6 @@ function announce(text){
   liveEl.textContent='';
   setTimeout(function(){liveEl.textContent=text;},60);
 }
-function modeName(r){
-  var lbl={sprout:'Sprout',canopy:'Canopy',forest:'Forest'};
-  return r.cacheHit?'cache hit':(lbl[r.mode]||r.mode);
-}
-
 /* ── Typing indicator ── */
 function addTypingIndicator(parent){
   var row=document.createElement('div');row.className='mr bot';
@@ -1656,28 +1140,6 @@ function addTypingIndicator(parent){
   b.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
   row.appendChild(b);parent.appendChild(row);scrollBottom();
   return row;
-}
-
-/* ── Typewriter (stops if the chat was cleared or rebuilt meanwhile) ── */
-function typewrite(parent,text,myEpoch,onDone){
-  var SPEED=14;
-  var row=document.createElement('div');row.className='mr bot';
-  var bubble=document.createElement('div');bubble.className='bubble typing';
-  row.appendChild(bubble);parent.appendChild(row);chatEl.scrollTop=chatEl.scrollHeight;
-  if(reduceMotion){bubble.textContent=text;bubble.classList.remove('typing');onDone(row,bubble);return row;}
-  var i=0;
-  function tick(){
-    if(myEpoch!==epoch)return;
-    if(i<text.length){
-      bubble.textContent=text.slice(0,++i);
-      scrollBottom();
-      setTimeout(tick,i===1?0:SPEED);
-    } else {
-      bubble.classList.remove('typing');
-      if(onDone)onDone(row,bubble);
-    }
-  }
-  tick();return row;
 }
 
 /* ── Cache flash ── */
@@ -1711,64 +1173,7 @@ function copyText(txt,okMsg){
   } else fallback();
 }
 
-/* ── Diff row ── */
-function makeDiffRow(diff,shrunk,raw){
-  if(!diff||raw===shrunk)return null;
-  var el=document.createElement('div');el.className='diff-row';
-  var hasChange=diff.tokens.some(function(t){return t.t==='r';});
-  if(!hasChange&&!diff.added.length)return null;
-  diff.tokens.forEach(function(tok){
-    var s=document.createElement('span');
-    s.className=tok.t==='r'?'dr':'dk';
-    s.textContent=tok.w+' ';
-    el.appendChild(s);
-  });
-  if(diff.added.length){
-    var arr=document.createElement('span');arr.className='diff-arrow';arr.textContent='→';el.appendChild(arr);
-    diff.added.forEach(function(w){
-      var s=document.createElement('span');s.className='da';s.textContent=' '+w;el.appendChild(s);
-    });
-  }
-  return el;
-}
 
-/* ── Tags ── */
-function modeTag(mode,cacheHit,routeReason){
-  var t=document.createElement('span');
-  if(cacheHit){
-    t.className='tag tx';t.textContent='cache hit';
-    t.title='Answer reused from earlier in this session, 0 new tokens generated';
-  } else {
-    var cls={sprout:'ts',canopy:'tc',forest:'tf'};
-    var lbl={sprout:'Sprout',canopy:'Canopy',forest:'Forest'};
-    t.className='tag '+(cls[mode]||'');t.textContent=lbl[mode]||mode;
-    if(routeReason)t.title=routeReason;
-  }
-  return t;
-}
-function makeRouteReason(shrunk,mode){
-  var words=proseWordCount(shrunk);
-  var qCount=(shrunk.match(/\?/g)||[]).length;
-  var marker=COMPLEXITY_MARKERS.find(function(m){return shrunk.toLowerCase().indexOf(m)>-1;});
-  if(mode==='sprout')return'Sprout: '+words+' word'+(words!==1?'s':'')+' (≤12) → ~2 sentences';
-  if(mode==='canopy')return'Canopy: '+words+' words (13–34) → ~4 sentences';
-  if(marker)return'Forest: complexity marker "'+marker+'" → ~6 sentences';
-  if(qCount>=2)return'Forest: '+qCount+' questions → ~6 sentences';
-  return'Forest: '+words+' words (≥35) → ~6 sentences';
-}
-function savePill(pct,co2){
-  var el=document.createElement('span');
-  el.className='spill'+(pct<40?' mid':'');
-  el.textContent='−'+pct+'% · '+(co2*1000).toFixed(1)+'mg CO₂e';
-  return el;
-}
-function tokTag(orig,shrunk){
-  if(orig===shrunk)return null;
-  var el=document.createElement('span');
-  el.className='tag tok-tag';
-  el.textContent=orig+'→'+shrunk+' tokens';
-  return el;
-}
 function short(s){s=s.replace(/\s+/g,' ').trim();return s.length>48?s.slice(0,48)+'…':s;}
 function actBtn(text,label,fn){
   var b=document.createElement('button');
@@ -1777,172 +1182,31 @@ function actBtn(text,label,fn){
   return b;
 }
 
-/* ── Turn rendering ── */
-function makeUserRow(t){
-  var row=document.createElement('div');row.className='mr user';
-  var b=document.createElement('div');b.className='bubble';b.textContent=t.raw;
-  var acts=document.createElement('div');acts.className='acts';
-  t.editBtn=actBtn('Edit','Edit question: '+short(t.raw),function(){startEdit(t);});
-  acts.appendChild(t.editBtn);
-  row.appendChild(b);row.appendChild(acts);
-  t.userRow=row;
-  return row;
-}
-function makeMeta(t){
-  var r=t.r,q=short(t.raw);
-  var mm=document.createElement('div');mm.className='mm';
-  mm.appendChild(modeTag(r.mode,r.cacheHit,r.cacheHit?null:makeRouteReason(r.shrunk,r.mode)));
-  mm.appendChild(savePill(r.savingPct,r.savedCO2));
-  var tt=tokTag(r.origIn,r.shrunkIn);if(tt)mm.appendChild(tt);
-  mm.appendChild(actBtn('⧉ Copy','Copy answer to: '+q,function(){copyText(t.r.answer,'Answer copied!');}));
-  t.regenBtn=actBtn('↻ Regenerate','Regenerate answer to: '+q+' (skips the cache)',function(){regenerate(t);});
-  mm.appendChild(t.regenBtn);
-  return mm;
-}
-function startTurn(t){
-  var wrap=document.createElement('div');wrap.className='turn';
-  t.el=wrap;
-  wrap.appendChild(makeUserRow(t));
-  var dr=makeDiffRow(t.r.diff,t.r.shrunk,t.r.raw);
-  if(dr)wrap.appendChild(dr);
-  chatEl.appendChild(wrap);
-  return wrap;
-}
-function finishTurn(t,bubble){
-  t.bubble=bubble;
-  t.mm=makeMeta(t);
-  t.el.appendChild(t.mm);
-}
-/* Static render: used for restore and replay (no typing, no announcement, no flash). */
-function renderTurnStatic(t){
-  var wrap=startTurn(t);
-  var row=document.createElement('div');row.className='mr bot';
-  var bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=t.r.answer;
-  row.appendChild(bubble);wrap.appendChild(row);
-  finishTurn(t,bubble);
-}
-/* Animated render for a newly sent message. */
-function renderTurnAnimated(t){
-  var wrap=startTurn(t),r=t.r,my=epoch;
-  chatEl.scrollTop=chatEl.scrollHeight;
-  if(r.cacheHit)showCacheFlash();
-  var ind=addTypingIndicator(wrap);
-  setTimeout(function(){
-    if(my!==epoch)return;
-    ind.remove();
-    typewrite(wrap,r.answer,my,function(row,bubble){
-      finishTurn(t,bubble);
-      scrollBottom();
-      announce('Arboris answer ('+modeName(r)+', '+r.savingPct+'% fewer tokens): '+r.answer);
-    });
-  },r.cacheHit?180:420);
-}
-function addRestoreNote(){
-  var n=document.createElement('div');n.className='restore-note';
-  n.textContent='↺ Restored from your last session';
-  chatEl.appendChild(n);
-}
-function renderAll(){
-  epoch++;
-  turns.forEach(function(t){t.editing=false;});
-  chatEl.innerHTML='';
-  addWelcome();
-  if(restored)addRestoreNote();
-  /* Live turns keep their own DOM; re-attach them in send order between demo turns. */
-  turns.concat(liveTurns).sort(function(a,b){return(a.seq||0)-(b.seq||0);}).forEach(function(t){
-    if(t.live)chatEl.appendChild(t.el);else renderTurnStatic(t);
-  });
-}
 
 /* ── Welcome ── */
 function addWelcome(){
   var row=document.createElement('div');row.className='mr bot';
   var b=document.createElement('div');b.className='bubble';
-  b.textContent='Hi, I\'m Arboris. Ask me anything about DNS, APIs, backups, workouts, email follow-ups, or Portcullis firewalls. Watch the token counter above update as we chat, and watch the input bar for live PromptShrink previews as you type.';
+  b.textContent='Ask anything.';
   row.appendChild(b);chatEl.appendChild(row);
 }
 
-/* ── Copy stats ── */
+/* ── Copy live stats ── */
 document.getElementById('copy-btn').addEventListener('click',function(){
-  if(!totals.calls){showToast('No messages yet.');return;}
-  var pct=totals.base?Math.round((1-totals.green/totals.base)*100):0;
-  var txt='Arboris session stats\n'+
-    'Messages: '+totals.calls+'\n'+
-    'Token reduction: '+pct+'%\n'+
-    'Tokens saved: '+totals.saved+'\n'+
-    'CO₂e saved: '+totals.co2.toFixed(4)+'g\n'+
-    '(estimates, not measurements)\n'+
-    'Arboris demo by Grant O\'Brien, github.com/succulentsdev';
-  copyText(txt,'Stats copied!');
+  if(!liveTotals.calls){showToast('No messages yet.');return;}
+  var txt='Arboris live session\n'+
+    'Live answers: '+liveTotals.calls+'\n'+
+    'Input tokens: '+liveTotals.inTok+'\n'+
+    'Output tokens: '+liveTotals.outTok+'\n'+
+    'Cache hits: '+liveTotals.hits+'\n'+
+    'Escalations: '+liveTotals.esc+'\n'+
+    '(provider-reported, not estimates)\n'+
+    'Arboris by Grant O\'Brien, github.com/succulentsdev';
+  copyText(txt,'Live stats copied!');
 });
 
 /* ── Send ── */
-function send(raw){
-  if(!raw.trim())return;
-  var r=integrateChat(raw,cache);
-  if(r.empty)return;
-  var t={raw:raw,bypass:false,r:r,seq:++seqCounter};
-  turns.push(t);
-  addContribution(r,1);history.push(histEntry(raw,r));
-  renderTotals();renderHistory();saveState();
-  renderTurnAnimated(t);
-}
 
-/* ── Regenerate: same original prompt, cache bypassed, replaced in place.
-   Totals: subtract the old turn's contribution, add the new one. ── */
-function regenerate(t){
-  var i=turns.indexOf(t);if(i<0||!t.bubble)return;
-  addContribution(t.r,-1);
-  t.bypass=true;
-  t.r=runTurn(t.raw,true);
-  addContribution(t.r,1);
-  history[i]=histEntry(t.raw,t.r);
-  t.bubble.textContent=t.r.answer;
-  var mm=makeMeta(t);t.mm.replaceWith(mm);t.mm=mm;
-  renderTotals();renderHistory();saveState();
-  t.regenBtn.focus();
-  announce('Regenerated answer ('+modeName(t.r)+'): '+t.r.answer);
-  showToast('Answer regenerated (cache skipped). Totals adjusted.');
-}
-
-/* ── Edit: replace the question, then replay every turn from scratch ── */
-function startEdit(t){
-  if(t.editing)return;
-  t.editing=true;
-  var row=t.userRow,bubble=row.querySelector('.bubble'),acts=row.querySelector('.acts');
-  bubble.style.display='none';acts.style.display='none';
-  var box=document.createElement('div');box.className='edit-box';
-  var ta=document.createElement('textarea');ta.value=t.raw;ta.setAttribute('aria-label','Edit your question');
-  var ba=document.createElement('div');ba.className='acts';
-  function cancel(){
-    t.editing=false;box.remove();bubble.style.display='';acts.style.display='';t.editBtn.focus();
-  }
-  function save(){
-    var v=ta.value;
-    if(!v.trim()||!shrinkPrompt(v)){showToast('The question can\'t be empty.');ta.focus();return;}
-    if(v===t.raw){cancel();return;}
-    applyEdit(t,v);
-  }
-  var sb=actBtn('Save','Save edited question and replay the chat',save);sb.classList.add('save');
-  ba.appendChild(sb);
-  ba.appendChild(actBtn('Cancel','Cancel editing',cancel));
-  ta.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){e.preventDefault();cancel();}
-    else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();save();}
-  });
-  box.appendChild(ta);box.appendChild(ba);row.appendChild(box);
-  ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
-}
-function applyEdit(t,v){
-  t.raw=v;t.bypass=false;t.editing=false;
-  replayAll();
-  renderAll();
-  renderTotals();renderHistory();saveState();
-  if(t.el){t.el.scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'});}
-  if(t.editBtn)t.editBtn.focus({preventScroll:true});
-  announce('Question edited. All answers were replayed. New answer ('+modeName(t.r)+'): '+t.r.answer);
-  showToast('Edited. Chat replayed, totals rebuilt.');
-}
 
 /* ── Live input preview ── */
 var _previewDebounce;
@@ -1955,7 +1219,7 @@ inputEl.addEventListener('input',function(){
     if(!raw.trim()){prevEl.innerHTML='';prevEl.className='ip-preview';var be=document.getElementById('shrink-bar');if(be)be.classList.remove('active');return;}
     var shrunk=shrinkPrompt(raw);
     if(shrunk===raw||!shrunk){
-      prevEl.innerHTML=liveOn?'PromptShrink preview: no change (the backend shrinks on send)':'PromptShrink: no change';
+      prevEl.innerHTML='PromptShrink preview: no change (the backend shrinks on send)';
       prevEl.className='ip-preview';
       var barEl=document.getElementById('shrink-bar');
       if(barEl)barEl.classList.remove('active');
@@ -1965,7 +1229,7 @@ inputEl.addEventListener('input',function(){
       var saved=estTokens(raw)-estTokens(shrunk);
       prevEl.className='ip-preview active';
       prevEl.innerHTML='';
-      prevEl.appendChild(document.createTextNode(liveOn?'PromptShrink preview (the backend shrinks on send): ':'PromptShrink: '));
+      prevEl.appendChild(document.createTextNode('PromptShrink preview (the backend shrinks on send): '));
       if(removed.length){var px=document.createElement('span');px.className='px';px.textContent=removed.join(' ');prevEl.appendChild(px);prevEl.appendChild(document.createTextNode(' '));}
       if(diff&&diff.added.length){var ad=document.createElement('span');ad.style.cssText='color:var(--amber);font-style:italic';ad.textContent='→ '+diff.added.join(' ');prevEl.appendChild(ad);prevEl.appendChild(document.createTextNode(' '));}
       var sv=document.createElement('span');sv.style.opacity='.7';sv.textContent=saved+' token'+(saved!==1?'s':'')+' saved';prevEl.appendChild(sv);
@@ -1986,65 +1250,32 @@ function doSend(){
   prevEl.innerHTML='';prevEl.className='ip-preview';cntEl.textContent='';
   ask(v);
 }
-/* Live mode (default on hosted site): the backend answers. Demo mode (fallback): canned, browser-only. */
-function ask(raw){if(liveOn)sendLive(raw);else send(raw);}
+/* Live only: every question goes to the backend. No demo fallback. */
+function ask(raw){sendLive(raw);}
 
-/* ── Clear (also wipes the saved session) ── */
+/* ── Clear: live turns only. Nothing is saved between sessions. ── */
 document.getElementById('cb').addEventListener('click',function(){
   epoch++;
-  chatEl.innerHTML='';cache={};totals=zeroTotals();history=[];turns=[];restored=false;
-  clearState();
-  ['t-calls','t-base','t-green','t-saved'].forEach(function(id){
-    var el=document.getElementById(id);if(el){el.textContent='0';el.dataset.v='0';}
-  });
-  var c2=document.getElementById('t-co2');if(c2){c2.textContent='0.00g';c2.dataset.v='0';}
-  var eq=document.getElementById('t-eq');if(eq)eq.textContent='';
-  document.getElementById('stats-panel').style.display='none';
-  document.getElementById('hist-panel').style.display='none';
-  document.getElementById('hist-list').innerHTML='';
+  chatEl.innerHTML='';
   resetLive();
   addWelcome();
-  showToast('Chat cleared, saved session deleted.');
+  showToast('Chat cleared.');
 });
 
-/* ── Export chat as Markdown (local Blob download, no server) ── */
+/* ── Export live chat as Markdown (local Blob download, no server) ── */
 function pad2(n){return(n<10?'0':'')+n;}
 document.getElementById('export-btn').addEventListener('click',function(){
-  if(!turns.length&&!liveTurns.length){showToast('Nothing to export yet.');return;}
+  if(!liveTurns.length){showToast('Nothing to export yet.');return;}
   var d=new Date();
   var stamp=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes())+pad2(d.getSeconds());
-  var lbl={sprout:'Sprout',canopy:'Canopy',forest:'Forest'};
-  var L=['# Arboris demo chat','','Exported '+d.toLocaleString()+'.','',
-    '> Canned demo answers from a 95-topic library, not a live model. Tokens are estimates (words × 1.33); CO₂e is tokens × 0.0018 g; the baseline is assumed (original question + Forest answer, no trimming or routing), not measured.',''];
-  turns.forEach(function(t,i){
-    var r=t.r;
-    L.push('## '+(i+1)+'. '+short(t.raw).replace(/[#\n]/g,' '),'');
-    L.push('**Question:**','');
+  var L=['# Arboris live chat','','Exported '+d.toLocaleString()+'.','',
+    '> Live model answers from the backend. Token counts are provider-reported.',''];
+  liveTurns.forEach(function(t,i){
+    L.push('### Live '+(i+1)+'. '+short(t.raw).replace(/[#\n]/g,' '),'');
     t.raw.split('\n').forEach(function(line){L.push('> '+line);});
-    L.push('','**Answer:**','',r.answer,'');
-    var mode=r.cacheHit?'Cache hit (reused '+(lbl[r.mode]||r.mode)+' answer)':(lbl[r.mode]||r.mode);
-    if(t.bypass)mode+=', regenerated';
-    L.push('- Mode: '+mode);
-    L.push('- Tokens: baseline '+r.baselineTotal+' → Arboris '+r.integratedTotal+' (saved '+r.tokensSaved+', −'+r.savingPct+'%)');
-    L.push('- CO₂e saved (est.): '+r.savedCO2.toFixed(4)+' g','');
+    L.push('',t.error?('**Error:** '+t.error):t.answer,'');
+    if(t.meta)L.push('- '+liveMetaLine(t.meta),'');
   });
-  var pct=totals.base?Math.round((1-totals.green/totals.base)*100):0;
-  L.push('## Session totals','',
-    '- Messages: '+totals.calls,
-    '- Baseline tokens: '+totals.base,
-    '- Arboris tokens: '+totals.green,
-    '- Tokens saved: '+totals.saved+' ('+pct+'%)',
-    '- CO₂e saved (est.): '+totals.co2.toFixed(4)+' g','');
-  if(liveTurns.length){
-    L.push('## Live answers (from your backend, not the demo)','',
-      '> Real model answers from the backend URL you configured. Token counts are provider-reported; they are not included in the demo totals above.','');
-    liveTurns.forEach(function(t,i){
-      L.push('### Live '+(i+1)+'. '+short(t.raw).replace(/[#\n]/g,' '),'');
-      t.raw.split('\n').forEach(function(line){L.push('> '+line);});
-      L.push('',t.error?('**Error:** '+t.error):t.answer,'');
-      if(t.meta)L.push('- '+liveMetaLine(t.meta),'');
-    });
-  }
   var name='arboris-chat-'+stamp+'.md';
   var url=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/markdown;charset=utf-8'}));
   var a=document.createElement('a');a.href=url;a.download=name;a.style.display='none';
@@ -2064,69 +1295,6 @@ document.getElementById('how-close').addEventListener('click',closeHow);
 howDlg.addEventListener('click',function(e){if(e.target===howDlg)closeHow();});
 howDlg.addEventListener('cancel',function(e){e.preventDefault();closeHow();});
 
-/* ── Sidebar toggle (narrow screens) ── */
-var sideEl=document.getElementById('sidebar'),sideBtn=document.getElementById('side-toggle');
-function setSide(open){sideEl.classList.toggle('open',open);sideBtn.setAttribute('aria-expanded',open?'true':'false');}
-sideBtn.addEventListener('click',function(){setSide(!sideEl.classList.contains('open'));});
-function isNarrow(){return window.matchMedia('(max-width:820px)').matches;}
-
-/* ── Topic browser (built from topicCatalog(), i.e. the live topic data) ── */
-var CATALOG=topicCatalog();
-var tbList=document.getElementById('tb-list'),tbSearch=document.getElementById('tb-search'),tbCount=document.getElementById('tb-count');
-function askTopic(q){
-  if(isNarrow())setSide(false);
-  inputEl.value='';ask(q);inputEl.focus();
-}
-function renderTopics(){
-  var f=tbSearch.value.toLowerCase().trim(),shown=0;
-  tbList.innerHTML='';
-  TOPIC_CATEGORIES.forEach(function(cat){
-    var items=CATALOG.filter(function(t){
-      return t.cat===cat&&(!f||(t.label+' '+t.sample+' '+t.cat+' '+t.id).toLowerCase().indexOf(f)>-1);
-    });
-    if(!items.length)return;
-    shown+=items.length;
-    var sec=document.createElement('section');sec.className='tb-group';
-    var h=document.createElement('h3');h.className='tb-cat';
-    var hn=document.createElement('span');hn.textContent=cat;
-    var hc=document.createElement('span');hc.textContent=items.length;
-    h.appendChild(hn);h.appendChild(hc);sec.appendChild(h);
-    var ul=document.createElement('ul');
-    items.forEach(function(t){
-      var li=document.createElement('li');
-      var b=document.createElement('button');b.type='button';b.className='tb-item';
-      b.setAttribute('aria-label','Ask about '+t.label+': '+t.sample);
-      var n=document.createElement('span');n.className='tb-name';n.textContent=t.label;
-      var q=document.createElement('span');q.className='tb-q';q.textContent=t.sample;
-      b.appendChild(n);b.appendChild(q);
-      b.addEventListener('click',function(){askTopic(t.sample);});
-      li.appendChild(b);ul.appendChild(li);
-    });
-    sec.appendChild(ul);tbList.appendChild(sec);
-  });
-  tbCount.textContent=f?(shown+' of '+CATALOG.length+' topics match'):(CATALOG.length+' topics · tap one to ask its sample question');
-}
-var _tbDebounce;
-tbSearch.addEventListener('input',function(){clearTimeout(_tbDebounce);_tbDebounce=setTimeout(renderTopics,80);});
-renderTopics();
-
-/* ── Chips ── */
-var SAMPLES=[
-  'Explain DNS simply',
-  'Could you please explain APIs to a 10-year-old?',
-  'Write a follow-up email about our missed call',
-  'Why do backups matter for a small office?',
-  'Give me a 3-day workout plan for beginners',
-  'Explain the Portcullis firewall in plain English'
-];
-var chipsEl=document.getElementById('chips');
-SAMPLES.forEach(function(s){
-  var b=document.createElement('button');
-  b.type='button';b.className='chip';b.textContent=s;
-  b.addEventListener('click',function(){inputEl.value='';ask(s);inputEl.focus();});
-  chipsEl.appendChild(b);
-});
-
 /* ═══ Live mode ═══
    OFF on every page load. When ON, questions go to the backend URL below as
    the raw text: the backend runs PromptShrink, cache, routing, the 4B→8B
@@ -2141,9 +1309,8 @@ var LIVE_URL_KEY='greensearch-live-backend-url';
 var LIVE_DEFAULT_URL=(window.location.hostname&&/\.run\.app$/i.test(window.location.hostname))
   ?window.location.origin+'/api/chat'
   :'http://localhost:8000/api/chat';
-var liveOn=false,liveTurns=[],liveTotals=zeroLive(),liveCtrls=[];
+var liveOn=true,liveTurns=[],liveTotals=zeroLive(),liveCtrls=[];
 var liveSession=newLiveSession();
-var liveToggle=document.getElementById('live-toggle');
 var liveUrlEl=document.getElementById('live-url');
 var liveBaselineEl=document.getElementById('live-baseline');
 function zeroLive(){return{calls:0,inTok:0,outTok:0,unreported:0,hits:0,esc:0,measured:0,saved:0};}
@@ -2163,26 +1330,11 @@ liveUrlEl.addEventListener('change',function(){
   var u=liveUrlEl.value.trim()||LIVE_DEFAULT_URL;liveUrlEl.value=u;
   try{localStorage.setItem(LIVE_URL_KEY,u);}catch(e){}
 });
-/* Browsers can restore checkbox state on reload: force a known state.
-   Live-first: on the hosted site (run.app, same-origin backend) Live starts on;
-   everywhere else it starts off and the demo is the fallback. */
-liveToggle.checked=/\.run\.app$/i.test(window.location.hostname);liveBaselineEl.checked=false;
-setLive(liveToggle.checked,true);
-liveToggle.addEventListener('change',function(){setLive(liveToggle.checked);});
-liveBaselineEl.addEventListener('change',function(){
-  if(liveBaselineEl.checked)showToast('Measure baseline ON: every live message now costs two API calls.');
-});
-function setLive(on,quiet){
-  liveOn=on;
-  ['live-pill','live-opts','live-banner','totals-live','demo-tot-lbl'].forEach(function(id){document.getElementById(id).hidden=!on;});
-  document.getElementById('demo-pill').hidden=on;
-  document.getElementById('ft-note').textContent=on
-    ?'Arboris · LIVE mode · your prompts go to the hosted backend'
-    :'Arboris · Demo mode · everything runs in your browser';
-  if(!on)liveBaselineEl.checked=false;
-  renderLiveTotals();
-  if(!quiet)showToast(on?'Live mode ON: prompts go to your backend.':'Live mode OFF: back to the browser-only demo.');
-}
+/* Live only: no toggle, no demo mode. Live totals are always shown. */
+liveBaselineEl.checked=false;
+['live-pill','live-opts','live-banner','totals-live'].forEach(function(id){var el=document.getElementById(id);if(el)el.hidden=false;});
+document.getElementById('ft-note').textContent='Arboris · LIVE · your prompts go to the hosted backend';
+renderLiveTotals();
 function resetLive(){
   liveCtrls.forEach(function(c){try{c.abort();}catch(e){}});
   liveCtrls=[];liveTurns=[];liveTotals=zeroLive();liveSession=newLiveSession();
@@ -2361,55 +1513,13 @@ function sendLive(raw){
   });
 }
 
-/* ── Restore the last session (no animation, no re-counting) ── */
-var saved=loadState();
-if(saved){
-  turns=saved.turns.map(function(t){return{raw:t.raw,bypass:!!t.bypass,r:t.r,seq:++seqCounter};});
-  var st=saved.totals;
-  totals={calls:+st.calls||0,base:+st.base||0,green:+st.green||0,saved:+st.saved||0,co2:+st.co2||0};
-  history=Array.isArray(saved.history)&&saved.history.length===turns.length?saved.history
-    :turns.map(function(t){return histEntry(t.raw,t.r);});
-  /* Rebuild the cache in the same order the questions were first asked. */
-  turns.forEach(function(t){
-    var k=cacheKey(t.r.shrunk);
-    if(k&&!hasKey(cache,k))cache[k]={mode:t.r.mode,answer:t.r.answer};
-  });
-  restored=true;
-  renderAll();
-  renderTotals(true);renderHistory();
-  chatEl.scrollTop=chatEl.scrollHeight;
-} else {
-  addWelcome();
-  renderTotals(true);
-}
+/* No conversation memory: nothing is restored, and any old demo
+   session stored under the old key is deleted on load. */
+try{localStorage.removeItem('greensearch-demo-v1');}catch(e){}
+addWelcome();
+renderLiveTotals();
 });
 }
 
-// ── Hero input bridge ──
-(function(){
-  if(typeof document==='undefined')return;
-  var hi = document.getElementById('hero-ci');
-  var hs = document.getElementById('hero-sb');
-  var hchips = document.querySelectorAll('.hero-chip');
-  if(!hi) return;
-  function heroSubmit(){
-    var v = hi.value.trim();
-    if(!v) return;
-    var ci = document.getElementById('ci');
-    ci.value = v;
-    hi.value = '';
-    var chatEl = document.querySelector('.cp');
-    if(chatEl) chatEl.scrollIntoView({behavior:'smooth', block:'start'});
-    setTimeout(function(){ document.getElementById('sb').click(); }, 450);
-  }
-  hi.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); heroSubmit(); }});
-  hs.addEventListener('click', heroSubmit);
-  hchips.forEach(function(c){
-    c.addEventListener('click', function(){
-      hi.value = c.textContent;
-      heroSubmit();
-    });
-  });
-})();
 </script>
 </body></html>

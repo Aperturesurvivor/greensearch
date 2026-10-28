@@ -1,5 +1,19 @@
 # Changelog
 
+- **Unreleased -- Live-only site (demo library removed 2026-10-28):**
+  - Deleted from website/index.html: EXPANDED_TOPICS (89 topics), TEMPLATES, TOPIC_META, detectTopic, greenAnswer, integrateChat, demo send/regenerate/edit, demo totals/history, topic browser, chips, sidebar, hero input, stats bar, demo persistence (saveState/loadState), restore note, and dead demo helpers. File ~1.10 MB -> ~0.97 MB (photo data URI unchanged).
+  - Site is live-only: no Live toggle, no demo pill, no demo fallback; every question goes to the backend via sendLive. Live totals are the only totals; live URL + Measure baseline controls stay (config, not conversation memory).
+  - No conversation memory: nothing is saved or restored; on load the site deletes any old greensearch-demo-v1 session from localStorage. Live answers were already never written to localStorage.
+  - Kept as requested: "How Arboris trims the cost of every conversation" features section, hero title/sub, header, live totals, chat, main input/Send, footer, How dialog (rewritten live-only, no demo sections).
+  - Welcome message changed to "Ask anything."
+  - Tests updated for the intentional change: TestWebsiteExpandedParity parity test replaced with a demo-library-removed assertion; test_website_live_mode_off_by_default replaced with test_website_live_only. Python DemoProvider and Python expanded-topic tests are untouched (harness only, not the site).
+
+- **Unreleased -- Live-only cleanup (demo UI hidden, not deleted):**
+  - Hidden via one CSS block (delete it to restore): hero input/chips/scroll hint (duplicates the main input), stats bar (unmeasured marketing numbers), features section, sidebar (How-it-works panel, Topic browser, Finland panel), sample-question chips under the main input.
+  - Demo totals strip now hidden in live mode and shown in demo mode (was always visible); live totals are the only totals in live mode.
+  - Welcome message neutralised to "Hi, I'm Arboris. Ask me anything." (no demo-topic list).
+  - Demo JS bones untouched: greenAnswer, 95-topic data, renderTopics, demo answers, How dialog (header button) all still in the file, just not rendered visibly. File size unchanged (~1.1 MB) because nothing was deleted.
+
 - **Unreleased -- PromptShrink v2 (opt-in, not yet switched on):**
   - New `shrink_v2()` in `greensearch/shrink.py`: v1, plus redundancy removal (consecutive duplicate words, exact duplicate sentences, code fences untouched), plus telegraphic rewriting gated to simple single-sentence prompts (at most 25 words, no fence/newline/colon structure): articles (a/an/the) and "to/for me|you|us" removed. Numbers, constraint words, question words, and keywords are never removed, and multi-sentence/creative prompts get redundancy only.
   - `shrink()` is unchanged, so the CLI and baseline study keep v1 numbers until a switch is explicitly approved. Tokenizer-aware counting is via the existing `count_fn` argument (pass `count_tokens` with backend="tiktoken" for real tokens).

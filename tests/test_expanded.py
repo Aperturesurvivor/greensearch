@@ -5,7 +5,7 @@ Covers:
 - Python routing for a sample of expanded topics
 - Sentence-budget derivation (sprout=2, canopy=4, full=6)
 - No overlap or shadowing between the original 6 and expanded topics
-- Website JS routing parity for expanded topics (via Node subprocess)
+- Website demo library removal (live-only site, 2026-10-28)
 
 Run from the repository root:
     python -m unittest tests.test_expanded -v
@@ -147,42 +147,26 @@ class TestExpandedSubstringTraps(unittest.TestCase):
 
 
 class TestWebsiteExpandedParity(unittest.TestCase):
-    """Verify the website JS routes expanded topics the same as Python."""
+    """Website is live-only: the demo topic library was removed 2026-10-28."""
 
-    PARITY_CASES = [
-        ("Explain how passwords work", True),
-        ("What is machine learning", True),
-        ("How does gravity work", True),
-        ("Explain quantum computing in detail", False),  # not in library
-    ]
+    def test_website_demo_library_removed(self):
+        """Live-only site: no demo topic library, no demo UI, no conversation memory.
 
-    def test_website_js_expanded_routing(self):
-        """Run expanded topic detection through Node and check parity."""
-        js_code = """
-var fs = require('fs');
-var html = fs.readFileSync('website/index.html','utf8');
-var script = html.match(/<script>([\\s\\S]*?)<\\/script>/)[1];
-var mod = {};
-var fn = new Function('module','exports', script + '; return module.exports || {};');
-var exports = fn({exports:{}},{});
-var cases = %s;
-var results = cases.map(function(c){
-    var topic = exports.detectTopic(c[0]);
-    return {prompt: c[0], hasTopic: topic !== null, expectedHit: c[1]};
-});
-console.log(JSON.stringify(results));
-""" % json.dumps([[p, hit] for p, hit in self.PARITY_CASES])
-
-        result = subprocess.run(
-            ["node", "-e", js_code],
-            capture_output=True, text=True, cwd=str(ROOT),
-        )
-        self.assertEqual(result.returncode, 0, f"Node failed: {result.stderr}")
-        results = json.loads(result.stdout)
-        for r in results:
-            with self.subTest(prompt=r["prompt"]):
-                self.assertEqual(r["hasTopic"], r["expectedHit"],
-                    f"JS routing for '{r['prompt']}': got topic={r['hasTopic']}, expected={r['expectedHit']}")
+        The Python demo provider (used by the harness) is a separate thing
+        and is untouched; this test covers the website only. The one
+        allowed mention of the old storage key is the cleanup line that
+        deletes it on load.
+        """
+        html = (ROOT / "website" / "index.html").read_text(encoding="utf-8")
+        for needle in ("EXPANDED_TOPICS", "detectTopic", "greenAnswer",
+                       "topicCatalog", "TOPIC_META", "live-toggle",
+                       "topic-panel", "not in the demo library yet",
+                       "saveState", "loadState", "renderTopics"):
+            self.assertNotIn(needle, html)
+        self.assertIn("Ask anything.", html)
+        self.assertIn('class="feat-section"', html)
+        self.assertEqual(html.count("greensearch-demo-v1"), 1)
+        self.assertIn("localStorage.removeItem('greensearch-demo-v1')", html)
 
 
 if __name__ == "__main__":
