@@ -27,6 +27,7 @@ a later run can be compared exactly.
 
 import argparse
 import datetime
+import time
 import json
 import sys
 from pathlib import Path
@@ -48,18 +49,51 @@ from greensearch.tokens import est_tokens
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_study(provider, mode):
+def _complete_with_retry(provider, prompt, system, max_tokens,
+                         retries=5, base_delay=15, sleep=time.sleep):
+    """One provider call, retried on HTTP 429 only.
+
+    Free shared pools throttle often, and the study makes 24 live calls
+    (12 prompts x concise + baseline). Without this, the first 429
+    aborted the whole run and wrote nothing. Other errors still abort
+    immediately, as before: retrying a 401/402/404 would not help.
+    Backoff is 15s, 30s, 60s, 120s, 240s by default, so a throttled
+    run waits for the pool instead of hammering it.
+    """
+    attempt = 0
+    while True:
+        try:
+            return provider.complete_ex(prompt, system=system, max_tokens=max_tokens)
+        except ProviderError as exc:
+            if getattr(exc, "status", None) != 429 or attempt >= retries:
+                raise
+            delay = base_delay * (2 ** attempt)
+            print(f"Rate limited (429), waiting {delay}s before retry {attempt + 1}/{retries}...",
+                  file=sys.stderr)
+            sleep(delay)
+            attempt += 1
+
+
+def run_study(provider, mode, retries=5, base_delay=15, inter_call_delay=3, sleep=time.sleep):
     corpus = json.loads((ROOT / "spec" / "corpus.json").read_text())
     rows = []
     for entry in corpus["prompts"]:
         sr = shrink(entry["raw"])
         try:
-            concise = provider.complete_ex(
-                sr.text,
-                system=BREVITY_SYSTEM[mode] if provider.live else None,
-                max_tokens=MAX_TOKENS[mode] if provider.live else None,
+            concise = _complete_with_retry(
+                provider, sr.text,
+                BREVITY_SYSTEM[mode] if provider.live else None,
+                MAX_TOKENS[mode] if provider.live else None,
+                retries=retries, base_delay=base_delay, sleep=sleep,
             )
-            baseline = provider.complete_ex(entry["raw"])
+            if provider.live and inter_call_delay:
+                sleep(inter_call_delay)
+            baseline = _complete_with_retry(
+                provider, entry["raw"], None, None,
+                retries=retries, base_delay=base_delay, sleep=sleep,
+            )
+            if provider.live and inter_call_delay:
+                sleep(inter_call_delay)
         except (ValueError, ProviderError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return None
@@ -146,6 +180,12 @@ def main(argv=None):
     parser.add_argument("--mode", choices=["sprout", "canopy", "full"], default="canopy")
     parser.add_argument("--report-out", default=None, help="Write a markdown report to this path")
     parser.add_argument("--json-out", default=None, help="Write per-prompt JSON results to this path")
+    parser.add_argument("--retries", type=int, default=5,
+                        help="Retries per call on HTTP 429 only (default 5)")
+    parser.add_argument("--retry-delay", type=int, default=15,
+                        help="Base seconds for 429 backoff; doubled each retry (default 15)")
+    parser.add_argument("--inter-call-delay", type=int, default=3,
+                        help="Seconds between live calls, to avoid bursting the free pool (default 3)")
     args = parser.parse_args(argv)
 
     if args.provider == "demo":
@@ -159,7 +199,9 @@ def main(argv=None):
             return 2
         model = args.model
 
-    rows = run_study(provider, args.mode)
+    rows = run_study(provider, args.mode, retries=args.retries,
+                     base_delay=args.retry_delay,
+                     inter_call_delay=args.inter_call_delay if args.provider == "live" else 0)
     if rows is None:
         return 2
     token_source = (

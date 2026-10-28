@@ -1,5 +1,9 @@
 # Changelog
 
+- **Unreleased -- Baseline study survives free-model throttling:**
+  - `scripts/baseline_study.py` now retries HTTP 429 only (15s, 30s, 60s, 120s, 240s backoff) and waits 3s between live calls; other errors still abort immediately. Previously the first 429 killed the whole 24-call run and wrote nothing.
+  - New flags: `--retries`, `--retry-delay`, `--inter-call-delay`. Server behaviour unchanged (it already has its own fallback logic).
+
 - **Unreleased -- Live-first copy rewrite:**
   - Website copy is now live-first, with canned demo kept as fallback (code unchanged, only copy and the Live default changed).
   - How dialog: "Canned answers, not a live model" is now "Live first, demo as fallback"; the live study section now says the hosted backend is already running with a configured key, and what is still missing is a systematic measured baseline (BASELINE.md still uses canned numbers, no live savings invented).
