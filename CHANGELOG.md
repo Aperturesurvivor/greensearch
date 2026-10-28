@@ -1,5 +1,11 @@
 # Changelog
 
+- **Unreleased -- Live-first copy rewrite:**
+  - Website copy is now live-first, with canned demo kept as fallback (code unchanged, only copy and the Live default changed).
+  - How dialog: "Canned answers, not a live model" is now "Live first, demo as fallback"; the live study section now says the hosted backend is already running with a configured key, and what is still missing is a systematic measured baseline (BASELINE.md still uses canned numbers, no live savings invented).
+  - Live mode is on by default on the hosted site (run.app, same-origin backend) and off by default elsewhere; footer, hero, and mode notes updated accordingly. Demo answers remain pre-written for 95 topics, used when Live is off or the backend fails.
+  - Honesty corrections: hosted backend currently runs in us-central1, not Finland (Finland is a future lever, not a current claim); live token counts are provider-reported, demo counts are still estimates, and live savings vs baseline are measured only when Measure baseline is on.
+
 - **Unreleased -- Arboris landscape redesign (to push):**
   - Website completely redesigned from the TaniScan-inspired canopy option, with Grant's landscape photo (mountain forest at sunset, 2400x1350) as the full-bleed background instead of the AI canopy, embedded in the page as a data URI (the GitHub snapshot push cannot carry binary files, so the photo is not a separate repo asset).
   - Green filter turned way down: scrim was a uniform 78% dark green, now a gradient mostly 30-35%, 70% only at the very top for nav/headline readability, 50% at the bottom for the chat. The photo shows through clearly; white text over the bright sunset sky is the tightest contrast case and still needs Grant's browser pass.

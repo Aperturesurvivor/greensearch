@@ -350,7 +350,7 @@ Contrast, worst case (photo pixel pure white or pure black under every layer):
       <button class="nav-btn" id="hist-btn" type="button" aria-expanded="false" aria-controls="hist-drawer">History</button>
       <button class="nav-btn" id="how-btn" type="button" aria-haspopup="dialog" aria-label="How this demo works">How it works</button>
       <button class="nav-btn" id="theme-btn" type="button" aria-label="Toggle theme">Theme</button>
-      <label class="live-pill" title="Live mode sends questions to a backend you run. Off by default.">
+      <label class="live-pill" title="Live mode sends questions to the hosted backend. On by default here, off elsewhere.">
         <input type="checkbox" id="live-toggle" role="switch" autocomplete="off" aria-label="Live mode" aria-describedby="live-banner">
         <span class="lp-off" aria-hidden="true">Live: off</span><span class="lp-on" aria-hidden="true"><span class="lp-dot"></span>LIVE</span>
       </label>
@@ -377,8 +377,8 @@ Contrast, worst case (photo pixel pure white or pure black under every layer):
         <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="11"/><path d="M6.5 11.3 L9.6 14.2 L15.5 8"/></svg><span>Routes short questions to the smallest of three answer sizes.</span></li>
         <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="11"/><path d="M6.5 11.3 L9.6 14.2 L15.5 8"/></svg><span>Shows the tokens saved under every answer.</span></li>
       </ul>
-      <p class="fine">Answers are pre-written. Token and CO2e figures are canned estimates, not measurements. No model reads your question in demo mode.</p>
-      <p class="mode-note"><span id="demo-pill">Demo mode: everything runs in your browser. Switch on Live at the top to use your own backend.</span><span id="live-pill" class="live-word" hidden>Live mode: prompts go to your configured backend.</span></p>
+      <p class="fine">Live answers come from a real model via the hosted backend. Token and CO2e figures under demo answers are canned estimates, not measurements.</p>
+      <p class="mode-note"><span id="demo-pill">Demo mode: everything runs in your browser. Live is on by default on the hosted site; switch it off at the top to use the demo.</span><span id="live-pill" class="live-word" hidden>Live mode: prompts go to your configured backend.</span></p>
     </div>
   </section>
 
@@ -413,7 +413,7 @@ Contrast, worst case (photo pixel pure white or pure black under every layer):
   <p class="session" id="totals" aria-label="Session totals"><span id="demo-tot-lbl" hidden>Demo estimates: </span><b>Session</b> <span class="sv-num" id="t-calls">0</span> messages, baseline <span class="sv-num" id="t-base">0</span> tokens, Arboris <span class="sv-num" id="t-green">0</span> tokens. Canned estimates.</p>
 
 <footer class="ft">
-  <span id="ft-note">Arboris. Portfolio demo. Nothing leaves your browser.</span>
+  <span id="ft-note">Arboris. Live answers from a real model. Demo answers stay in your browser.</span>
   <span class="ft-acts"><button class="ft-btn" id="export-btn" type="button" aria-label="Export chat as a Markdown file">Export chat</button><button class="ft-btn" id="copy-btn" type="button" aria-label="Copy session stats">Copy stats</button></span>
   <span>Background: a landscape photo, not a real site.</span>
   <span>Grant O'Brien. <a href="https://github.com/succulentsdev" target="_blank" rel="noopener">succulentsdev</a></span>
@@ -456,8 +456,8 @@ Contrast, worst case (photo pixel pure white or pure black under every layer):
       <h2 id="how-title">How this demo works</h2>
       <button class="icon-btn" id="how-close" type="button" aria-label="Close how this demo works">Close</button>
     </div>
-    <h3>Canned answers, not a live model</h3>
-    <p>Every answer on this page is a pre-written template. There are 95 topics: six hand-written in three lengths (email follow-ups, APIs, workouts, backups, Portcullis firewalls, DNS) and 89 more, each one written once and cut to 2, 4 or 6 sentences depending on the route. No model reads your question. A question outside the library gets an honest "not in the library" reply, never a made-up answer.</p>
+    <h3>Live first, demo as fallback</h3>
+    <p>Live answers on this page come from a real model through the backend: on the hosted site that backend is already running, and on your own machine it is <code>python server/app.py</code>. Demo answers are the fallback: pre-written templates for 95 topics (six hand-written in three lengths: email follow-ups, APIs, workouts, backups, Portcullis firewalls, DNS; and 89 more, each written once and cut to 2, 4 or 6 sentences depending on the route). In demo mode, a question outside the library gets an honest "not in the library" reply, never a made-up answer. In live mode, the model answers anything.</p>
     <h3>What the steps really do</h3>
     <ul>
       <li><b>PromptShrink</b> runs on your actual text: it removes filler and wordy phrases and leaves code blocks alone. Watch the preview as you type.</li>
@@ -473,23 +473,23 @@ Contrast, worst case (photo pixel pure white or pure black under every layer):
       <li><b>The baseline is assumed, not measured.</b> It counts your original question plus the Forest (longest) answer, with no trimming, routing or reuse. It is not a measured ChatGPT or Gemini comparison. Published per-prompt figures for real models vary by 10 times or more.</li>
     </ul>
     <h3>Finland and carbon</h3>
-    <p>Arboris is designed to run on nearly carbon-free electricity. Reference: Google Cloud Finland, 98 percent carbon-free, 30 gCO2eq/kWh. <a href="https://cloud.google.com/sustainability/region-carbon" target="_blank" rel="noopener">Google Cloud region carbon data</a>. Note: this demo runs in your browser, not in Finland. Savings shown come from fewer tokens only. Clean-energy hosting is a separate lever for a live version.</p>
+    <p>Arboris is designed to run on nearly carbon-free electricity. Reference: Google Cloud Finland, 98 percent carbon-free, 30 gCO2eq/kWh. <a href="https://cloud.google.com/sustainability/region-carbon" target="_blank" rel="noopener">Google Cloud region carbon data</a>. Note: the demo runs in your browser, not in Finland, and the hosted backend currently runs in us-central1, not Finland. Savings shown come from fewer tokens only. Clean-energy hosting in Finland is a separate, future lever.</p>
     <h3>Honest limits</h3>
-    <p>Demo mode has no live model. Answers are pre-written for 95 topics. Anything outside the library gets an honest fallback, not a made-up answer. Live mode (off by default) needs an Arboris backend that you run yourself.</p>
-    <h3>The live study is waiting for an API key</h3>
-    <p>The repo includes a baseline study script (<code>scripts/baseline_study.py</code>) that can measure real token counts against a live model. It needs an API key, which this project does not have yet, so no live results exist. The repo's current <code>BASELINE.md</code> uses the offline canned provider and says so. No live numbers have been made up to fill the gap.</p>
-    <h3>What would change with a live model</h3>
+    <p>Live mode is on by default on the hosted site and off by default elsewhere. Demo mode has no live model: answers are pre-written for 95 topics, and anything outside the library gets an honest fallback, not a made-up answer. If the backend is unavailable, switch Live off to use the demo.</p>
+    <h3>The live backend is running; the measured baseline is not</h3>
+    <p>The hosted backend is already running with a configured API key, and live answers work. What has not been done yet is a systematic measured baseline: the repo's <code>scripts/baseline_study.py</code> can measure real token counts against a live model, but that run has not been completed, so <code>BASELINE.md</code> still uses the offline canned provider and says so. No live savings numbers have been made up to fill the gap.</p>
+    <h3>What changed with a live model</h3>
     <ul>
-      <li><b>A backend.</b> An API key cannot safely sit in a browser page, so a small server would make the model calls.</li>
-      <li><b>A real tokenizer.</b> Token counts would come from the model provider instead of words times 1.33.</li>
-      <li><b>A logprob cascade.</b> A small model answers first, and the question goes to a larger model only when the small model's own token log-probabilities show low confidence. The Python package and the optional live backend do this; demo mode does not.</li>
-      <li><b>Finland hosting.</b> Running in Google Cloud Finland (europe-north1, about 98 percent carbon-free energy) is a separate lever on top of token savings. This page runs on your device, not in Finland.</li>
-      <li>All the savings would need to be measured again. The percentages shown here would not carry over automatically.</li>
+      <li><b>A backend.</b> An API key cannot safely sit in a browser page, so a small server makes the model calls. On the hosted site that server is already running; locally it is <code>python server/app.py</code>.</li>
+      <li><b>A real tokenizer.</b> Live token counts come from the model provider instead of words times 1.33. Demo counts are still estimates.</li>
+      <li><b>A logprob cascade.</b> A small model answers first, and the question goes to a larger model only when the small model's own token log-probabilities show low confidence. The Python package and the live backend do this; demo mode does not.</li>
+      <li><b>Finland hosting.</b> Running in Google Cloud Finland (europe-north1, about 98 percent carbon-free energy) is a separate lever on top of token savings. The hosted backend currently runs in us-central1, not Finland, so Finland is a future option, not a current claim.</li>
+      <li>All the savings still need to be measured again against the live model. The demo percentages shown here do not carry over automatically.</li>
     </ul>
-    <h3>Live mode (optional, off by default)</h3>
-    <p>The <b>Live mode</b> switch sends each question to an Arboris backend at the URL you enter (default <code>http://localhost:8000/api/chat</code>, that is <code>python server/app.py</code> on your own machine). The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a <b>truncated</b> marker when the answer hit the token cap. Live totals sit in their own live row and are never added to the demo estimates. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers are not saved in localStorage; only the backend URL is, under <code>greensearch-live-backend-url</code>.</p>
+    <h3>Live mode (on by default on the hosted site)</h3>
+    <p>The <b>Live mode</b> switch sends each question to an Arboris backend. On the hosted site the default is the same-origin backend (<code>/api/chat</code> on this site); on your own machine the default is <code>http://localhost:8000/api/chat</code>, that is <code>python server/app.py</code>. You can enter a different backend URL in the Live row at the top. The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a <b>truncated</b> marker when the answer hit the token cap. Live totals sit in their own live row and are never added to the demo estimates. If the backend fails, switch Live off to use the demo fallback. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers are not saved in localStorage; only the backend URL is, under <code>greensearch-live-backend-url</code>.</p>
     <h3>Privacy</h3>
-    <p>In demo mode (the default) the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
+    <p>In demo mode the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
   </div>
 </dialog>
 
@@ -1404,7 +1404,7 @@ function doSend(){
   prevEl.innerHTML='';prevEl.className='ip-preview';cntEl.textContent='';
   ask(v);
 }
-/* Demo mode (default): canned, browser-only. Live mode: the backend answers. */
+/* Live mode (default on hosted site): the backend answers. Demo mode (fallback): canned, browser-only. */
 function ask(raw){if(liveOn)sendLive(raw);else send(raw);}
 
 /* ── Clear (also wipes the saved session) ── */
@@ -1581,22 +1581,25 @@ liveUrlEl.addEventListener('change',function(){
   var u=liveUrlEl.value.trim()||LIVE_DEFAULT_URL;liveUrlEl.value=u;
   try{localStorage.setItem(LIVE_URL_KEY,u);}catch(e){}
 });
-/* Browsers can restore checkbox state on reload: force both off. */
-liveToggle.checked=false;liveBaselineEl.checked=false;
+/* Browsers can restore checkbox state on reload: force a known state.
+   Live-first: on the hosted site (run.app, same-origin backend) Live starts on;
+   everywhere else it starts off and the demo is the fallback. */
+liveToggle.checked=/\.run\.app$/i.test(window.location.hostname);liveBaselineEl.checked=false;
+setLive(liveToggle.checked,true);
 liveToggle.addEventListener('change',function(){setLive(liveToggle.checked);});
 liveBaselineEl.addEventListener('change',function(){
   if(liveBaselineEl.checked)showToast('Measure baseline ON: every live message now costs two API calls.');
 });
-function setLive(on){
+function setLive(on,quiet){
   liveOn=on;
   ['live-pill','live-opts','live-banner','totals-live','demo-tot-lbl'].forEach(function(id){document.getElementById(id).hidden=!on;});
   document.getElementById('demo-pill').hidden=on;
   document.getElementById('ft-note').textContent=on
-    ?'Arboris · LIVE mode · your prompts go to the backend you configured'
-    :'Arboris · portfolio demo · nothing leaves your browser';
+    ?'Arboris · LIVE mode · your prompts go to the hosted backend'
+    :'Arboris · Demo mode · everything runs in your browser';
   if(!on)liveBaselineEl.checked=false;
   renderLiveTotals();
-  showToast(on?'Live mode ON: prompts go to your backend.':'Live mode OFF: back to the browser-only demo.');
+  if(!quiet)showToast(on?'Live mode ON: prompts go to your backend.':'Live mode OFF: back to the browser-only demo.');
 }
 function resetLive(){
   liveCtrls.forEach(function(c){try{c.abort();}catch(e){}});
