@@ -149,8 +149,18 @@ ENV_VARS = [
     ("GREENSEARCH_BACKEND_ORIGIN", ",".join(DEFAULT_ORIGINS),
      "CORS allowlist of exact origins, separated by commas and/or spaces; "
      "trailing slashes are stripped. '*' is refused."),
-    ("GREENSEARCH_RATE_LIMIT_PER_HOUR", "100",
+    ("GREENSEARCH_RATE_LIMIT_PER_HOUR", "30",
      "Chat requests per client IP per rolling hour. 0 disables the limit."),
+    ("GREENSEARCH_RATE_LIMIT_PER_DAY", "100",
+     "Chat requests per client IP per rolling day (86400s). 0 disables."),
+    ("GREENSEARCH_GLOBAL_LIMIT_PER_DAY", "800",
+     "Chat requests in total per rolling day, all IPs combined. 0 disables. "
+     "POC guard: keeps one abusive IP, or many IPs, from burning the "
+     "OpenRouter free quota (1000/day after a $10 credit) or paid credits."),
+    ("GREENSEARCH_ALLOW_PAID_MODELS", "off",
+     "1/true/yes/on allows a non-free primary, fallback, or escalation model. "
+     "Off by default: a paid model must be enabled deliberately, so a config "
+     "mistake cannot drain credits."),
     ("GREENSEARCH_DEBUG_LOG", "off",
      "1/true/yes/on logs prompts to local stderr only, never to responses."),
     ("PORT", str(DEFAULT_PORT), "Listen port (also --port)."),
@@ -181,7 +191,10 @@ class Config:
     escalation_model: str = ""
     cascade_threshold: float = -1.0
     allowed_origins: tuple = DEFAULT_ORIGINS
-    rate_limit_per_hour: int = 100
+    rate_limit_per_hour: int = 30
+    rate_limit_per_day: int = 100
+    global_limit_per_day: int = 800
+    allow_paid_models: bool = False
     debug_log: bool = False
 
     def __post_init__(self):
@@ -225,16 +238,21 @@ class Config:
             raise ValueError("GREENSEARCH_CASCADE_THRESHOLD must be a number, e.g. -1.0")
         if threshold != threshold or threshold > 0:  # NaN or positive
             raise ValueError("GREENSEARCH_CASCADE_THRESHOLD must be <= 0 (logprobs are <= 0)")
-        try:
-            rate = int(get("GREENSEARCH_RATE_LIMIT_PER_HOUR", "100"))
-        except ValueError:
-            raise ValueError("GREENSEARCH_RATE_LIMIT_PER_HOUR must be a whole number")
-        if rate < 0:
-            raise ValueError("GREENSEARCH_RATE_LIMIT_PER_HOUR must be 0 or more")
+        def _int(name, default):
+            try:
+                value = int(get(name, str(default)))
+            except ValueError:
+                raise ValueError(f"{name} must be a whole number")
+            if value < 0:
+                raise ValueError(f"{name} must be 0 or more")
+            return value
+        rate = _int("GREENSEARCH_RATE_LIMIT_PER_HOUR", 30)
+        rate_day = _int("GREENSEARCH_RATE_LIMIT_PER_DAY", 100)
+        global_day = _int("GREENSEARCH_GLOBAL_LIMIT_PER_DAY", 800)
         origins = parse_origins(env.get("GREENSEARCH_BACKEND_ORIGIN", "")) or DEFAULT_ORIGINS
         if any(o == "*" or "*" in o for o in origins):
             raise ValueError("GREENSEARCH_BACKEND_ORIGIN must list exact origins; '*' is not allowed")
-        return cls(
+        config = cls(
             api_key=env.get("GREENSEARCH_API_KEY", "").strip(),
             base_url=get("GREENSEARCH_BASE_URL", DEFAULT_BASE_URL),
             model=model,
@@ -243,9 +261,29 @@ class Config:
             cascade_threshold=threshold,
             allowed_origins=origins,
             rate_limit_per_hour=rate,
+            rate_limit_per_day=rate_day,
+            global_limit_per_day=global_day,
+            allow_paid_models=env.get("GREENSEARCH_ALLOW_PAID_MODELS", "").strip().lower()
+            in ("1", "true", "yes", "on"),
             debug_log=env.get("GREENSEARCH_DEBUG_LOG", "").strip().lower()
             in ("1", "true", "yes", "on"),
         )
+        # Paid guard lives here, not in __post_init__: direct Config() is
+        # the test harness (fake model names are not real paid models), while
+        # server startup always goes through from_env, so a real deployment
+        # cannot accidentally run a paid model without the explicit flag.
+        if not config.allow_paid_models:
+            seen = []
+            for m in (config.model,) + config.fallback_models + (
+                    (config.escalation_model,) if config.cascade_enabled else ()):
+                if not is_free_model(m) and m not in seen:
+                    seen.append(m)
+            if seen:
+                raise ValueError(
+                    "Paid model(s) configured without GREENSEARCH_ALLOW_PAID_MODELS: "
+                    + ", ".join(seen)
+                    + ". Set GREENSEARCH_ALLOW_PAID_MODELS=1 to allow paid models deliberately.")
+        return config
 
 
 def parse_fallbacks(models, primary):
@@ -527,9 +565,27 @@ class Backend:
         self.config = config
         self.provider_factory = provider_factory or self._default_provider
         self.rate_limiter = RateLimiter(config.rate_limit_per_hour, 3600.0, clock)
+        self.daily_limiter = RateLimiter(config.rate_limit_per_day, 86400.0, clock)
+        self.global_limiter = RateLimiter(config.global_limit_per_day, 86400.0, clock)
         self.sessions = SessionStore()
         self.log_stream = log_stream if log_stream is not None else sys.stderr
         self.quiet = quiet
+
+    def allow_request(self, client):
+        """POC abuse guard, checked in order. Returns (allowed, retry_after_seconds).
+
+        Hourly per-IP, then daily per-IP, then global daily. All three are
+        in-memory and per-process: Cloud Run may run several processes, so
+        the effective caps multiply, and they reset on restart/deploy.
+        That is a proof-of-concept limit, not commercial-grade metering.
+        """
+        if not self.rate_limiter.allow(client):
+            return False, 3600
+        if not self.daily_limiter.allow(client):
+            return False, 86400
+        if not self.global_limiter.allow("global"):
+            return False, 86400
+        return True, 0
 
     def _default_provider(self, model):
         return OpenAICompatibleProvider(
@@ -564,6 +620,9 @@ class Backend:
             "cascade_enabled": cfg.cascade_enabled,
             "cascade_threshold": cfg.cascade_threshold,
             "rate_limit_per_hour": cfg.rate_limit_per_hour,
+            "rate_limit_per_day": cfg.rate_limit_per_day,
+            "global_limit_per_day": cfg.global_limit_per_day,
+            "allow_paid_models": cfg.allow_paid_models,
             "provider_streaming": False,
         }
 
@@ -623,6 +682,7 @@ class Backend:
                     "truncated": False,
                     "latency_ms": round((time.monotonic() - started) * 1000),
                 })
+                self.log(f"chat cache_hit model={entry.get('model')} in=0 out=0")
                 return {"answer": entry["answer"], "meta": meta}
 
         # 4. Primary model (then fallbacks); logprob-gated escalation only
@@ -704,6 +764,8 @@ class Backend:
                 req.prompt, input_tokens, output_tokens, primary.model)
 
         meta["latency_ms"] = round((time.monotonic() - started) * 1000)
+        self.log(f"chat model={model_used} in={input_tokens} out={output_tokens} "
+                 f"cache_hit=False escalated={result.escalated} latency_ms={meta['latency_ms']}")
         return {"answer": answer, "meta": meta}
 
     def _baseline(self, original_prompt, input_tokens, output_tokens, model):
@@ -858,8 +920,10 @@ def make_handler(backend):
                 return self._send_error(404, MSG_NOT_FOUND)
             if not self._origin_ok():
                 return self._send_error(403, MSG_ORIGIN)
-            if not backend.rate_limiter.allow(self.client_address[0]):
-                return self._send_error(429, MSG_RATE_LIMITED, {"Retry-After": "3600"})
+            allowed, retry_after = backend.allow_request(self.client_address[0])
+            if not allowed:
+                return self._send_error(429, MSG_RATE_LIMITED,
+                                        {"Retry-After": str(retry_after)})
             try:
                 length = int(self.headers.get("Content-Length", ""))
             except ValueError:
@@ -953,7 +1017,9 @@ def main(argv=None):
         f"fallbacks: {', '.join(config.fallback_models) or 'none'} | "
         f"escalation: {config.escalation_model if config.cascade_enabled else 'off (single model)'} | "
         f"CORS: {', '.join(config.allowed_origins)} | "
-        f"rate limit: {config.rate_limit_per_hour}/h | "
+        f"rate limit: {config.rate_limit_per_hour}/h, {config.rate_limit_per_day}/day per IP, "
+        f"{config.global_limit_per_day}/day global | "
+        f"paid models: {'ALLOWED' if config.allow_paid_models else 'blocked'} | "
         f"prompt logging: {'ON (stderr only)' if config.debug_log else 'off'}"
     )
     try:

@@ -127,7 +127,10 @@ requests, files in the repo, or the command line.
 | `GREENSEARCH_ESCALATION_MODEL` | value of `GREENSEARCH_MODEL` | Optional. While it equals `GREENSEARCH_MODEL` (the default) there is **no** escalation call. Set it to a different model to turn on the logprob cascade. |
 | `GREENSEARCH_CASCADE_THRESHOLD` | `-1.0` | Cascade only: escalate when the primary model's mean token logprob is below this. Must be ≤ 0. A starting point to tune, not a sourced constant. |
 | `GREENSEARCH_BACKEND_ORIGIN` | `http://localhost:8000,http://127.0.0.1:8000` | CORS allowlist of exact origins, separated by commas and/or whitespace (so a space-separated list works too). Trailing slashes are stripped, so `https://example.com/` matches `https://example.com`. Matching is otherwise exact; `*` is refused at startup. For Cloud Run, see `CLOUDRUN.md` (env-vars file, commas, no spaces). |
-| `GREENSEARCH_RATE_LIMIT_PER_HOUR` | `100` | `/api/chat` requests per client IP per rolling hour. `0` disables. |
+| `GREENSEARCH_RATE_LIMIT_PER_HOUR` | `30` | `/api/chat` requests per client IP per rolling hour. `0` disables. |
+| `GREENSEARCH_RATE_LIMIT_PER_DAY` | `100` | `/api/chat` requests per client IP per rolling day. `0` disables. |
+| `GREENSEARCH_GLOBAL_LIMIT_PER_DAY` | `800` | `/api/chat` requests in total per rolling day, all IPs combined. `0` disables. POC guard: keeps one abusive IP, or many IPs, from burning the OpenRouter free quota (1000/day after a $10 credit) or paid credits. |
+| `GREENSEARCH_ALLOW_PAID_MODELS` | off | `1`/`true`/`yes`/`on` allows a non-free primary, fallback, or escalation model. Off by default: a paid model must be enabled deliberately, so a config mistake cannot drain credits. Server refuses to start on a paid model without it. |
 | `GREENSEARCH_DEBUG_LOG` | off | `1`/`true`/`yes`/`on` logs prompts to local stderr. Never sent in responses. |
 | `PORT` | `8000` | Listen port (`--port` overrides). |
 
@@ -251,7 +254,7 @@ fallback chain has run (see "Model and fallbacks").
 
 ### `GET /api/health`
 
-`{"status":"ok","configured":false,"model":"google/gemma-4-31b-it:free","fallbacks":["liquid/lfm-2.5-2.6b:free","thinkingmachines/inkling-small:free","poolside/laguna-xs-2.1:free","openrouter/free"],"escalation_model":"google/gemma-4-31b-it:free","cascade_enabled":false,"cascade_threshold":-1.0,"rate_limit_per_hour":100,"provider_streaming":false}`.
+`{"status":"ok","configured":false,"model":"google/gemma-4-31b-it:free","fallbacks":["liquid/lfm-2.5-2.6b:free","thinkingmachines/inkling-small:free","poolside/laguna-xs-2.1:free","openrouter/free"],"escalation_model":"google/gemma-4-31b-it:free","cascade_enabled":false,"cascade_threshold":-1.0,"rate_limit_per_hour":30,"rate_limit_per_day":100,"global_limit_per_day":800,"allow_paid_models":false,"provider_streaming":false}`.
 Never includes the key.
 
 ## Security and limits
@@ -261,10 +264,25 @@ Never includes the key.
   disallowed `Origin` get 403 before any model call. Requests without an
   `Origin` header (curl, server-to-server) are allowed. CORS protects
   browsers, not the API, so the rate limit still applies.
-- **Rate limit**: in memory, per client IP, rolling hour. It resets on
-  restart and is not shared across processes. Behind a proxy every client
+- **Rate limits (proof-of-concept abuse guards, not commercial metering)**:
+  per client IP 30/hour and 100/day, plus 800/day in total across all IPs,
+  all rolling windows, all in memory and per process. They reset on restart
+  and are not shared across processes, so on Cloud Run the effective caps
+  multiply by the instance count. The global cap sits below OpenRouter's
+  free-model daily quota (1000/day after a $10 credit), so abuse burns the
+  day's allowance, not the credit balance. Behind a proxy every client
   would share the proxy's IP. `X-Forwarded-For` is deliberately **not**
   trusted, because clients can forge it. A deployment would need a trusted-proxy setting.
+- **Paid models blocked by default**: with `GREENSEARCH_ALLOW_PAID_MODELS`
+  off, the server refuses to start if the primary, any fallback, or the
+  escalation model is not a `:free` model. Paid use must be enabled
+  deliberately, and the daily caps still apply then. The default model
+  chain is free-only, so a $10 OpenRouter credit is not spent by normal
+  traffic; it raises the free-model daily quota and removes the 402
+  insufficient-credits error for paid models if they are later enabled.
+- **Usage logging**: each chat logs one line to stderr (Cloud Run logs)
+  with model, input/output tokens, cache hit, escalation, and latency.
+  No prompt text unless `GREENSEARCH_DEBUG_LOG` is on.
 - **Session cache**: in memory, per process, up to 1000 sessions × 200
   entries, least recently used evicted. Cached answers are reused verbatim and may be stale.
 - **Logging**: by default only method, path and status go to stderr. No

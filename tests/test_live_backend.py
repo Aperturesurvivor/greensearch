@@ -469,14 +469,17 @@ class ErrorMappingTests(unittest.TestCase):
         self.assertFalse(cfg.cascade_enabled)
         self.assertFalse(hasattr(cfg, "model_4b"))
         self.assertEqual(cfg.cascade_threshold, -1.0)
-        self.assertEqual(cfg.rate_limit_per_hour, 100)
+        self.assertEqual(cfg.rate_limit_per_hour, 30)
+        self.assertEqual(cfg.rate_limit_per_day, 100)
+        self.assertEqual(cfg.global_limit_per_day, 800)
+        self.assertFalse(cfg.allow_paid_models)
         self.assertEqual(cfg.allowed_origins, ("http://localhost:8000", "http://127.0.0.1:8000"))
         self.assertFalse(cfg.debug_log)
-        cfg = Config.from_env({"GREENSEARCH_MODEL": "other/model"})
-        self.assertEqual((cfg.model, cfg.escalation_model), ("other/model", "other/model"))
+        cfg = Config.from_env({"GREENSEARCH_MODEL": "other/model:free"})
+        self.assertEqual((cfg.model, cfg.escalation_model), ("other/model:free", "other/model:free"))
         self.assertFalse(cfg.cascade_enabled)
-        cfg = Config.from_env({"GREENSEARCH_ESCALATION_MODEL": "big/model"})
-        self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, "big/model"))
+        cfg = Config.from_env({"GREENSEARCH_ESCALATION_MODEL": "big/model:free"})
+        self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, "big/model:free"))
         self.assertTrue(cfg.cascade_enabled)
         # The old 4B/8B variables are no longer read.
         cfg = Config.from_env({"GREENSEARCH_MODEL_4B": "qwen/qwen3-4b",
@@ -642,6 +645,39 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(resp.getheader("Retry-After"), "3600")
         self.assertEqual(len(small.calls), 2)
 
+    def test_paid_model_blocked_without_explicit_allow(self):
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_MODEL": "other/model"})
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "other/model"})
+        cfg = Config.from_env({"GREENSEARCH_MODEL": "other/model",
+                               "GREENSEARCH_ALLOW_PAID_MODELS": "1"})
+        self.assertTrue(cfg.allow_paid_models)
+        self.assertEqual(cfg.model, "other/model")
+
+    def test_daily_per_ip_limit_triggers_over_http(self):
+        backend, small, _ = make_backend(rate_limit_per_hour=0, rate_limit_per_day=2)
+        port = self.start(backend)
+        statuses = []
+        for _ in range(3):
+            resp, _ = self.request(port, "POST", "/api/chat", {"prompt": "Explain DNS"})
+            statuses.append(resp.status)
+        self.assertEqual(statuses, [200, 200, 429])
+        self.assertEqual(resp.getheader("Retry-After"), "86400")
+        self.assertEqual(len(small.calls), 2)
+
+    def test_global_daily_limit_triggers_over_http(self):
+        backend, small, _ = make_backend(rate_limit_per_hour=0, rate_limit_per_day=0,
+                                         global_limit_per_day=2)
+        port = self.start(backend)
+        statuses = []
+        for _ in range(3):
+            resp, _ = self.request(port, "POST", "/api/chat", {"prompt": "Explain DNS"})
+            statuses.append(resp.status)
+        self.assertEqual(statuses, [200, 200, 429])
+        self.assertEqual(resp.getheader("Retry-After"), "86400")
+        self.assertEqual(len(small.calls), 2)
+
     def test_no_key_over_http_and_health(self):
         backend = Backend(Config(api_key=""), log_stream=io.StringIO(), quiet=True)
         port = self.start(backend)
@@ -727,6 +763,7 @@ class EntryPointAndSiteTests(unittest.TestCase):
         # The page must never handle a provider key.
         self.assertNotIn("Authorization", html)
         self.assertNotRegex(html, r"api_key|apiKey|GREENSEARCH_API_KEY")
+
 
     def test_env_example_has_no_real_key(self):
         text = (ROOT / ".env.example").read_text(encoding="utf-8")
@@ -879,9 +916,9 @@ class FallbackTests(unittest.TestCase):
                 self.assertEqual(built, [PRIMARY, FREE_A])
 
     def test_fallback_list_parsing(self):
-        cfg = Config.from_env({"GREENSEARCH_MODEL": "a/b",
-                               "GREENSEARCH_MODEL_FALLBACKS": " x/y:free , ,a/b, z/w ,x/y:free"})
-        self.assertEqual(cfg.fallback_models, ("x/y:free", "z/w"))
+        cfg = Config.from_env({"GREENSEARCH_MODEL": "a/b:free",
+                               "GREENSEARCH_MODEL_FALLBACKS": " x/y:free , ,a/b:free, z/w:free ,x/y:free"})
+        self.assertEqual(cfg.fallback_models, ("x/y:free", "z/w:free"))
         cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "none"})
         self.assertEqual(cfg.fallback_models, ())
         cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "   "})

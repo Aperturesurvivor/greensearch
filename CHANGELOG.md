@@ -1,5 +1,12 @@
 # Changelog
 
+- **Unreleased -- POC abuse safeguards (2026-10-28):**
+  - Per-IP caps tightened: 30/hour (was 100) plus a new 100/day per-IP cap, and a new 800/day global cap across all IPs, all rolling windows, all env-overridable (0 disables each). The global cap sits below OpenRouter's free-model daily quota (1000/day after a $10 credit), so abuse burns the day's allowance, not the credit balance.
+  - Paid models blocked by default: server refuses to start on a non-free primary, fallback, or escalation model unless `GREENSEARCH_ALLOW_PAID_MODELS=1` is set deliberately. Default chain stays free-only, so the $10 credit is not spent by normal traffic.
+  - Usage logging: one stderr line per chat (Cloud Run logs) with model, input/output tokens, cache hit, escalation, latency; no prompt text unless debug logging is on.
+  - Honest limits, documented in server/README.md: caps are in-memory and per-process, so they multiply by instance count on Cloud Run and reset on restart/deploy. This is proof-of-concept protection, not commercial metering.
+  - Kept from before: CORS allowlist only, 4000-character prompt cap, 16 KB body cap, client-sent keys/models/URLs rejected, session cache (200 entries per session).
+
 - **Unreleased -- Live-only site (demo library removed 2026-10-28):**
   - Deleted from website/index.html: EXPANDED_TOPICS (89 topics), TEMPLATES, TOPIC_META, detectTopic, greenAnswer, integrateChat, demo send/regenerate/edit, demo totals/history, topic browser, chips, sidebar, hero input, stats bar, demo persistence (saveState/loadState), restore note, and dead demo helpers. File ~1.10 MB -> ~0.97 MB (photo data URI unchanged).
   - Site is live-only: no Live toggle, no demo pill, no demo fallback; every question goes to the backend via sendLive. Live totals are the only totals; live URL + Measure baseline controls stay (config, not conversation memory).
