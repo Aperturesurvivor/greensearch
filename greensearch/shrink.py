@@ -261,3 +261,124 @@ def _recapitalise(text: str) -> str:
         if i < len(fences):
             result_parts.append(fences[i])
     return "".join(result_parts)
+
+
+# ---------------------------------------------------------------------------
+# PromptShrink v2 (opt-in, 2026-10-28)
+# ---------------------------------------------------------------------------
+# v1 (shrink() above) stays the default for the CLI and the baseline study,
+# so existing numbers do not move silently. v2 layers two extra passes on
+# top of a v1 result, and nothing else:
+#
+#   1. Redundancy removal, for every prompt: consecutive duplicate words
+#      ("that that") and exact duplicate sentences. Code fences untouched.
+#   2. Telegraphic rewriting, GATED to simple prompts only: a single
+#      sentence, at most 25 words, no code fence, no newline, no colon /
+#      semicolon / parenthesis structure. It removes articles (a/an/the)
+#      and "to/for me|you|us" phrases. It does NOT remove numbers,
+#      constraint words (simply, simple, brief, detail), question words,
+#      or keywords, and it never runs on multi-sentence, multi-request,
+#      or creative prompts, where stripping articles can change tone or
+#      drop a constraint. A prompt that fails the gate gets pass 1 only.
+#
+# Tokenizer-aware counting is not a new pass: shrink_v2() takes the same
+# count_fn as shrink(), so callers can pass greensearch.tokenizer
+# .count_tokens with backend="tiktoken" for real token counts, or leave
+# the default word estimate. The quality script (scripts/shrink_quality.py)
+# reports both tokens saved AND answers changed, because a shrink that
+# changes the answer is a quality loss, not a saving.
+
+_TELEGRAPHIC_ARTICLES_RE = re.compile(r"\b(?:a|an|the)\b", re.IGNORECASE)
+_TELEGRAPHIC_TO_FOR_RE = re.compile(r"\b(?:to|for)\s+(?:me|you|us)\b", re.IGNORECASE)
+_DUPLICATE_WORD_RE = re.compile(r"\b(\w+)(?:\s+\1\b)+", re.IGNORECASE)
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _is_simple_v2(text: str) -> bool:
+    """Gate for the telegraphic pass. See the v2 header above."""
+    if "```" in text or "\n" in text:
+        return False
+    if any(ch in text for ch in ":;()\"'"):
+        return False
+    words = text.split()
+    if not words or len(words) > 25:
+        return False
+    # Single sentence: at most one sentence terminator, at the end.
+    body = text.rstrip()
+    terminators = sum(1 for ch in body[:-1] if ch in ".!?")
+    if terminators:
+        return False
+    if body and body[-1] not in ".!?":
+        # An imperative without terminal punctuation is still simple.
+        pass
+    first = words[0].lower().strip("?")
+    if first not in ("explain", "what", "why", "how", "describe", "tell", "give", "write", "list", "summarise", "summarize"):
+        return False
+    return True
+
+
+def _clean_v2_segment(seg: str, telegraphic: bool) -> str:
+    seg = _DUPLICATE_WORD_RE.sub(r"\1", seg)
+    # Duplicate sentences: keep the first occurrence of each normalised
+    # sentence, drop later exact repeats.
+    parts = _SENTENCE_SPLIT_RE.split(seg)
+    if len(parts) > 1:
+        seen = set()
+        kept = []
+        for part in parts:
+            norm = re.sub(r"[^a-z0-9 ]", "", part.lower()).strip()
+            if norm and norm in seen:
+                continue
+            seen.add(norm)
+            kept.append(part)
+        seg = " ".join(kept)
+    if telegraphic:
+        seg = _TELEGRAPHIC_ARTICLES_RE.sub("", seg)
+        seg = _TELEGRAPHIC_TO_FOR_RE.sub("", seg)
+    return seg
+
+
+def _apply_v2(text: str, telegraphic: bool) -> str:
+    """Apply the v2 segment cleaner to prose only, leaving fences alone."""
+    parts = _FENCE_RE.split(text)
+    fences = _FENCE_RE.findall(text)
+    cleaned = [_clean_v2_segment(p, telegraphic) for p in parts]
+    result_parts = []
+    for i, seg in enumerate(cleaned):
+        result_parts.append(seg)
+        if i < len(fences):
+            result_parts.append(fences[i])
+    return "".join(result_parts)
+
+
+def shrink_v2(prompt: str, count_fn=None) -> "ShrinkResult":
+    """PromptShrink v2: v1, plus redundancy removal, plus gated telegraphic.
+
+    Opt-in only. shrink() is unchanged, so the CLI and baseline study
+    keep v1 numbers until a switch is explicitly approved.
+    """
+    if count_fn is None:
+        from greensearch.tokens import est_tokens  # deferred, as in shrink()
+        count_fn = est_tokens
+
+    if not prompt or not prompt.strip():
+        t = count_fn(prompt)
+        return ShrinkResult(
+            text=prompt, original=prompt,
+            original_tokens=t, shrunk_tokens=t, saved_tokens=0, changed=False,
+        )
+
+    v1 = _process(prompt)
+    telegraphic = _is_simple_v2(v1)
+    result = _normalise(_apply_v2(v1, telegraphic))
+
+    original_t = count_fn(prompt)
+    shrunk_t = count_fn(result)
+    return ShrinkResult(
+        text=result,
+        original=prompt,
+        original_tokens=original_t,
+        shrunk_tokens=shrunk_t,
+        saved_tokens=max(0, original_t - shrunk_t),
+        changed=result != prompt,
+    )

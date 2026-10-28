@@ -1,5 +1,10 @@
 # Changelog
 
+- **Unreleased -- PromptShrink v2 (opt-in, not yet switched on):**
+  - New `shrink_v2()` in `greensearch/shrink.py`: v1, plus redundancy removal (consecutive duplicate words, exact duplicate sentences, code fences untouched), plus telegraphic rewriting gated to simple single-sentence prompts (at most 25 words, no fence/newline/colon structure): articles (a/an/the) and "to/for me|you|us" removed. Numbers, constraint words, question words, and keywords are never removed, and multi-sentence/creative prompts get redundancy only.
+  - `shrink()` is unchanged, so the CLI and baseline study keep v1 numbers until a switch is explicitly approved. Tokenizer-aware counting is via the existing `count_fn` argument (pass `count_tokens` with backend="tiktoken" for real tokens).
+  - New quality harness `scripts/shrink_quality.py`: reports tokens saved AND answers changed (DemoProvider, offline). On the 12-prompt corpus (estimate tokens): v1 32% saved, v2 39% saved (17 extra tokens), 0 answers changed v2 vs v1. That answer check is canned-keyword only, not a live-model quality judgement.
+
 - **Unreleased -- Claude UNDERSTORY design pass, live-first:**
   - Website replaced with Claude's Design V2 UNDERSTORY pass (deep-green hero, hero input + chips, features section, same landscape photo embedded, Playfair/DM Sans look via system serif/sans fallbacks).
   - Live-first copy applied on top (same substance as the previous live-first rewrite): How dialog is "Live first, demo as fallback", live backend already running, measured baseline still not run, hosted backend us-central1 not Finland, Live on by default on run.app, off elsewhere, demo as fallback.
