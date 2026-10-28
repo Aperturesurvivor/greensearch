@@ -1,5 +1,11 @@
 # Changelog
 
+- **Unreleased -- Claude UNDERSTORY design pass, live-first:**
+  - Website replaced with Claude's Design V2 UNDERSTORY pass (deep-green hero, hero input + chips, features section, same landscape photo embedded, Playfair/DM Sans look via system serif/sans fallbacks).
+  - Live-first copy applied on top (same substance as the previous live-first rewrite): How dialog is "Live first, demo as fallback", live backend already running, measured baseline still not run, hosted backend us-central1 not Finland, Live on by default on run.app, off elsewhere, demo as fallback.
+  - Fixes needed to make Claude's file pass the existing suite: hero input bridge guarded for non-browser (Node) execution, Google Fonts removed (privacy copy says no outside fonts; v0.7 removed them), page-copy em dashes removed (canned-answer escapes untouched).
+  - Previous landscape main site kept at ~/workspace/your_files/arboris-redesign-options/previous-landscape-main.html (local only, not in repo).
+
 - **Unreleased -- Baseline study does not retry a daily-cap 429:**
   - A `free-models-per-day` 429 now aborts immediately instead of retrying, because OpenRouter counts failed attempts toward the daily free-model quota. Per-minute 429s still retry with backoff. Held from push pending a working baseline run.
 
