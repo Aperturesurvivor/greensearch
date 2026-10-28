@@ -68,7 +68,8 @@ from greensearch.providers import (  # noqa: E402
     ProviderError,
 )
 from greensearch.router import route_mode  # noqa: E402
-from greensearch.shrink import shrink  # noqa: E402
+from greensearch.footprint import energy_receipt  # noqa: E402
+from greensearch.shrink import shrink, shrink_v2  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Plain-language client messages. These are the ONLY error texts a client
@@ -92,6 +93,7 @@ MSG_ESCALATION_FAILED = (
     "The escalation model could not be reached, so no answer was returned "
     "(the primary model's low-confidence answer was not used), try again"
 )
+MSG_EMPTY = "The model returned no answer, try again"
 MSG_ORIGIN = "This page's origin is not allowed to use this backend"
 MSG_INTERNAL = "Something went wrong on the server, try again"
 MSG_NOT_FOUND = "Not found"
@@ -161,6 +163,24 @@ ENV_VARS = [
      "1/true/yes/on allows a non-free primary, fallback, or escalation model. "
      "Off by default: a paid model must be enabled deliberately, so a config "
      "mistake cannot drain credits."),
+    ("GREENSEARCH_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free",
+     "Small model tried first for sprout prompts when small-model routing "
+     "is on. 2.6B vs the 31B primary: the efficiency lever, not a quality "
+     "claim. Must be free unless GREENSEARCH_ALLOW_PAID_MODELS is on."),
+    ("GREENSEARCH_SMALL_MODEL_ROUTING", "off",
+     "1/true/yes/on routes sprout prompts (short, simple, per route_mode) "
+     "to GREENSEARCH_SMALL_MODEL first, with the primary chain as fallback. "
+     "Off by default: enable live, judge small-model answers, then decide."),
+    ("GREENSEARCH_SHRINK_VERSION", "v1",
+     "PromptShrink version for live requests: v1 (default) or v2 "
+     "(redundancy + gated telegraphic, 39% vs 32% saved on the corpus). "
+     "v2 is opt-in only: flip it live, judge v1-vs-v2 answers, then decide. "
+     "Any other value refuses to start."),
+    ("GREENSEARCH_GRID_G_PER_KWH", "400",
+     "Grid carbon intensity for the per-answer energy receipt, in "
+     "gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter "
+     "does not disclose where inference ran, so no region is claimed. "
+     "A non-positive value refuses to start."),
     ("GREENSEARCH_DEBUG_LOG", "off",
      "1/true/yes/on logs prompts to local stderr only, never to responses."),
     ("PORT", str(DEFAULT_PORT), "Listen port (also --port)."),
@@ -180,6 +200,26 @@ class ClientError(Exception):
 # Configuration
 # ---------------------------------------------------------------------------
 
+def _shrink_version(env):
+    """Validate GREENSEARCH_SHRINK_VERSION: v1 or v2 only."""
+    version = (env.get("GREENSEARCH_SHRINK_VERSION", "") or "").strip().lower() or "v1"
+    if version not in ("v1", "v2"):
+        raise ValueError("GREENSEARCH_SHRINK_VERSION must be v1 or v2")
+    return version
+
+
+def _grid_factor(env):
+    """Validate GREENSEARCH_GRID_G_PER_KWH: a positive number, or 400."""
+    raw = (env.get("GREENSEARCH_GRID_G_PER_KWH", "") or "").strip() or "400"
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError("GREENSEARCH_GRID_G_PER_KWH must be a number") from None
+    if value <= 0:
+        raise ValueError("GREENSEARCH_GRID_G_PER_KWH must be positive")
+    return value
+
+
 @dataclass
 class Config:
     api_key: str = ""
@@ -195,6 +235,10 @@ class Config:
     rate_limit_per_day: int = 100
     global_limit_per_day: int = 800
     allow_paid_models: bool = False
+    small_model: str = "liquid/lfm-2.5-2.6b:free"
+    small_model_routing: bool = False
+    shrink_version: str = "v1"
+    grid_g_per_kwh: float = 400.0
     debug_log: bool = False
 
     def __post_init__(self):
@@ -265,6 +309,11 @@ class Config:
             global_limit_per_day=global_day,
             allow_paid_models=env.get("GREENSEARCH_ALLOW_PAID_MODELS", "").strip().lower()
             in ("1", "true", "yes", "on"),
+            small_model=get("GREENSEARCH_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free"),
+            small_model_routing=env.get("GREENSEARCH_SMALL_MODEL_ROUTING", "").strip().lower()
+            in ("1", "true", "yes", "on"),
+            shrink_version=_shrink_version(env),
+            grid_g_per_kwh=_grid_factor(env),
             debug_log=env.get("GREENSEARCH_DEBUG_LOG", "").strip().lower()
             in ("1", "true", "yes", "on"),
         )
@@ -274,7 +323,7 @@ class Config:
         # cannot accidentally run a paid model without the explicit flag.
         if not config.allow_paid_models:
             seen = []
-            for m in (config.model,) + config.fallback_models + (
+            for m in (config.model,) + config.fallback_models + (config.small_model,) + (
                     (config.escalation_model,) if config.cascade_enabled else ()):
                 if not is_free_model(m) and m not in seen:
                     seen.append(m)
@@ -475,6 +524,8 @@ def _http_status(exc):
 
 def _provider_error(exc):
     """Map a ProviderError to a plain ClientError. The detail is dropped."""
+    if getattr(exc, "empty_content", False):
+        return ClientError(502, MSG_EMPTY)
     status = _http_status(exc)
     if status in _STATUS_MESSAGES:
         return ClientError(status, _STATUS_MESSAGES[status])
@@ -502,10 +553,12 @@ class _ModelChain:
 
     Looks like a provider to run_cascade. On a ProviderError it retries
     the same model once without logprobs if the error mentions logprobs,
-    then moves to the next model on 429/404/502/503 (402 only towards a
-    free model). 401 and any other error stop at once. After the call,
-    model is the model that answered. Logs carry the HTTP status and
-    model id only: never the key, the prompt or provider detail text.
+    then moves to the next model on 429/404/502/503, on empty content
+    (HTTP 200 with null/empty text, a transient provider failure),
+    and on 402 only towards a free model. 401 and any other error stop
+    at once. After the call, model is the model that answered. Logs
+    carry the HTTP status and model id only: never the key, the prompt
+    or provider detail text.
     """
 
     def __init__(self, backend, models):
@@ -531,6 +584,7 @@ class _ModelChain:
                 nxt = self.models[i + 1] if i + 1 < len(self.models) else None
                 if nxt is None or not (
                     status in FALLBACK_STATUSES or (status == 402 and is_free_model(nxt))
+                    or getattr(exc, "empty_content", False)
                 ):
                     break
                 continue
@@ -623,6 +677,10 @@ class Backend:
             "rate_limit_per_day": cfg.rate_limit_per_day,
             "global_limit_per_day": cfg.global_limit_per_day,
             "allow_paid_models": cfg.allow_paid_models,
+            "small_model": cfg.small_model,
+            "small_model_routing": cfg.small_model_routing,
+            "shrink_version": cfg.shrink_version,
+            "grid_g_per_kwh": cfg.grid_g_per_kwh,
             "provider_streaming": False,
         }
 
@@ -636,8 +694,8 @@ class Backend:
         if not cfg.configured:
             raise ClientError(503, MSG_NOT_CONFIGURED)
 
-        # 1. PromptShrink.
-        sr = shrink(req.prompt)
+        # 1. PromptShrink: v1 by default, v2 only when GREENSEARCH_SHRINK_VERSION=v2.
+        sr = shrink_v2(req.prompt) if cfg.shrink_version == "v2" else shrink(req.prompt)
         prompt = sr.text
         if not prompt.strip():
             raise ClientError(400, "Prompt is empty after removing filler words: add a question")
@@ -650,6 +708,7 @@ class Backend:
             "mode": mode,
             "mode_source": "auto" if req.mode == "auto" else "explicit",
             "shrink": {
+                "version": cfg.shrink_version,
                 "original_tokens_est": sr.original_tokens,
                 "shrunk_tokens_est": sr.shrunk_tokens,
                 "saved_tokens_est": sr.saved_tokens,
@@ -659,8 +718,22 @@ class Backend:
             "baseline": None,
         }
 
+        # Small-model routing (opt-in): sprout prompts go to the small
+        # model first, with the primary chain as fallback. "Sprout" here
+        # is route_mode's heuristic (short, simple, no complexity markers),
+        # not a measured difficulty score, so small-model answers need
+        # live judging before routing is left on. The cache key gains a
+        # small tier prefix, so a small-model cached answer is never
+        # returned for a primary-tier request, or vice versa.
+        use_small = (cfg.small_model_routing and mode == "sprout"
+                     and cfg.small_model != cfg.model)
+        meta["routed_to_small"] = use_small
+        meta["small_model"] = cfg.small_model if use_small else None
+
         # 2. Session cache (mode-aware key, per client session id).
         key = cache_key(prompt, mode) if req.session_id else ""
+        if key and use_small:
+            key = "small:" + key
         if key:
             with self.sessions.lock:
                 entry = self.sessions.get(req.session_id).lookup(key)
@@ -669,6 +742,7 @@ class Backend:
                 meta.update({
                     "cache_hit": True,
                     "model": None,
+                    "model_tier": "small" if use_small and entry.get("model") == cfg.small_model else "primary",
                     "cached_from_model": entry.get("model"),
                     "escalated": False,
                     "cached_answer_was_escalated": bool(entry.get("escalated")),
@@ -678,6 +752,11 @@ class Backend:
                     "output_tokens": 0,
                     "new_output_tokens": 0,
                     "tokens_source": "cache hit: no model call, 0 new tokens",
+                    "energy": energy_receipt(
+                        0, 0, model=entry.get("model"),
+                        model_tier="small" if use_small and entry.get("model") == cfg.small_model else "primary",
+                        cache_hit=True,
+                        grid_g_per_kwh=cfg.grid_g_per_kwh),
                     "trimmed": False,
                     "truncated": False,
                     "latency_ms": round((time.monotonic() - started) * 1000),
@@ -686,8 +765,15 @@ class Backend:
                 return {"answer": entry["answer"], "meta": meta}
 
         # 4. Primary model (then fallbacks); logprob-gated escalation only
-        #    if a separate escalation model is configured.
-        primary = _ModelChain(self, (cfg.model,) + cfg.fallback_models)
+        #    if a separate escalation model is configured. With small-model
+        #    routing, the small model is first in the chain, then the
+        #    primary and its fallbacks, deduplicated in order.
+        if use_small:
+            chain_models = (cfg.small_model,) + tuple(
+                m for m in (cfg.model,) + cfg.fallback_models if m != cfg.small_model)
+        else:
+            chain_models = (cfg.model,) + cfg.fallback_models
+        primary = _ModelChain(self, chain_models)
         escalation = _Recorder(self._make(cfg.escalation_model)) if cfg.cascade_enabled else None
         try:
             if escalation is not None:
@@ -741,9 +827,14 @@ class Backend:
         meta.update({
             "cache_hit": False,
             "model": model_used,
+            "model_tier": "small" if use_small and primary.model == cfg.small_model else "primary",
             "primary_model": primary.model,
             "requested_model": cfg.model,
-            "fallback_used": primary.model != cfg.model,
+            # fallback_used keeps its old meaning: the answer came from
+            # the fallback list, not from the primary and not from the
+            # routed small model, both of which are intended choices.
+            "fallback_used": primary.model != cfg.model and not (
+                use_small and primary.model == cfg.small_model),
             # What the provider's response said answered (e.g. the model
             # openrouter/free routed to), or None if it did not say.
             "provider_model": getattr(comp, "response_model", None),
@@ -755,6 +846,11 @@ class Backend:
             "new_output_tokens": output_tokens,
             "tokens_source": "provider-reported" if output_tokens is not None
             else "not reported by provider",
+            "energy": energy_receipt(
+                input_tokens, output_tokens, model=model_used,
+                model_tier="small" if use_small and primary.model == cfg.small_model else "primary",
+                escalated=result.escalated,
+                grid_g_per_kwh=cfg.grid_g_per_kwh),
             "trimmed": answer != raw_text,
             "truncated": fragment_fixed or getattr(comp, "finish_reason", None) == "length",
         })
@@ -1020,6 +1116,8 @@ def main(argv=None):
         f"rate limit: {config.rate_limit_per_hour}/h, {config.rate_limit_per_day}/day per IP, "
         f"{config.global_limit_per_day}/day global | "
         f"paid models: {'ALLOWED' if config.allow_paid_models else 'blocked'} | "
+        f"small routing: {'on (' + config.small_model + ')' if config.small_model_routing else 'off'} | "
+        f"shrink: {config.shrink_version} | "
         f"prompt logging: {'ON (stderr only)' if config.debug_log else 'off'}"
     )
     try:

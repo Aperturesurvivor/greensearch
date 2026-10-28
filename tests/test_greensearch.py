@@ -124,6 +124,34 @@ class TestTokensAndFootprint(unittest.TestCase):
         self.assertGreater(result["standard_tokens"], result["eco_tokens"])
 
 
+class TestEnergyReceipt(unittest.TestCase):
+    def test_receipt_arithmetic_and_water_range(self):
+        # 10 in + 50 out = 60 tokens at 0.0045 Wh/token = 0.27 Wh;
+        # 0.27 Wh at 400 g/kWh = 0.108 g; water = Wh x WUE (0.1-0.3).
+        from greensearch.footprint import energy_receipt
+        receipt = energy_receipt(10, 50, model="m", model_tier="primary")
+        self.assertEqual(receipt["status"], "estimate")
+        self.assertEqual(receipt["total_tokens"], 60)
+        self.assertEqual(receipt["energy_wh"], 0.27)
+        self.assertEqual(receipt["co2e_g"], 0.108)
+        self.assertEqual((receipt["water_ml_low"], receipt["water_ml_high"]), (0.027, 0.081))
+        self.assertEqual(receipt["factors"]["grid_g_per_kwh"], 400.0)
+
+    def test_receipt_cache_hit_is_zero(self):
+        from greensearch.footprint import energy_receipt
+        receipt = energy_receipt(0, 0, cache_hit=True)
+        self.assertEqual((receipt["energy_wh"], receipt["co2e_g"]), (0.0, 0.0))
+        self.assertIn("Cache hit", receipt["note"])
+
+    def test_receipt_unavailable_invents_nothing(self):
+        from greensearch.footprint import energy_receipt
+        receipt = energy_receipt(None, 50)
+        self.assertEqual(receipt["status"], "unavailable")
+        self.assertIsNone(receipt["energy_wh"])
+        self.assertIsNone(receipt["co2e_g"])
+        self.assertIsNone(receipt["water_ml_low"])
+
+
 class TestCli(unittest.TestCase):
     def test_cli_empty_prompt_exits_2_without_traceback(self):
         result = subprocess.run(

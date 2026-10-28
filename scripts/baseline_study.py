@@ -51,14 +51,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def _complete_with_retry(provider, prompt, system, max_tokens,
                          retries=5, base_delay=15, sleep=time.sleep):
-    """One provider call, retried on HTTP 429 only.
+    """One provider call, retried on HTTP 429 and on empty content.
 
     Free shared pools throttle often, and the study makes 24 live calls
     (12 prompts x concise + baseline). Without this, the first 429
     aborted the whole run and wrote nothing. Other errors still abort
     immediately, as before: retrying a 401/402/404 would not help.
-    Backoff is 15s, 30s, 60s, 120s, 240s by default, so a throttled
-    run waits for the pool instead of hammering it.
+    Backoff for 429 is 15s, 30s, 60s, 120s, 240s by default, so a
+    throttled run waits for the pool instead of hammering it. Empty
+    content (HTTP 200 with null/empty text, seen once from Gemma) is
+    transient, so it retries with a short 3s delay instead of the
+    429 backoff, and does not count as a rate-limit failure.
     """
     attempt = 0
     while True:
@@ -75,10 +78,13 @@ def _complete_with_retry(provider, prompt, system, max_tokens,
                       "stopping, not retrying, so retries do not burn more quota.",
                       file=sys.stderr)
                 raise
-            if getattr(exc, "status", None) != 429 or attempt >= retries:
+            is_429 = getattr(exc, "status", None) == 429
+            is_empty = getattr(exc, "empty_content", False)
+            if (not is_429 and not is_empty) or attempt >= retries:
                 raise
-            delay = base_delay * (2 ** attempt)
-            print(f"Rate limited (429), waiting {delay}s before retry {attempt + 1}/{retries}...",
+            delay = 3 if is_empty else base_delay * (2 ** attempt)
+            reason = "Empty content" if is_empty else "Rate limited (429)"
+            print(f"{reason}, waiting {delay}s before retry {attempt + 1}/{retries}...",
                   file=sys.stderr)
             sleep(delay)
             attempt += 1

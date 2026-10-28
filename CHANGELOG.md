@@ -1,9 +1,24 @@
 # Changelog
 
+- **Unreleased -- Per-answer energy receipt (2026-10-28):**
+  - Every live answer now carries `meta.energy`: total tokens (provider-reported input + output), estimated Wh (0.0045 Wh/token), gCO2e at the configured grid factor (`GREENSEARCH_GRID_G_PER_KWH`, default 400, illustrative not measured), and cooling water as a range (WUE 0.1-0.3 L/kWh, generation water excluded), with the factors and basis stated in the receipt itself. Basis is always "estimate", never carbon accounting.
+  - Cache hits report 0 Wh / 0 g / 0 mL with a note (no new model call). If the provider did not report usage, status is "unavailable" and no number is invented. Escalated answers cover both calls. No region is claimed: OpenRouter does not disclose inference location.
+  - Site rendering is still to come (website design is Claude's domain): the receipt data and this spec are ready for the site to render as a collapsible receipt under each answer.
+
+- **Unreleased -- Empty-content fallback + PromptShrink v2 server switch (2026-10-28):**
+  - Reliability: a model returning HTTP 200 with null/empty text no longer ends the request. The server chain now treats it as transient and tries the next model, and only if every model returns empty does it return "The model returned no answer, try again" (502). Previously that error had no HTTP status, so the chain stopped at the first model. The baseline study retries empty content the same way, with a short 3s delay instead of the 429 backoff.
+  - Efficiency, opt-in: new `GREENSEARCH_SHRINK_VERSION` (default `v1`, `v2` to enable, anything else refuses to start). With `v2`, live requests use `shrink_v2()` (39% vs 32% saved on the corpus); meta reports the shrink version used, so v1-vs-v2 live answers can be judged without a code change. Default is still v1 until that judgment is made.
+
 - **Unreleased -- Website restored to pre-breakage version (2026-10-28):**
   - `website/index.html` restored byte-for-byte to commit `e911b6d6` (Claude UNDERSTORY, live-first copy applied), the version live at the PromptShrink v2 report, before the hide cleanup, live-only deletion, hero-removal, and third-version changes that broke the chat.
   - Restored: hero photo + title, sidebar (How + Finland panels), features section, main chat input, Live toggle (on by default on `*.run.app`, off elsewhere), 95-topic demo library as fallback, and demo conversation memory. Google Fonts stay removed, as in `e911b6d6`.
   - Site tests reverted to match: `test_website_live_mode_off_by_default` and the expanded-topic JS parity test are back; the live-only assertions are gone. Server safeguards and small-model routing are untouched (server-only, still unpushed separately).
+
+- **Unreleased -- Small-model routing, opt-in (2026-10-28):**
+  - New `GREENSEARCH_SMALL_MODEL_ROUTING` (off by default) and `GREENSEARCH_SMALL_MODEL` (default `liquid/lfm-2.5-2.6b:free`, 2.6B). When on, sprout prompts (short, simple, per `route_mode`) try the small model first, then the primary chain (31B Gemma + fallbacks) on failure. Canopy/full prompts always use the primary chain.
+  - This is the biggest efficiency lever so far: energy per token scales roughly with model size, so a 2.6B answer for a simple question costs far less than a 31B answer. No quality claim is made for the small model: routing is a length heuristic, not a difficulty measurement, and it stays off until live answers are judged.
+  - Meta reports `routed_to_small` and `model_tier` (`small`/`primary`) on every answer, including cache hits. `fallback_used` still means the answer came from the fallback list, not from the primary or the routed small model. Session cache keys gain a small tier prefix, so small and primary cached answers never mix.
+  - Paid guard extended: a non-free small model also refuses to start without `GREENSEARCH_ALLOW_PAID_MODELS=1`. Health and startup log report the small model and whether routing is on.
 
 - **Unreleased -- POC abuse safeguards (2026-10-28):**
   - Per-IP caps tightened: 30/hour (was 100) plus a new 100/day per-IP cap, and a new 800/day global cap across all IPs, all rolling windows, all env-overridable (0 disables each). The global cap sits below OpenRouter's free-model daily quota (1000/day after a $10 credit), so abuse burns the day's allowance, not the credit balance.

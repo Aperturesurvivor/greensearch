@@ -26,6 +26,7 @@ from greensearch.shrink import shrink  # noqa: E402
 from server.app import (  # noqa: E402
     DEFAULT_FALLBACKS,
     DEFAULT_MODEL,
+    MSG_EMPTY,
     MSG_ESCALATION_FAILED,
     MSG_KEY_REJECTED,
     MSG_MODEL_NOT_FOUND,
@@ -945,6 +946,196 @@ class FallbackTests(unittest.TestCase):
         self.assertEqual((ctx.exception.status, ctx.exception.message),
                          (502, MSG_ESCALATION_FAILED))
         self.assertEqual(len(big.calls), 1)
+
+
+class SmallModelRoutingTests(unittest.TestCase):
+    """Opt-in small-model routing: sprout prompts try the small model first.
+
+    Default small model is FREE_A (liquid/lfm-2.5-2.6b:free, 2.6B). The
+    chain_backend helper makes PRIMARY the primary and FREE_A a fallback
+    model; routing reorders them to small-first and deduplicates.
+    """
+
+    def test_config_defaults_and_env(self):
+        cfg = Config.from_env({})
+        self.assertFalse(cfg.small_model_routing)
+        self.assertEqual(cfg.small_model, FREE_A)
+        cfg = Config.from_env({"GREENSEARCH_SMALL_MODEL_ROUTING": "1"})
+        self.assertTrue(cfg.small_model_routing)
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_SMALL_MODEL": "other/model"})
+        cfg = Config.from_env({"GREENSEARCH_SMALL_MODEL": "other/model",
+                               "GREENSEARCH_ALLOW_PAID_MODELS": "1"})
+        self.assertEqual(cfg.small_model, "other/model")
+
+    def test_sprout_prompt_uses_small_model_first(self):
+        small = FakeProvider(FREE_A, text="Small answer. Second sentence.", avg_logprob=-0.3)
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, built, _ = chain_backend(
+            {PRIMARY: primary, FREE_A: small},
+            small_model_routing=True, small_model=FREE_A)
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        meta = result["meta"]
+        self.assertEqual(result["answer"], "Small answer. Second sentence.")
+        self.assertEqual(len(small.calls), 1)
+        self.assertEqual(len(primary.calls), 0)
+        self.assertEqual(meta["model"], FREE_A)
+        self.assertEqual(meta["model_tier"], "small")
+        self.assertTrue(meta["routed_to_small"])
+        self.assertFalse(meta["fallback_used"])
+        self.assertEqual(built, [FREE_A])
+
+    def test_canopy_prompt_uses_primary(self):
+        small = FakeProvider(FREE_A, text="Small answer. Second sentence.", avg_logprob=-0.3)
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = chain_backend(
+            {PRIMARY: primary, FREE_A: small},
+            small_model_routing=True, small_model=FREE_A)
+        prompt = "Explain DNS in simple terms for someone who has never heard of it before today"
+        result = backend.chat(ChatRequest(prompt=prompt, session_id=SESSION))
+        meta = result["meta"]
+        self.assertEqual(meta["mode"], "canopy")
+        self.assertFalse(meta["routed_to_small"])
+        self.assertEqual(meta["model"], PRIMARY)
+        self.assertEqual(meta["model_tier"], "primary")
+        self.assertEqual(len(small.calls), 0)
+        self.assertEqual(len(primary.calls), 1)
+
+    def test_small_failure_falls_back_to_primary(self):
+        small = FakeProvider(FREE_A, error=http_error(429, "slow down"))
+        primary = FakeProvider(PRIMARY, text="Primary answer. Second sentence.", avg_logprob=-0.2)
+        backend, built, _ = chain_backend(
+            {PRIMARY: primary, FREE_A: small},
+            small_model_routing=True, small_model=FREE_A)
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        meta = result["meta"]
+        self.assertEqual(result["answer"], "Primary answer. Second sentence.")
+        self.assertEqual(meta["model"], PRIMARY)
+        self.assertTrue(meta["routed_to_small"])
+        self.assertEqual(meta["model_tier"], "primary")
+        self.assertFalse(meta["fallback_used"])  # primary is not a fallback
+        self.assertEqual(built, [FREE_A, PRIMARY])
+
+    def test_routing_off_sprout_uses_primary(self):
+        small = FakeProvider(FREE_A, text="Small answer. Second sentence.", avg_logprob=-0.3)
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = chain_backend({PRIMARY: primary, FREE_A: small})
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        meta = result["meta"]
+        self.assertFalse(meta["routed_to_small"])
+        self.assertEqual(meta["model"], PRIMARY)
+        self.assertEqual(len(small.calls), 0)
+        self.assertEqual(len(primary.calls), 1)
+
+    def test_small_cache_hit_keeps_tier(self):
+        small = FakeProvider(FREE_A, text="Small answer. Second sentence.", avg_logprob=-0.3)
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = chain_backend(
+            {PRIMARY: primary, FREE_A: small},
+            small_model_routing=True, small_model=FREE_A)
+        first = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        second = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        self.assertFalse(first["meta"]["cache_hit"])
+        self.assertTrue(second["meta"]["cache_hit"])
+        self.assertEqual(second["meta"]["cached_from_model"], FREE_A)
+        self.assertEqual(second["meta"]["model_tier"], "small")
+        self.assertEqual(len(small.calls), 1)  # second request made no model call
+
+
+class EmptyContentTests(unittest.TestCase):
+    """HTTP 200 with null/empty text falls back, instead of erroring out."""
+
+    def test_empty_content_falls_back_to_next_model(self):
+        empty = FakeProvider(PRIMARY, error=ProviderError(
+            "Live provider returned no text content (null or empty message).",
+            empty_content=True))
+        good = FakeProvider(FREE_A, text="Fallback answer. Second sentence.", avg_logprob=-0.3)
+        backend, built, _ = chain_backend({PRIMARY: empty, FREE_A: good})
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        self.assertEqual(result["answer"], "Fallback answer. Second sentence.")
+        self.assertEqual(result["meta"]["model"], FREE_A)
+        self.assertTrue(result["meta"]["fallback_used"])
+        self.assertEqual(built, [PRIMARY, FREE_A])
+
+    def test_all_empty_returns_clear_message(self):
+        empty = FakeProvider(PRIMARY, error=ProviderError(
+            "Live provider returned no text content (null or empty message).",
+            empty_content=True))
+        backend, _, _ = chain_backend({PRIMARY: empty})
+        with self.assertRaises(ClientError) as ctx:
+            backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        self.assertEqual((ctx.exception.status, ctx.exception.message), (502, MSG_EMPTY))
+
+
+class ShrinkVersionTests(unittest.TestCase):
+    """PromptShrink version is server config: v1 by default, v2 opt-in."""
+
+    def test_config_defaults_and_invalid(self):
+        cfg = Config.from_env({})
+        self.assertEqual(cfg.shrink_version, "v1")
+        cfg = Config.from_env({"GREENSEARCH_SHRINK_VERSION": "v2"})
+        self.assertEqual(cfg.shrink_version, "v2")
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_SHRINK_VERSION": "v3"})
+
+    def test_v2_shrinks_live_prompt(self):
+        # v1 leaves the article in; v2 (gated telegraphic) drops it.
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, shrink_version="v2")
+        result = backend.chat(ChatRequest(prompt="Explain APIs to a 10-year-old", session_id=SESSION))
+        self.assertEqual(primary.calls[0]["prompt"], "Explain APIs to 10-year-old")
+        self.assertEqual(result["meta"]["shrink"]["version"], "v2")
+
+    def test_v1_is_default_in_meta(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary)
+        result = backend.chat(ChatRequest(prompt="Explain APIs to a 10-year-old", session_id=SESSION))
+        self.assertEqual(primary.calls[0]["prompt"], "Explain APIs to a 10-year-old")
+        self.assertEqual(result["meta"]["shrink"]["version"], "v1")
+
+
+class EnergyReceiptTests(unittest.TestCase):
+    """Every live answer carries a per-answer energy receipt in meta."""
+
+    def test_normal_answer_receipt(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)  # 10 in, 50 out
+        backend, _, _ = make_backend(primary=primary)
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        energy = result["meta"]["energy"]
+        self.assertEqual(energy["status"], "estimate")
+        self.assertEqual((energy["input_tokens"], energy["output_tokens"]), (10, 50))
+        self.assertEqual((energy["energy_wh"], energy["co2e_g"]), (0.27, 0.108))
+        self.assertEqual((energy["water_ml_low"], energy["water_ml_high"]), (0.027, 0.081))
+        self.assertEqual(energy["model"], PRIMARY)
+
+    def test_cache_hit_receipt_is_zero(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary)
+        backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        self.assertTrue(result["meta"]["cache_hit"])
+        energy = result["meta"]["energy"]
+        self.assertEqual((energy["energy_wh"], energy["co2e_g"]), (0.0, 0.0))
+        self.assertTrue(energy["cache_hit"])
+
+    def test_unreported_tokens_give_unavailable_receipt(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2,
+                               completion_tokens=None, prompt_tokens=None)
+        backend, _, _ = make_backend(primary=primary)
+        result = backend.chat(ChatRequest(prompt="Explain DNS", session_id=SESSION))
+        energy = result["meta"]["energy"]
+        self.assertEqual(energy["status"], "unavailable")
+        self.assertIsNone(energy["energy_wh"])
+
+    def test_grid_factor_config(self):
+        cfg = Config.from_env({})
+        self.assertEqual(cfg.grid_g_per_kwh, 400.0)
+        cfg = Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "30"})
+        self.assertEqual(cfg.grid_g_per_kwh, 30.0)
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "0"})
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "abc"})
 
 
 class LogprobsFallbackTests(unittest.TestCase):

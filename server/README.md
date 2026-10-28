@@ -25,12 +25,46 @@ it on.
 
 Each request first calls `GREENSEARCH_MODEL`. If that call fails, the
 models in `GREENSEARCH_MODEL_FALLBACKS` are tried in order, and the first
-one that answers is used:
+one that answers is used. **Exception, opt-in only:** with
+`GREENSEARCH_SMALL_MODEL_ROUTING` on, sprout prompts (short, simple, per
+`route_mode`: at most 12 words, no complexity markers, at most one
+question) try `GREENSEARCH_SMALL_MODEL` (default 2.6B) first, then the
+primary chain. That routing is a length heuristic, not a measured
+difficulty score, so small-model answers need live judging before routing
+is left on. Meta reports `routed_to_small` and `model_tier` (`small` /
+`primary`) for every answer, and the session cache keeps small and
+primary answers under separate keys.
 
 - **Falls back** on provider HTTP 429 (rate limited), 404 (model not found
   or deprecated), 502 and 503.
 - **402 (no credits)** falls back only when the next model to try is a
   `:free` model or `openrouter/free`; a paid next model is not tried.
+- **Empty content** (HTTP 200 with null/empty text, seen once from Gemma)
+  falls back to the next model in the chain. If every model returns
+  empty, the client gets "The model returned no answer, try again" (502),
+  not a generic unreachable message.
+
+## Energy receipt
+
+Every answer carries `meta.energy`, a per-answer receipt the site can
+render, built from provider-reported tokens only:
+
+- `energy_wh` = total tokens (input + output) x 0.0045 Wh/token.
+- `co2e_g` = `energy_wh` / 1000 x `GREENSEARCH_GRID_G_PER_KWH`.
+- `water_ml_low` / `water_ml_high` = `energy_wh` x WUE, with WUE
+  0.1-0.3 L/kWh (modern closed-loop cooling only; electricity-
+  generation water is excluded, and the receipt's note says so).
+- `basis` is always "estimate", with the factors stated in the receipt
+  itself. These are arithmetic estimates from the project's existing
+  footprint factors, not measurements and not carbon accounting:
+  published per-prompt figures differ by more than 10x between studies.
+- A cache hit is 0 Wh / 0 g / 0 mL, with a note saying why (no new
+  model call). If the provider did not report token usage, status is
+  "unavailable" and every figure is null: no number is invented.
+- Escalated answers cover both the primary and the escalation call.
+- No region is claimed for the receipt: OpenRouter does not disclose
+  where inference ran, so a backend region does not prove inference
+  location.
 - **401 (key rejected)** never falls back: every model would reject the
   same key. Any other failure (timeouts, network errors, HTTP 500) also
   stops at once.
@@ -131,6 +165,10 @@ requests, files in the repo, or the command line.
 | `GREENSEARCH_RATE_LIMIT_PER_DAY` | `100` | `/api/chat` requests per client IP per rolling day. `0` disables. |
 | `GREENSEARCH_GLOBAL_LIMIT_PER_DAY` | `800` | `/api/chat` requests in total per rolling day, all IPs combined. `0` disables. POC guard: keeps one abusive IP, or many IPs, from burning the OpenRouter free quota (1000/day after a $10 credit) or paid credits. |
 | `GREENSEARCH_ALLOW_PAID_MODELS` | off | `1`/`true`/`yes`/`on` allows a non-free primary, fallback, or escalation model. Off by default: a paid model must be enabled deliberately, so a config mistake cannot drain credits. Server refuses to start on a paid model without it. |
+| `GREENSEARCH_SMALL_MODEL` | `liquid/lfm-2.5-2.6b:free` | Small model tried first for sprout prompts when small-model routing is on. Must be free unless `GREENSEARCH_ALLOW_PAID_MODELS` is on. |
+| `GREENSEARCH_SMALL_MODEL_ROUTING` | off | `1`/`true`/`yes`/`on` routes sprout prompts (short, simple, per `route_mode`) to `GREENSEARCH_SMALL_MODEL` first, with the primary chain as fallback. Off by default. |
+| `GREENSEARCH_SHRINK_VERSION` | `v1` | PromptShrink version for live requests: `v1` (default) or `v2` (redundancy + gated telegraphic, 39% vs 32% saved on the corpus). v2 is opt-in only; any other value refuses to start. Meta reports the version used. |
+| `GREENSEARCH_GRID_G_PER_KWH` | `400` | Grid carbon intensity for the per-answer energy receipt, in gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter does not disclose where inference ran, so no region is claimed. Must be positive; anything else refuses to start. |
 | `GREENSEARCH_DEBUG_LOG` | off | `1`/`true`/`yes`/`on` logs prompts to local stderr. Never sent in responses. |
 | `PORT` | `8000` | Listen port (`--port` overrides). |
 

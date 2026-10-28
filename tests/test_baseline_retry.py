@@ -42,6 +42,20 @@ class BadKey:
         raise ProviderError("Live provider returned HTTP 401", status=401)
 
 
+class EmptyOnce:
+    live = True
+    def __init__(self):
+        self.calls = 0
+        self.sleeps = []
+    def complete_ex(self, prompt, system=None, max_tokens=None):
+        self.calls += 1
+        if self.calls == 1:
+            raise ProviderError(
+                "Live provider returned no text content (null or empty message).",
+                empty_content=True)
+        return Completion(text="Short answer.", completion_tokens=10, prompt_tokens=5)
+
+
 class TestBaselineRetry(unittest.TestCase):
     def test_429_retried_then_succeeds(self):
         p = Flaky(2)
@@ -64,6 +78,14 @@ class TestBaselineRetry(unittest.TestCase):
         with self.assertRaises(ProviderError) as ctx:
             _complete_with_retry(BadKey(), "hi", None, None, retries=5, base_delay=1, sleep=lambda s: None)
         self.assertEqual(ctx.exception.status, 401)
+
+    def test_empty_content_retried_then_succeeds(self):
+        p = EmptyOnce()
+        sleeps = []
+        out = _complete_with_retry(p, "hi", None, None, retries=5, base_delay=15, sleep=sleeps.append)
+        self.assertEqual(out.text, "Short answer.")
+        self.assertEqual(p.calls, 2)
+        self.assertEqual(sleeps, [3])  # short delay, not the 429 backoff
 
 
 if __name__ == "__main__":

@@ -42,9 +42,14 @@ class ProviderError(Exception):
     callers can branch on it without parsing the message.
     """
 
-    def __init__(self, message="", status=None):
+    def __init__(self, message="", status=None, empty_content=False):
         super().__init__(message)
         self.status = status
+        # True when the provider answered HTTP 200 with null/empty text.
+        # Callers treat this as transient and retryable (next model, or a
+        # retry in the baseline study), unlike a 401/402/404, which would
+        # not help. Observed with Gemma returning empty content once.
+        self.empty_content = empty_content
 
 
 @dataclass
@@ -312,7 +317,8 @@ class OpenAICompatibleProvider:
             ) from exc
         if not isinstance(text, str) or not text.strip():
             raise ProviderError(
-                "Live provider returned no text content (null or empty message)."
+                "Live provider returned no text content (null or empty message).",
+                empty_content=True,
             )
         usage = data.get("usage") if isinstance(data, dict) else None
         usage = usage if isinstance(usage, dict) else {}
