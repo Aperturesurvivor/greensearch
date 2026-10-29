@@ -758,7 +758,7 @@ class EntryPointAndSiteTests(unittest.TestCase):
         self.assertNotIn("checked", baseline.group(0))
         self.assertIn("greensearch-live-backend-url", html)
         self.assertIn("http://localhost:8000/api/chat", html)
-        self.assertIn("Live mode sends your prompt to the backend you configured", html)
+        self.assertIn("Live mode sends prompts to this backend", html)
         self.assertIn("STORE_KEY='greensearch-demo-v1'", html)
         # The page must never handle a provider key.
         self.assertNotIn("Authorization", html)
