@@ -986,7 +986,7 @@ class Backend:
         self.debug(f"prompt={req.prompt!r} shrunk={prompt!r} mode={mode}")
 
         meta = {
-            "mode": mode,
+            "mode": "forest" if mode == "full" else mode,
             "mode_source": "auto" if req.mode == "auto" else "explicit",
             "task_type": task_route.task_type if task_route is not None else None,
             "task_tier": task_route.tier if task_route is not None else None,

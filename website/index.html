@@ -920,6 +920,41 @@ a:hover { text-decoration-color: var(--teal) }
   .live-bar { padding: 4px 16px }
   .edit-box { width: 100% }
 }
+/* ── Hero chat: mobile fixes ── */
+@media(max-width:540px) {
+  .hero-chat-area { padding: 70px 12px 4px }
+  .hero-chat-area .bubble { max-width: 88%; font-size: 15px; padding: 10px 14px }
+  .hero-chat-area .welcome-bubble { max-width: 88%; font-size: 14px; padding: 12px 16px }
+  .hero-bottom { padding: 8px 12px 20px }
+  .hero-bottom .ir input { padding: 14px 16px; font-size: 15px }
+  .hero-bottom .btn-s { padding: 14px 20px; font-size: 14px }
+  .hero-bottom .chip { font-size: 12px; padding: 5px 10px }
+  .hero-chat-area .mm { max-width: 95%; gap: 3px }
+  .hero-chat-area .tag { font-size: 10px; padding: 1px 6px }
+  .mode-toggle .mt-opt { font-size: 9px; padding: 2px 7px }
+}
+/* ── Hero chat: meta tags over glassmorphism ── */
+.hero-chat-area .mm {
+  max-width: 70%;
+}
+.hero-chat-area .tag {
+  background: rgba(6,13,8,.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  color: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.06);
+}
+.hero-chat-area .tag.tg-live {
+  background: rgba(207,74,40,.35); color: rgba(255,255,255,.9);
+  border-color: rgba(207,74,40,.3);
+}
+.hero-chat-area .tag.tg-warn {
+  background: rgba(224,184,74,.15); color: var(--amber);
+  border-color: rgba(224,184,74,.15);
+}
+.hero-chat-area .act {
+  background: rgba(255,255,255,.08); color: rgba(255,255,255,.55);
+  border: 1px solid rgba(255,255,255,.1);
+}
+.hero-chat-area .act:hover { background: rgba(255,255,255,.14); color: rgba(255,255,255,.8) }
+
 @media(prefers-reduced-motion:reduce) {
   * { animation: none !important; transition: none !important }
 }
@@ -2400,7 +2435,7 @@ function renderLiveTotals(){
 function isNum(v){return typeof v==='number'&&isFinite(v);}
 function liveMetaLine(m){
   var p=[];
-  p.push('mode: '+(m.mode==='full'?'forest':m.mode));
+  p.push('mode: '+m.mode);
   if(m.cache_hit)p.push('cache hit (0 new tokens'+(m.cached_from_model?', answer from '+m.cached_from_model:'')+')');
   else p.push('model: '+m.model,m.escalated?'escalated':'not escalated');
   if(m.provider_model&&m.provider_model!==m.model)p.push('provider reported: '+m.provider_model);
@@ -2427,7 +2462,7 @@ function infoTag(text,title,cls){
 function liveMetaRow(t){
   var m=t.meta,mm=document.createElement('div');mm.className='mm';
   mm.appendChild(infoTag('LIVE','Answered by your backend, not the demo','tg-live'));
-  mm.appendChild(modeTag(m.mode==='full'?'forest':m.mode,!!m.cache_hit,m.mode_source==='explicit'?'Mode chosen explicitly':'Mode picked by the backend router'));
+  mm.appendChild(modeTag(m.mode,!!m.cache_hit,m.mode_source==='explicit'?'Mode chosen explicitly':'Mode picked by the backend router'));
   if(!m.cache_hit){
     mm.appendChild(infoTag(String(m.model),'Model that produced this answer'));
     if(m.provider_model&&m.provider_model!==m.model)mm.appendChild(infoTag('via '+m.provider_model,'Model the provider says answered (its own claim, e.g. the model a router picked)'));

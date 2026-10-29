@@ -175,7 +175,7 @@ class PipelineTests(unittest.TestCase):
         backend, small, _ = make_backend()
         result = backend.chat(ChatRequest(prompt="Explain DNS", mode="full"))
         self.assertEqual(route_mode("Explain DNS"), "sprout")
-        self.assertEqual(result["meta"]["mode"], "full")
+        self.assertEqual(result["meta"]["mode"], "forest")
         self.assertEqual(result["meta"]["mode_source"], "explicit")
         self.assertEqual(small.calls[0]["max_tokens"], MAX_TOKENS["full"])
 
@@ -1176,7 +1176,7 @@ class TaskRoutingTests(unittest.TestCase):
         result = backend.chat(ChatRequest(
             prompt="Prove the Pythagorean theorem.", session_id=SESSION))
         self.assertEqual(result["meta"]["task_type"], "reasoning")
-        self.assertEqual(result["meta"]["mode"], "full")
+        self.assertEqual(result["meta"]["mode"], "forest")
         self.assertFalse(result["meta"]["routed_to_small"])
         self.assertIn("conclusion first", primary.calls[0]["system"])
 
@@ -1195,7 +1195,7 @@ class TaskRoutingTests(unittest.TestCase):
         result = backend.chat(ChatRequest(
             prompt="What is the capital of France?", session_id=SESSION, mode="full"))
         self.assertEqual(result["meta"]["routed_by"], "explicit")
-        self.assertEqual(result["meta"]["mode"], "full")
+        self.assertEqual(result["meta"]["mode"], "forest")
         self.assertEqual(result["meta"]["task_type"], "fact")
 
     def test_task_tier_small_needs_small_routing_enabled(self):
@@ -1457,7 +1457,7 @@ class ProvenRoutingServerTests(unittest.TestCase):
         meta = result["meta"]
         self.assertTrue(meta["expansion"])
         self.assertEqual(meta["expanded_from"], "What is DNS?")
-        self.assertEqual(meta["mode"], "full")
+        self.assertEqual(meta["mode"], "forest")
         self.assertEqual(meta["routed_by"], "expansion")
         self.assertFalse(meta["routed_to_small"])
         self.assertIn("Explain in detail.", primary.calls[0]["system"])
