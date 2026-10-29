@@ -44,6 +44,16 @@ primary answers under separate keys.
   empty, the client gets "The model returned no answer, try again" (502),
   not a generic unreachable message.
 
+Before any model is called, a **no-model gate** answers pure arithmetic
+locally (`greensearch/local_calc.py`): a prompt that is only an
+expression, after stripping "what is / calculate / compute", is parsed
+(not executed) and answered with 0 tokens and 0 estimated energy.
+Division by zero, any letters, `**`, `//`, unbalanced parentheses, or
+a prompt longer than 100 characters all fall through to the normal
+model pipeline. Meta reports `local_answer: true` and
+`model_tier: "local"` for these answers. The site renders an
+"answered locally" tag for them.
+
 ## Energy receipt
 
 Every answer carries `meta.energy`, a per-answer receipt the site can
@@ -169,6 +179,19 @@ requests, files in the repo, or the command line.
 | `GREENSEARCH_SMALL_MODEL_ROUTING` | off | `1`/`true`/`yes`/`on` routes sprout prompts (short, simple, per `route_mode`) to `GREENSEARCH_SMALL_MODEL` first, with the primary chain as fallback. Off by default. |
 | `GREENSEARCH_SHRINK_VERSION` | `v1` | PromptShrink version for live requests: `v1` (default) or `v2` (redundancy + gated telegraphic, 39% vs 32% saved on the corpus). v2 is opt-in only; any other value refuses to start. Meta reports the version used. |
 | `GREENSEARCH_GRID_G_PER_KWH` | `400` | Grid carbon intensity for the per-answer energy receipt, in gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter does not disclose where inference ran, so no region is claimed. Must be positive; anything else refuses to start. |
+| `GREENSEARCH_TASK_ROUTING` | `off` | `1`/`true`/`yes`/`on` routes by task type (fact, definition, steps, reasoning, math, code, creative, other; see `greensearch/task_router.py` and `spec/task_cases.json`) instead of word count, for auto mode only. Unknown prompts fall back to word-count routing, and an explicit client mode always wins. Off by default. Meta reports `task_type`, `task_tier`, and `routed_by` on every answer. When task routing is on, the task tier replaces the sprout rule for small-model routing: a long, easy fact goes small, a short, hard question goes primary. Small-model routing must still be enabled separately for the small model to be used at all. |
+| `GREENSEARCH_DIFFICULTY_ROUTING` | `off` | `1`/`true`/`yes`/`on` lets a 0-1 difficulty score override the task tier when task routing is on: below the threshold goes small, at or above goes primary. The score is a transparent feature formula (`difficulty_score` in `greensearch/task_router.py`), not a learned RouteLLM-style router: at the default 0.5 threshold it reproduces the task tiers exactly, so turning it on alone changes nothing. Moving the threshold is what moves traffic. Meta reports `difficulty_score`, `difficulty_tier`, and `router_threshold`. |
+| `GREENSEARCH_ROUTER_THRESHOLD` | `0.5` | Difficulty-score threshold for small vs primary, 0-1. Overridden by `GREENSEARCH_QUALITY_TARGET=eco` (0.7) or `=quality` (0.3). |
+| `GREENSEARCH_QUALITY_TARGET` | `balanced` | Routing preset: `eco` (threshold 0.7, more small-model answers), `balanced` (uses `GREENSEARCH_ROUTER_THRESHOLD`), `quality` (0.3, more primary answers). Only affects routing when difficulty routing is on. Any other value refuses to start. |
+| `GREENSEARCH_SCORER_ESCALATION` | `off` | `1`/`true`/`yes`/`on` lets the transparent answer scorer (`greensearch/scorer.py`, FrugalGPT-style but local and rule-based, no model call) trigger escalation when its score is below `GREENSEARCH_SCORE_THRESHOLD`. Off by default: the score is still reported in meta as `answer_score`, but only the logprob cascade can escalate. Unlike logprobs, the scorer works when logprobs are unavailable. |
+| `GREENSEARCH_SCORE_THRESHOLD` | `0.5` | Answer-score escalation threshold, 0-1. Only used when `GREENSEARCH_SCORER_ESCALATION` is on. |
+| `GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS` | `0` | Budget gate: if the primary answer already used more than this many output tokens, no escalation happens, even on a low-confidence trigger. `0` disables. Provider-reported tokens only; unreported tokens never block escalation. |
+| `GREENSEARCH_SEMANTIC_CACHE` | `off` | `1`/`true`/`yes`/`on` enables a conservative lexical semantic cache: a fact/definition prompt with difflib ratio at least 0.90 and token overlap at least 0.80 against a cached prompt in the same session, with identical numbers, reuses the cached answer. String similarity, not an embedding model, so it misses true paraphrases rather than risking a wrong answer. Meta reports `semantic_cache_hit` and `semantic_similarity` when it fires. |
+| `GREENSEARCH_MAX_TOKENS_MULTIPLIER` | `1.0` | Multiplier on the per-mode max_tokens cap (120/240/400). 1.0 is the current behaviour. Above 1.0, max_tokens becomes a safety net well above the expected budget, with format suffixes and (optionally) stop sequences doing the length control. Must be > 0 and at most 4. Meta reports `max_tokens_used`. |
+| `GREENSEARCH_TASK_TEMPERATURE` | `off` | `1`/`true`/`yes`/`on` sends a temperature by task type (fact, definition, math, code 0.2; steps, reasoning 0.5; creative 0.8; other: provider default) when task routing is on. Off by default: no temperature is sent. Meta reports `temperature`. |
+| `GREENSEARCH_TASK_STOP_SEQUENCES` | `off` | `1`/`true`/`yes`/`on` sends stop `["\n\n"]` for fact and definition prompts when task routing is on, so the model ends at a paragraph boundary. Off by default. Never sent for expansions. Meta reports `stop_sequences`. |
+| `GREENSEARCH_LONG_INPUT_PRUNING` | `off` | `1`/`true`/`yes`/`on` enables conservative extractive pruning for prompts longer than `GREENSEARCH_LONG_INPUT_MAX_CHARS` (see `greensearch/long_input.py`): first/last sentences plus sentences with digits, questions, quoted strings, proper nouns, or code are kept; other sentences are dropped, with a pruning note appended. Off by default. Meta reports `long_input_pruned`, `pruned_sentences`, and `pruned_chars`. |
+| `GREENSEARCH_LONG_INPUT_MAX_CHARS` | `1500` | Prompt length above which pruning runs, when pruning is on. Must be at least 500. |
 | `GREENSEARCH_DEBUG_LOG` | off | `1`/`true`/`yes`/`on` logs prompts to local stderr. Never sent in responses. |
 | `PORT` | `8000` | Listen port (`--port` overrides). |
 
@@ -194,6 +217,7 @@ Request (JSON):
 - `mode`: `auto` (default), `sprout`, `canopy`, `full` (`forest` accepted).
 - `stream`: `true` (default) for SSE, `false` for one JSON object.
 - `measure_baseline`: `false` by default. See the cost note above.
+- `expand_of` (optional, a non-empty string): the original prompt this request expands on. An expansion always goes full mode and primary tier, with "Explain in detail." instead of the task format suffix, and meta reports `expansion: true` and `expanded_from`. It is equivalent to an explicit `mode: "full"` request plus measurement; the site sends it from the "More detail" button under each live answer. A cached answer that was truncated or scored below 0.3 is not reused on a repeat: the model is called again, and if that call fails the cached answer is returned as a fallback (meta `cache_fallback: true`), so a bad cached answer never turns into an error.
 - Sending `api_key`, `key`, `token`, `authorization`, `model` or `base_url`
   is a 400: those live on the server only.
 

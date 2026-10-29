@@ -76,9 +76,11 @@ class FakeProvider:
         self.error = error
         self.calls = []
 
-    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False,
+                    stop=None, temperature=None):
         self.calls.append({"prompt": prompt, "system": system,
-                           "max_tokens": max_tokens, "logprobs": logprobs})
+                           "max_tokens": max_tokens, "logprobs": logprobs,
+                           "stop": stop, "temperature": temperature})
         if self.error is not None:
             raise self.error
         if logprobs and self.logprobs_error is not None:
@@ -1138,6 +1140,77 @@ class EnergyReceiptTests(unittest.TestCase):
             Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "abc"})
 
 
+class TaskRoutingTests(unittest.TestCase):
+    """Task routing (opt-in): task type overrides word count, only for auto mode."""
+
+    def test_config_defaults_and_flag(self):
+        self.assertFalse(Config.from_env({}).task_routing)
+        self.assertTrue(Config.from_env(
+            {"GREENSEARCH_TASK_ROUTING": "1"}).task_routing)
+
+    def test_long_fact_goes_small_despite_word_count(self):
+        # Word-count routing would call this canopy (20+ words); task
+        # routing calls it a fact and sends it small, in sprout mode.
+        small = FakeProvider(FREE_A, text="Paris.", avg_logprob=-0.2)
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, built, _ = chain_backend(
+            {FREE_A: small, PRIMARY: primary},
+            model=PRIMARY, fallback_models=(FREE_A,),
+            small_model=FREE_A, small_model_routing=True, task_routing=True)
+        # chain_backend builds providers in chain order, not dict order;
+        # the first built model is the one that answered.
+        result = backend.chat(ChatRequest(
+            prompt="Could you please tell me, in your own words and whenever "
+                   "you have a moment, what the capital of France actually is?",
+            session_id=SESSION))
+        self.assertEqual(result["meta"]["task_type"], "fact")
+        self.assertEqual(result["meta"]["task_tier"], "small")
+        self.assertEqual(result["meta"]["routed_by"], "task")
+        self.assertEqual(result["meta"]["mode"], "sprout")
+        self.assertTrue(result["meta"]["routed_to_small"])
+
+    def test_short_hard_question_goes_primary_despite_word_count(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(
+            primary=primary, small_model_routing=True, task_routing=True)
+        result = backend.chat(ChatRequest(
+            prompt="Prove the Pythagorean theorem.", session_id=SESSION))
+        self.assertEqual(result["meta"]["task_type"], "reasoning")
+        self.assertEqual(result["meta"]["mode"], "full")
+        self.assertFalse(result["meta"]["routed_to_small"])
+        self.assertIn("conclusion first", primary.calls[0]["system"])
+
+    def test_off_preserves_word_count_behavior(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, task_routing=False)
+        result = backend.chat(ChatRequest(
+            prompt="Prove the Pythagorean theorem.", session_id=SESSION))
+        self.assertEqual(result["meta"]["routed_by"], "word_count")
+        self.assertIsNone(result["meta"]["task_type"])
+        self.assertEqual(result["meta"]["mode"], "sprout")
+
+    def test_explicit_mode_wins_over_task_routing(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, task_routing=True)
+        result = backend.chat(ChatRequest(
+            prompt="What is the capital of France?", session_id=SESSION, mode="full"))
+        self.assertEqual(result["meta"]["routed_by"], "explicit")
+        self.assertEqual(result["meta"]["mode"], "full")
+        self.assertEqual(result["meta"]["task_type"], "fact")
+
+    def test_task_tier_small_needs_small_routing_enabled(self):
+        # Task routing on, small-model routing off: the task tier is
+        # reported, but the primary model still answers.
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(
+            primary=primary, small_model_routing=False, task_routing=True)
+        result = backend.chat(ChatRequest(
+            prompt="What is the capital of France?", session_id=SESSION))
+        self.assertEqual(result["meta"]["task_tier"], "small")
+        self.assertFalse(result["meta"]["routed_to_small"])
+        self.assertEqual(result["meta"]["model"], PRIMARY)
+
+
 class LogprobsFallbackTests(unittest.TestCase):
     def test_retries_same_model_without_logprobs(self):
         picky = FakeProvider(PRIMARY, avg_logprob=-0.2, logprobs_error=http_error(
@@ -1264,3 +1337,235 @@ class ProviderParsingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProvenRoutingServerTests(unittest.TestCase):
+    """Server wiring for the FrugalGPT / RouteLLM adaptations."""
+
+    def test_config_defaults_and_env(self):
+        cfg = Config.from_env({})
+        self.assertFalse(cfg.difficulty_routing)
+        self.assertEqual(cfg.router_threshold, 0.5)
+        self.assertEqual(cfg.quality_target, "balanced")
+        self.assertFalse(cfg.scorer_escalation)
+        self.assertEqual(cfg.score_threshold, 0.5)
+        self.assertEqual(cfg.max_cascade_output_tokens, 0)
+        self.assertFalse(cfg.semantic_cache)
+        eco = Config.from_env({"GREENSEARCH_QUALITY_TARGET": "eco"})
+        self.assertEqual(eco.router_threshold_effective, 0.7)
+        quality = Config.from_env({"GREENSEARCH_QUALITY_TARGET": "quality"})
+        self.assertEqual(quality.router_threshold_effective, 0.3)
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_ROUTER_THRESHOLD": "1.5"})
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_QUALITY_TARGET": "fast"})
+
+    def test_local_calc_bypasses_model(self):
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary)
+        result = backend.chat(ChatRequest(prompt="What is 12 + 7?", session_id=SESSION))
+        self.assertEqual(result["answer"], "12 + 7 = 19")
+        self.assertTrue(result["meta"]["local_answer"])
+        self.assertEqual(result["meta"]["model_tier"], "local")
+        self.assertEqual(result["meta"]["output_tokens"], 0)
+        self.assertEqual(result["meta"]["energy"]["energy_wh"], 0)
+        self.assertEqual(primary.calls, [])
+
+    def test_local_calc_fallthrough_calls_model(self):
+        primary = FakeProvider(PRIMARY, text="Paris.", avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary)
+        backend.chat(ChatRequest(prompt="What is 12 + 7 apples?", session_id=SESSION))
+        self.assertEqual(len(primary.calls), 1)
+
+    def test_difficulty_threshold_moves_simple_steps(self):
+        # Simple steps: task tier small, difficulty 0.4. With quality
+        # (threshold 0.3) it goes primary; with eco (0.7) it stays small.
+        small = FakeProvider(FREE_A, text="Restart it.", avg_logprob=-0.2)
+        primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+        backend, _, _ = chain_backend(
+            {FREE_A: small, PRIMARY: primary},
+            model=PRIMARY, fallback_models=(FREE_A,),
+            small_model=FREE_A, small_model_routing=True, task_routing=True,
+            difficulty_routing=True, quality_target="quality")
+        result = backend.chat(ChatRequest(prompt="How do I reset my router?",
+                                          session_id=SESSION))
+        self.assertEqual(result["meta"]["difficulty_tier"], "primary")
+        self.assertFalse(result["meta"]["routed_to_small"])
+        self.assertEqual(result["meta"]["difficulty_score"], 0.4)
+
+    def test_answer_score_reported_without_escalation(self):
+        primary = FakeProvider(PRIMARY, text="Paris is the capital of France.",
+                               avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, task_routing=True)
+        result = backend.chat(ChatRequest(prompt="What is the capital of France?",
+                                          session_id=SESSION))
+        self.assertIsNotNone(result["meta"]["answer_score"])
+        self.assertGreaterEqual(result["meta"]["answer_score"], 0.5)
+
+    def test_scorer_escalates_without_logprobs(self):
+        primary = FakeProvider(PRIMARY, text="x", avg_logprob=None)
+        big = FakeProvider(ESCALATION, text="Escalated answer. Second sentence.")
+        backend, _, _ = make_cascade_backend(
+            primary=primary, big=big, scorer_escalation=True, score_threshold=0.9)
+        result = backend.chat(ChatRequest(prompt="Explain DNS simply",
+                                          session_id=SESSION))
+        self.assertTrue(result["meta"]["escalated"])
+        self.assertEqual(len(big.calls), 1)
+
+    def test_semantic_cache_hit_and_number_guard(self):
+        primary = FakeProvider(PRIMARY, text="Paris.", avg_logprob=-0.2)
+        backend, _, _ = make_backend(
+            primary=primary, task_routing=True, semantic_cache=True)
+        first = backend.chat(ChatRequest(prompt="What is the capital of France?",
+                                         session_id=SESSION))
+        self.assertFalse(first["meta"]["semantic_cache_hit"])
+        second = backend.chat(ChatRequest(prompt="What is capital of France?",
+                                          session_id=SESSION))
+        self.assertTrue(second["meta"]["semantic_cache_hit"])
+        self.assertEqual(second["answer"], "Paris.")
+        self.assertEqual(second["meta"]["output_tokens"], 0)
+        # A different number is a different question: no semantic hit.
+        third = backend.chat(ChatRequest(prompt="What is the capital of France 2?",
+                                         session_id=SESSION))
+        self.assertFalse(third["meta"]["semantic_cache_hit"])
+
+    def test_single_word_answer_not_marked_truncated_on_stop(self):
+        primary = FakeProvider(PRIMARY, text="Paris", avg_logprob=-0.2,
+                               finish_reason="stop")
+        backend, _, _ = make_backend(primary=primary, task_routing=True)
+        result = backend.chat(ChatRequest(prompt="What is the capital of France?",
+                                          session_id=SESSION))
+        self.assertEqual(result["answer"], "Paris")
+        self.assertFalse(result["meta"]["truncated"])
+
+    def test_single_word_answer_keeps_mark_on_length(self):
+        primary = FakeProvider(PRIMARY, text="Paris", avg_logprob=-0.2,
+                               finish_reason="length")
+        backend, _, _ = make_backend(primary=primary, task_routing=True)
+        result = backend.chat(ChatRequest(prompt="What is the capital of France?",
+                                          session_id=SESSION))
+        self.assertTrue(result["meta"]["truncated"])
+
+    def test_expansion_goes_full_primary_with_detail_prompt(self):
+        primary = FakeProvider(PRIMARY, text="A long detailed answer. Second sentence.",
+                               avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, small_model_routing=True,
+                                     task_routing=True)
+        result = backend.chat(ChatRequest(
+            prompt="Explain in more detail: What is DNS?",
+            session_id=SESSION, expand_of="What is DNS?"))
+        meta = result["meta"]
+        self.assertTrue(meta["expansion"])
+        self.assertEqual(meta["expanded_from"], "What is DNS?")
+        self.assertEqual(meta["mode"], "full")
+        self.assertEqual(meta["routed_by"], "expansion")
+        self.assertFalse(meta["routed_to_small"])
+        self.assertIn("Explain in detail.", primary.calls[0]["system"])
+
+    def test_expansion_request_validation(self):
+        from server.app import parse_chat_request
+        req = parse_chat_request(json.dumps(
+            {"prompt": "Explain in more detail: What is DNS?",
+             "expand_of": "What is DNS?"}).encode())
+        self.assertEqual(req.expand_of, "What is DNS?")
+        with self.assertRaises(ClientError):
+            parse_chat_request(json.dumps(
+                {"prompt": "hi", "expand_of": ""}).encode())
+        with self.assertRaises(ClientError):
+            parse_chat_request(json.dumps(
+                {"prompt": "hi", "expand_of": 42}).encode())
+
+    def test_multi_part_meta(self):
+        primary = FakeProvider(PRIMARY, text="DNS and TCP explained.",
+                               avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary)
+        meta = backend.chat(ChatRequest(
+            prompt="What is DNS? What does TCP mean?",
+            session_id=SESSION))["meta"]
+        self.assertEqual(meta["questions"], 2)
+        self.assertTrue(meta["multi_part"])
+
+    def test_truncated_cached_answer_is_not_reused(self):
+        primary = FakeProvider(PRIMARY, text="DNS is", avg_logprob=-0.2,
+                               finish_reason="length")
+        backend, _, _ = make_backend(primary=primary)
+        first = backend.chat(ChatRequest(prompt="What is DNS?",
+                                         session_id=SESSION))
+        self.assertTrue(first["meta"]["truncated"])
+        primary.text = "DNS is a naming system. Second sentence."
+        primary.finish_reason = "stop"
+        second = backend.chat(ChatRequest(prompt="What is DNS?",
+                                          session_id=SESSION))
+        self.assertFalse(second["meta"]["cache_hit"])
+        self.assertIsNotNone(second["meta"]["cache_bypass_reason"])
+        self.assertIn("naming system", second["answer"])
+        self.assertEqual(len(primary.calls), 2)
+
+    def test_failed_fresh_call_falls_back_to_cached_answer(self):
+        primary = FakeProvider(PRIMARY, text="DNS is", avg_logprob=-0.2,
+                               finish_reason="length")
+        backend, _, _ = make_backend(primary=primary)
+        backend.chat(ChatRequest(prompt="What is DNS?", session_id=SESSION))
+        primary.error = http_error(502)
+        result = backend.chat(ChatRequest(prompt="What is DNS?",
+                                          session_id=SESSION))
+        self.assertTrue(result["meta"]["cache_fallback"])
+        # The cached answer is the brevity-trimmed answer, ellipsis included.
+        self.assertEqual(result["answer"], "DNS is…")
+
+    def test_max_tokens_multiplier_and_validation(self):
+        cfg = Config.from_env({})
+        self.assertEqual(cfg.max_tokens_multiplier, 1.0)
+        self.assertFalse(cfg.task_temperature)
+        self.assertFalse(cfg.task_stop_sequences)
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_MAX_TOKENS_MULTIPLIER": "0"})
+        with self.assertRaises(ValueError):
+            Config.from_env({"GREENSEARCH_MAX_TOKENS_MULTIPLIER": "5"})
+        primary = FakeProvider(PRIMARY, text="Paris.", avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, task_routing=True,
+                                     max_tokens_multiplier=2.0)
+        result = backend.chat(ChatRequest(prompt="What is the capital of France?",
+                                          session_id=SESSION))
+        self.assertEqual(result["meta"]["max_tokens_used"], 240)
+        self.assertEqual(primary.calls[0]["max_tokens"], 240)
+
+    def test_task_temperature_by_type(self):
+        primary = FakeProvider(PRIMARY, text="Paris.", avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, task_routing=True,
+                                     task_temperature=True)
+        result = backend.chat(ChatRequest(prompt="What is the capital of France?",
+                                          session_id=SESSION))
+        self.assertEqual(result["meta"]["temperature"], 0.2)
+        self.assertEqual(primary.calls[0]["temperature"], 0.2)
+
+    def test_long_input_pruning_on_and_off(self):
+        plain = ("The weather was pleasant and the road was long and winding "
+                 "through the hills and valleys of the countryside. ")
+        prompt = ("Here is a long document about Mars. " + plain * 20
+                  + "In 1969, Apollo landed on the Moon. "
+                  + "That is the end of the document.")
+        self.assertGreater(len(prompt), 1500)
+        primary = FakeProvider(PRIMARY, text="A summary. Second sentence.",
+                               avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, long_input_pruning=True)
+        result = backend.chat(ChatRequest(prompt=prompt,
+                                          session_id=SESSION))
+        self.assertTrue(result["meta"]["long_input_pruned"])
+        self.assertGreater(result["meta"]["pruned_sentences"], 0)
+        self.assertIn("Pruned for efficiency", primary.calls[0]["prompt"])
+        self.assertNotIn("The weather was pleasant",
+                         primary.calls[0]["prompt"])
+
+    def test_task_stop_only_for_fact_and_definition(self):
+        primary = FakeProvider(PRIMARY, text="Paris.", avg_logprob=-0.2)
+        backend, _, _ = make_backend(primary=primary, task_routing=True,
+                                     task_stop_sequences=True)
+        fact = backend.chat(ChatRequest(prompt="What is the capital of France?",
+                                        session_id=SESSION))
+        self.assertEqual(fact["meta"]["stop_sequences"], ["\n\n"])
+        self.assertEqual(primary.calls[-1]["stop"], ["\n\n"])
+        steps = backend.chat(ChatRequest(prompt="How do I reset my router?",
+                                         session_id=SESSION))
+        self.assertIsNone(steps["meta"]["stop_sequences"])
+        self.assertIsNone(primary.calls[-1]["stop"])

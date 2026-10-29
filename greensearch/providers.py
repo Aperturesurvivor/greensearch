@@ -140,8 +140,9 @@ class DemoProvider:
     def complete(self, prompt):
         return self.complete_ex(prompt).text
 
-    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
-        """Offline provider ignores system/max_tokens: it has no model.
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False,
+                    stop=None, temperature=None):
+        """Offline provider ignores system/max_tokens/stop/temperature: it has no model.
 
         It also has no logprobs: avg_logprob stays None, so a cascade
         must not escalate (or claim confidence) from a demo answer.
@@ -257,7 +258,8 @@ class OpenAICompatibleProvider:
     def complete(self, prompt):
         return self.complete_ex(prompt).text
 
-    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False,
+                    stop=None, temperature=None):
         if prompt is None or not prompt.strip():
             raise ValueError("Empty prompt: type a prompt first.")
         messages = []
@@ -270,6 +272,10 @@ class OpenAICompatibleProvider:
         if logprobs:
             payload["logprobs"] = True
             payload["top_logprobs"] = 1
+        if stop:
+            payload["stop"] = list(stop)
+        if temperature is not None:
+            payload["temperature"] = temperature
         request = urllib.request.Request(
             self.base_url + "/chat/completions",
             data=json.dumps(payload).encode(),

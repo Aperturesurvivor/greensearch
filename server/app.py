@@ -68,6 +68,10 @@ from greensearch.providers import (  # noqa: E402
     ProviderError,
 )
 from greensearch.router import route_mode  # noqa: E402
+from greensearch.task_router import QUALITY_THRESHOLDS, TASK_TEMPERATURES, difficulty_score, route_task  # noqa: E402
+from greensearch.long_input import prune_long_prompt  # noqa: E402
+from greensearch.local_calc import try_local_calc  # noqa: E402
+from greensearch.scorer import score_answer  # noqa: E402
 from greensearch.footprint import energy_receipt  # noqa: E402
 from greensearch.shrink import shrink, shrink_v2  # noqa: E402
 
@@ -181,6 +185,84 @@ ENV_VARS = [
      "gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter "
      "does not disclose where inference ran, so no region is claimed. "
      "A non-positive value refuses to start."),
+    ("GREENSEARCH_TASK_ROUTING", "off",
+     "1/true/yes/on routes by task type (fact, definition, steps, "
+     "reasoning, math, code, creative, other) instead of word count, "
+     "when the client did not choose a mode explicitly. Unknown "
+     "prompts fall back to word-count routing. Off by default: "
+     "enable live, judge routed answers, then decide. Meta reports "
+     "task_type, task_tier, and routed_by on every answer."),
+    ("GREENSEARCH_DIFFICULTY_ROUTING", "off",
+     "1/true/yes/on lets a 0-1 difficulty score override the task "
+     "tier when task routing is on: score below the threshold goes "
+     "small, at or above goes primary. The score is a transparent "
+     "feature formula, not a learned router, and at the default "
+     "0.5 threshold it reproduces the task tiers exactly, so "
+     "turning it on alone changes nothing. Moving the threshold is "
+     "what moves traffic. Meta reports difficulty_score."),
+    ("GREENSEARCH_ROUTER_THRESHOLD", "0.5",
+     "Difficulty-score threshold for small vs primary, 0-1. "
+     "Overridden by GREENSEARCH_QUALITY_TARGET=eco (0.7) or "
+     "=quality (0.3) when that target is set."),
+    ("GREENSEARCH_QUALITY_TARGET", "balanced",
+     "Routing preset: eco (threshold 0.7, more small-model answers), "
+     "balanced (uses GREENSEARCH_ROUTER_THRESHOLD), quality (0.3, "
+     "more primary answers). Only affects routing when difficulty "
+     "routing is on. Any other value refuses to start."),
+    ("GREENSEARCH_SCORER_ESCALATION", "off",
+     "1/true/yes/on lets the transparent answer scorer trigger "
+     "escalation when its score is below GREENSEARCH_SCORE_THRESHOLD. "
+     "Off by default: the score is still reported in meta, but only "
+     "the logprob cascade can escalate. Unlike logprobs, the scorer "
+     "works when logprobs are unavailable."),
+    ("GREENSEARCH_SCORE_THRESHOLD", "0.5",
+     "Answer-score escalation threshold, 0-1. Only used when "
+     "GREENSEARCH_SCORER_ESCALATION is on."),
+    ("GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS", "0",
+     "Budget gate: if the primary answer already used more than "
+     "this many output tokens, no escalation happens, even on a "
+     "low-confidence trigger. 0 disables. Provider-reported tokens "
+     "only; unreported tokens never block escalation."),
+    ("GREENSEARCH_MAX_TOKENS_MULTIPLIER", "1.0",
+     "Multiplier on the per-mode max_tokens cap (120/240/400 for "
+     "sprout/canopy/full). 1.0 is the current behaviour. Above 1.0, "
+     "max_tokens becomes a safety net well above the expected budget, "
+     "with format suffixes and (optionally) stop sequences doing the "
+     "length control instead of the cap. Must be > 0 and at most 4; "
+     "anything else refuses to start. Meta reports max_tokens_used."),
+    ("GREENSEARCH_TASK_TEMPERATURE", "off",
+     "1/true/yes/on sends a temperature by task type (fact, "
+     "definition, math, code 0.2; steps, reasoning 0.5; creative "
+     "0.8; other: provider default) when task routing is on. Off "
+     "by default: no temperature is sent, so the provider default "
+     "applies. Meta reports temperature."),
+    ("GREENSEARCH_TASK_STOP_SEQUENCES", "off",
+     "1/true/yes/on sends stop=[\"\\n\\n\"] for fact and definition "
+     "prompts when task routing is on, so the model ends at a "
+     "paragraph boundary instead of running on. Off by default: "
+     "no stop sequence is sent. Meta reports stop_sequences."),
+    ("GREENSEARCH_LONG_INPUT_PRUNING", "off",
+     "1/true/yes/on enables conservative extractive pruning for "
+     "prompts longer than GREENSEARCH_LONG_INPUT_MAX_CHARS: first "
+     "and last sentences, plus sentences with digits, questions, "
+     "quoted strings, proper nouns, or code, are kept; other "
+     "sentences are dropped, and a pruning note is appended so "
+     "the model knows input was pruned. Off by default: normal "
+     "chat prompts are untouched. Meta reports long_input_pruned, "
+     "pruned_sentences, and pruned_chars."),
+    ("GREENSEARCH_LONG_INPUT_MAX_CHARS", "1500",
+     "Prompt length above which long-input pruning runs, when "
+     "pruning is on. Must be at least 500; anything else refuses "
+     "to start."),
+    ("GREENSEARCH_SEMANTIC_CACHE", "off",
+     "1/true/yes/on enables a conservative lexical semantic cache: "
+     "a fact/definition prompt with a difflib ratio at least 0.90 "
+     "and token overlap at least 0.80 against a cached prompt in "
+     "the same session, with identical numbers, reuses the cached "
+     "answer. This is string similarity, not an embedding model, "
+     "so it misses true paraphrases rather than risking a wrong "
+     "answer. Meta reports semantic_cache_hit and "
+     "semantic_similarity when it fires."),
     ("GREENSEARCH_DEBUG_LOG", "off",
      "1/true/yes/on logs prompts to local stderr only, never to responses."),
     ("PORT", str(DEFAULT_PORT), "Listen port (also --port)."),
@@ -220,6 +302,47 @@ def _grid_factor(env):
     return value
 
 
+def _unit_threshold(env, name, default):
+    """Validate a 0-1 threshold env var, or its default."""
+    raw = (env.get(name, "") or "").strip() or str(default)
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError(f"{name} must be a number between 0 and 1") from None
+    if value != value or value < 0 or value > 1:
+        raise ValueError(f"{name} must be between 0 and 1")
+    return value
+
+
+def _quality_target(env):
+    target = (env.get("GREENSEARCH_QUALITY_TARGET", "") or "").strip().lower() or "balanced"
+    if target not in QUALITY_THRESHOLDS:
+        raise ValueError("GREENSEARCH_QUALITY_TARGET must be eco, balanced, or quality")
+    return target
+
+
+def _long_input_max_chars(env):
+    raw = (env.get("GREENSEARCH_LONG_INPUT_MAX_CHARS", "") or "").strip() or "1500"
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError("GREENSEARCH_LONG_INPUT_MAX_CHARS must be a whole number") from None
+    if value < 500:
+        raise ValueError("GREENSEARCH_LONG_INPUT_MAX_CHARS must be at least 500")
+    return value
+
+
+def _max_tokens_multiplier(env):
+    raw = (env.get("GREENSEARCH_MAX_TOKENS_MULTIPLIER", "") or "").strip() or "1.0"
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError("GREENSEARCH_MAX_TOKENS_MULTIPLIER must be a number") from None
+    if value != value or value <= 0 or value > 4:
+        raise ValueError("GREENSEARCH_MAX_TOKENS_MULTIPLIER must be > 0 and at most 4")
+    return value
+
+
 @dataclass
 class Config:
     api_key: str = ""
@@ -239,7 +362,27 @@ class Config:
     small_model_routing: bool = False
     shrink_version: str = "v1"
     grid_g_per_kwh: float = 400.0
+    task_routing: bool = False
+    difficulty_routing: bool = False
+    router_threshold: float = 0.5
+    quality_target: str = "balanced"
+    scorer_escalation: bool = False
+    score_threshold: float = 0.5
+    max_cascade_output_tokens: int = 0
+    max_tokens_multiplier: float = 1.0
+    task_temperature: bool = False
+    task_stop_sequences: bool = False
+    long_input_pruning: bool = False
+    long_input_max_chars: int = 1500
+    semantic_cache: bool = False
     debug_log: bool = False
+
+    @property
+    def router_threshold_effective(self):
+        """Eco/quality presets override the raw threshold; balanced uses it."""
+        if self.quality_target in ("eco", "quality"):
+            return QUALITY_THRESHOLDS[self.quality_target]
+        return self.router_threshold
 
     def __post_init__(self):
         if not self.escalation_model:
@@ -314,6 +457,26 @@ class Config:
             in ("1", "true", "yes", "on"),
             shrink_version=_shrink_version(env),
             grid_g_per_kwh=_grid_factor(env),
+            task_routing=env.get("GREENSEARCH_TASK_ROUTING", "").strip().lower()
+            in ("1", "true", "yes", "on"),
+            difficulty_routing=env.get("GREENSEARCH_DIFFICULTY_ROUTING", "").strip().lower()
+            in ("1", "true", "yes", "on"),
+            router_threshold=_unit_threshold(env, "GREENSEARCH_ROUTER_THRESHOLD", 0.5),
+            quality_target=_quality_target(env),
+            scorer_escalation=env.get("GREENSEARCH_SCORER_ESCALATION", "").strip().lower()
+            in ("1", "true", "yes", "on"),
+            score_threshold=_unit_threshold(env, "GREENSEARCH_SCORE_THRESHOLD", 0.5),
+            max_cascade_output_tokens=_int("GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS", 0),
+            max_tokens_multiplier=_max_tokens_multiplier(env),
+            task_temperature=env.get("GREENSEARCH_TASK_TEMPERATURE", "").strip().lower()
+            in ("1", "true", "yes", "on"),
+            task_stop_sequences=env.get("GREENSEARCH_TASK_STOP_SEQUENCES", "").strip().lower()
+            in ("1", "true", "yes", "on"),
+            long_input_pruning=env.get("GREENSEARCH_LONG_INPUT_PRUNING", "").strip().lower()
+            in ("1", "true", "yes", "on"),
+            long_input_max_chars=_long_input_max_chars(env),
+            semantic_cache=env.get("GREENSEARCH_SEMANTIC_CACHE", "").strip().lower()
+            in ("1", "true", "yes", "on"),
             debug_log=env.get("GREENSEARCH_DEBUG_LOG", "").strip().lower()
             in ("1", "true", "yes", "on"),
         )
@@ -429,6 +592,12 @@ class ChatRequest:
     session_id: Optional[str] = None
     stream: bool = True
     measure_baseline: bool = False
+    # Expand-on-demand: the original prompt this request expands on.
+    # It is a label and a routing instruction, not a privilege: an
+    # expansion is equivalent to an explicit mode=full request (the
+    # user could already send one), plus measurement. The prompt
+    # itself is what the model sees; expand_of is what meta reports.
+    expand_of: Optional[str] = None
 
 
 def parse_chat_request(body):
@@ -465,9 +634,15 @@ def parse_chat_request(body):
     measure = data.get("measure_baseline", False)
     if not isinstance(stream, bool) or not isinstance(measure, bool):
         raise ClientError(400, "stream and measure_baseline must be true or false")
+    expand_of = data.get("expand_of")
+    if expand_of is not None:
+        if not isinstance(expand_of, str) or not expand_of.strip():
+            raise ClientError(400, "expand_of must be a non-empty string")
+        if len(expand_of) > MAX_PROMPT_CHARS:
+            raise ClientError(400, f"expand_of is too long (max {MAX_PROMPT_CHARS} characters)")
     return ChatRequest(
         prompt=prompt, mode=mode, session_id=session_id,
-        stream=stream, measure_baseline=measure,
+        stream=stream, measure_baseline=measure, expand_of=expand_of,
     )
 
 
@@ -489,12 +664,66 @@ class _Recorder:
         self.attempted = False
         self.completion = None
 
-    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False,
+                    stop=None, temperature=None):
         self.attempted = True
+        extra = {}
+        if stop is not None:
+            extra["stop"] = stop
+        if temperature is not None:
+            extra["temperature"] = temperature
         self.completion = self.provider.complete_ex(
-            prompt, system=system, max_tokens=max_tokens, logprobs=logprobs
+            prompt, system=system, max_tokens=max_tokens, logprobs=logprobs, **extra
         )
         return self.completion
+
+
+def _semantic_lookup(entries, key):
+    """Conservative lexical semantic cache lookup.
+
+    entries: a session cache's key -> entry dict. key: the exact
+    cache key for the current prompt (with any small-tier prefix).
+    Returns (entry, similarity) or (None, None).
+
+    Similarity is difflib's ratio on the normalized prompts, plus a
+    token-overlap guard, both high (0.90 / 0.80). The ratio is the
+    primary gate: it already blocks a different subject word
+    ("France" vs "Spain" scores ~0.81), while the overlap guard
+    blocks prompts that share a long prefix but ask about different
+    things. Numbers must match exactly: a prompt that differs only
+    in a number is a different question, and returning the old
+    answer would be wrong. This is string similarity, not an
+    embedding model: it misses true paraphrases rather than risking
+    a wrong answer.
+    """
+    import difflib
+    if not key or ":" not in key:
+        return None, None
+    prefix, current = key.rsplit(":", 1)
+    prefix += ":"
+    current_tokens = set(current.split())
+    current_numbers = sorted(re.findall(r"\d+(?:\.\d+)?", current))
+    best = None
+    best_ratio = 0.0
+    for cand_key, entry in entries.items():
+        if not cand_key.startswith(prefix) or not isinstance(entry, dict):
+            continue
+        candidate = cand_key[len(prefix):]
+        if candidate == current:
+            continue  # exact hits are handled by the exact lookup
+        if sorted(re.findall(r"\d+(?:\.\d+)?", candidate)) != current_numbers:
+            continue
+        cand_tokens = set(candidate.split())
+        overlap = (len(current_tokens & cand_tokens) / len(current_tokens | cand_tokens)
+                   if current_tokens | cand_tokens else 0.0)
+        if overlap < 0.80:
+            continue
+        ratio = difflib.SequenceMatcher(None, current, candidate).ratio()
+        if ratio >= 0.90 and ratio > best_ratio:
+            best, best_ratio = entry, ratio
+    if best is None:
+        return None, None
+    return best, round(best_ratio, 3)
 
 
 def _sum_or_none(values):
@@ -568,7 +797,8 @@ class _ModelChain:
         self.attempted = False
         self.completion = None
 
-    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False):
+    def complete_ex(self, prompt, system=None, max_tokens=None, logprobs=False,
+                    stop=None, temperature=None):
         self.attempted = True
         errors = []
         for i, model in enumerate(self.models):
@@ -576,7 +806,7 @@ class _ModelChain:
             provider = self.backend._make(model)
             try:
                 comp = self._call(provider, model, role, prompt, system,
-                                  max_tokens, logprobs)
+                                  max_tokens, logprobs, stop, temperature)
             except ProviderError as exc:
                 errors.append(exc)
                 self.backend.log(f"{role} call failed: {_status_text(exc)} model={model}")
@@ -594,10 +824,16 @@ class _ModelChain:
             return comp
         raise _most_specific(errors)
 
-    def _call(self, provider, model, role, prompt, system, max_tokens, logprobs):
+    def _call(self, provider, model, role, prompt, system, max_tokens, logprobs,
+              stop=None, temperature=None):
+        extra = {}
+        if stop is not None:
+            extra["stop"] = stop
+        if temperature is not None:
+            extra["temperature"] = temperature
         try:
             return provider.complete_ex(
-                prompt, system=system, max_tokens=max_tokens, logprobs=logprobs
+                prompt, system=system, max_tokens=max_tokens, logprobs=logprobs, **extra
             )
         except ProviderError as exc:
             if not logprobs or "logprob" not in str(exc).lower():
@@ -607,7 +843,7 @@ class _ModelChain:
                 "(logprobs rejected); retrying once without logprobs"
             )
         return provider.complete_ex(
-            prompt, system=system, max_tokens=max_tokens, logprobs=False
+            prompt, system=system, max_tokens=max_tokens, logprobs=False, **extra
         )
 
 
@@ -681,6 +917,19 @@ class Backend:
             "small_model_routing": cfg.small_model_routing,
             "shrink_version": cfg.shrink_version,
             "grid_g_per_kwh": cfg.grid_g_per_kwh,
+            "task_routing": cfg.task_routing,
+            "difficulty_routing": cfg.difficulty_routing,
+            "router_threshold": cfg.router_threshold_effective,
+            "quality_target": cfg.quality_target,
+            "scorer_escalation": cfg.scorer_escalation,
+            "score_threshold": cfg.score_threshold,
+            "max_cascade_output_tokens": cfg.max_cascade_output_tokens,
+            "max_tokens_multiplier": cfg.max_tokens_multiplier,
+            "task_temperature": cfg.task_temperature,
+            "task_stop_sequences": cfg.task_stop_sequences,
+            "long_input_pruning": cfg.long_input_pruning,
+            "long_input_max_chars": cfg.long_input_max_chars,
+            "semantic_cache": cfg.semantic_cache,
             "provider_streaming": False,
         }
 
@@ -701,12 +950,65 @@ class Backend:
             raise ClientError(400, "Prompt is empty after removing filler words: add a question")
 
         # 3 (needed for the cache key). Routing, unless the client chose a mode.
-        mode = route_mode(prompt) if req.mode == "auto" else req.mode
+        # Task routing (opt-in) classifies by task type and overrides
+        # word-count routing for auto mode only; an explicit client mode
+        # always wins, and unknown prompts fall back to word count
+        # inside route_task itself. The route is still reported in meta
+        # for explicit modes, so routed answers can be judged later.
+        # The difficulty score is computed for every prompt (it is
+        # cheap and local) and reported in meta; it only changes the
+        # tier when both task routing and difficulty routing are on.
+        task_route = route_task(prompt) if cfg.task_routing else None
+        diff_score = difficulty_score(prompt)
+        is_expansion = bool(req.expand_of and req.expand_of.strip())
+        if is_expansion:
+            # Expand-on-demand: the user asked for more detail on an
+            # earlier answer, so the first answer was answer-first by
+            # design, and this second call is the detail. It always
+            # goes full mode and primary tier: expanding with the
+            # small model that gave the short answer would be a
+            # second short answer. The task format suffix is replaced
+            # by a detail instruction, so a fact suffix ("answer
+            # directly") does not pull the detail back to one line.
+            mode = "full"
+            routed_by = "expansion"
+            system_prompt = BREVITY_SYSTEM["full"] + " Explain in detail."
+        elif req.mode == "auto" and task_route is not None:
+            mode = task_route.mode
+            routed_by = "task"
+            system_prompt = BREVITY_SYSTEM[mode]
+            if task_route.format_suffix:
+                system_prompt = system_prompt + " " + task_route.format_suffix
+        else:
+            mode = route_mode(prompt) if req.mode == "auto" else req.mode
+            routed_by = "explicit" if req.mode != "auto" else "word_count"
+            system_prompt = BREVITY_SYSTEM[mode]
         self.debug(f"prompt={req.prompt!r} shrunk={prompt!r} mode={mode}")
 
         meta = {
             "mode": mode,
             "mode_source": "auto" if req.mode == "auto" else "explicit",
+            "task_type": task_route.task_type if task_route is not None else None,
+            "task_tier": task_route.tier if task_route is not None else None,
+            "routed_by": routed_by,
+            "difficulty_score": diff_score,
+            "difficulty_tier": None,
+            "difficulty_routing": cfg.difficulty_routing and routed_by == "task",
+            "router_threshold": cfg.router_threshold_effective,
+            "quality_target": cfg.quality_target,
+            "local_answer": False,
+            "semantic_cache_hit": False,
+            "semantic_similarity": None,
+            "cache_fallback": False,
+            "cache_bypass_reason": None,
+            "answer_score": None,
+            "expansion": is_expansion,
+            "expanded_from": req.expand_of if is_expansion else None,
+            "questions": prompt.count("?"),
+            "multi_part": prompt.count("?") >= 2,
+            "long_input_pruned": False,
+            "pruned_sentences": 0,
+            "pruned_chars": None,
             "shrink": {
                 "version": cfg.shrink_version,
                 "original_tokens_est": sr.original_tokens,
@@ -718,19 +1020,79 @@ class Backend:
             "baseline": None,
         }
 
+        # No-model gate: pure arithmetic is answered locally, with
+        # 0 tokens and 0 estimated energy, before any model is called.
+        # Anything that is not pure arithmetic falls through below.
+        local_answer = try_local_calc(prompt)
+        if local_answer is not None:
+            meta.update({
+                "task_type": "math",
+                "task_tier": "local",
+                "routed_by": "local",
+                "local_answer": True,
+                "cache_hit": False,
+                "model": None,
+                "model_tier": "local",
+                "escalated": False,
+                "escalation_reason": "local calculation: no model call",
+                "avg_logprob": None,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "new_output_tokens": 0,
+                "tokens_source": "local calculation: no model call, 0 new tokens",
+                "trimmed": False,
+                "truncated": False,
+                "latency_ms": round((time.monotonic() - started) * 1000),
+            })
+            receipt = energy_receipt(0, 0, model=None, model_tier="local",
+                                     grid_g_per_kwh=cfg.grid_g_per_kwh)
+            receipt["note"] = ("Local calculation: no model call, so this "
+                               "answer cost no new tokens or energy.")
+            meta["energy"] = receipt
+            self.log("chat local_calc in=0 out=0 task=math tier=local")
+            return {"answer": local_answer, "meta": meta}
+
         # Small-model routing (opt-in): sprout prompts go to the small
         # model first, with the primary chain as fallback. "Sprout" here
         # is route_mode's heuristic (short, simple, no complexity markers),
         # not a measured difficulty score, so small-model answers need
-        # live judging before routing is left on. The cache key gains a
-        # small tier prefix, so a small-model cached answer is never
-        # returned for a primary-tier request, or vice versa.
-        use_small = (cfg.small_model_routing and mode == "sprout"
-                     and cfg.small_model != cfg.model)
+        # live judging before routing is left on. With task routing on,
+        # the task tier replaces the sprout rule: a long, easy fact
+        # goes small, a short, hard question goes primary. With
+        # difficulty routing on as well, the difficulty threshold
+        # replaces the task tier. The cache key gains a small tier
+        # prefix, so a small-model cached answer is never returned for
+        # a primary-tier request, or vice versa.
+        if is_expansion:
+            use_small = False
+        elif routed_by == "task":
+            if cfg.difficulty_routing:
+                diff_tier = ("small" if diff_score < cfg.router_threshold_effective
+                             else "primary")
+                meta["difficulty_tier"] = diff_tier
+                use_small = (cfg.small_model_routing and diff_tier == "small"
+                             and cfg.small_model != cfg.model)
+            else:
+                use_small = (cfg.small_model_routing and task_route.tier == "small"
+                             and cfg.small_model != cfg.model)
+        else:
+            use_small = (cfg.small_model_routing and mode == "sprout"
+                         and cfg.small_model != cfg.model)
         meta["routed_to_small"] = use_small
         meta["small_model"] = cfg.small_model if use_small else None
 
         # 2. Session cache (mode-aware key, per client session id).
+        # A cached answer that was truncated, or scored below 0.3 when
+        # it was produced, is not reused: repeating the prompt calls
+        # the model again for a better answer. The 0.3 bar is stricter
+        # than the 0.5 escalation threshold, so only clearly bad
+        # answers bypass the cache, not merely mediocre ones. If the
+        # fresh call then fails, the cached answer is returned as a
+        # fallback (see the ProviderError handler below), so a bad
+        # cached answer never turns into an error the user did not
+        # have before.
+        bad_cache_entry = None
+        cache_bypass_reason = None
         key = cache_key(prompt, mode) if req.session_id else ""
         if key and use_small:
             key = "small:" + key
@@ -739,30 +1101,99 @@ class Backend:
                 entry = self.sessions.get(req.session_id).lookup(key)
                 entry = dict(entry) if entry else None
             if entry is not None:
-                meta.update({
-                    "cache_hit": True,
-                    "model": None,
-                    "model_tier": "small" if use_small and entry.get("model") == cfg.small_model else "primary",
-                    "cached_from_model": entry.get("model"),
-                    "escalated": False,
-                    "cached_answer_was_escalated": bool(entry.get("escalated")),
-                    "escalation_reason": "cache hit: no model call",
-                    "avg_logprob": None,
-                    "input_tokens": 0,
-                    "output_tokens": 0,
-                    "new_output_tokens": 0,
-                    "tokens_source": "cache hit: no model call, 0 new tokens",
-                    "energy": energy_receipt(
-                        0, 0, model=entry.get("model"),
-                        model_tier="small" if use_small and entry.get("model") == cfg.small_model else "primary",
-                        cache_hit=True,
-                        grid_g_per_kwh=cfg.grid_g_per_kwh),
-                    "trimmed": False,
-                    "truncated": False,
-                    "latency_ms": round((time.monotonic() - started) * 1000),
-                })
-                self.log(f"chat cache_hit model={entry.get('model')} in=0 out=0")
-                return {"answer": entry["answer"], "meta": meta}
+                cached_score = entry.get("answer_score")
+                if entry.get("truncated"):
+                    cache_bypass_reason = "cached answer was truncated"
+                elif (cached_score is not None and cached_score < 0.3):
+                    cache_bypass_reason = f"cached answer scored {cached_score} (< 0.3)"
+                if cache_bypass_reason is None:
+                    meta.update({
+                        "cache_hit": True,
+                        "model": None,
+                        "model_tier": "small" if use_small and entry.get("model") == cfg.small_model else "primary",
+                        "cached_from_model": entry.get("model"),
+                        "escalated": False,
+                        "cached_answer_was_escalated": bool(entry.get("escalated")),
+                        "escalation_reason": "cache hit: no model call",
+                        "avg_logprob": None,
+                        "answer_score": cached_score,
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "new_output_tokens": 0,
+                        "tokens_source": "cache hit: no model call, 0 new tokens",
+                        "energy": energy_receipt(
+                            0, 0, model=entry.get("model"),
+                            model_tier="small" if use_small and entry.get("model") == cfg.small_model else "primary",
+                            cache_hit=True,
+                            grid_g_per_kwh=cfg.grid_g_per_kwh),
+                        "trimmed": False,
+                        "truncated": False,
+                        "latency_ms": round((time.monotonic() - started) * 1000),
+                    })
+                    self.log(f"chat cache_hit model={entry.get('model')} in=0 out=0 "
+                         f"task={meta.get('task_type') or '-'} tier={meta.get('model_tier')}")
+                    return {"answer": entry["answer"], "meta": meta}
+                bad_cache_entry = entry
+                self.log(f"chat cache_bypass reason={cache_bypass_reason}: calling model again")
+            # Lexical semantic cache (opt-in): fact/definition prompts
+            # only, same session, same mode/tier, identical numbers,
+            # similarity at least 0.90. A miss costs nothing but a
+            # local string comparison; a hit reuses a cached answer.
+            if (bad_cache_entry is None and cfg.semantic_cache and task_route is not None
+                    and task_route.task_type in ("fact", "definition")):
+                with self.sessions.lock:
+                    entries = dict(self.sessions.get(req.session_id).entries)
+                sem_entry, similarity = _semantic_lookup(entries, key)
+                if (sem_entry is not None and sem_entry.get("truncated")) or (
+                        sem_entry is not None and sem_entry.get("answer_score") is not None
+                        and sem_entry.get("answer_score") < 0.3):
+                    # Same bad-answer rule as the exact cache, without
+                    # the fallback: a similar (not identical) cached
+                    # answer is not a safe fallback on model failure.
+                    self.log("chat semantic_cache_bypass: cached answer was truncated or low-scored")
+                    sem_entry = None
+                if sem_entry is not None:
+                    meta.update({
+                        "cache_hit": True,
+                        "semantic_cache_hit": True,
+                        "semantic_similarity": similarity,
+                        "model": None,
+                        "model_tier": "small" if use_small and sem_entry.get("model") == cfg.small_model else "primary",
+                        "cached_from_model": sem_entry.get("model"),
+                        "escalated": False,
+                        "cached_answer_was_escalated": bool(sem_entry.get("escalated")),
+                        "escalation_reason": "semantic cache hit: no model call",
+                        "avg_logprob": None,
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "new_output_tokens": 0,
+                        "tokens_source": "semantic cache hit: no model call, 0 new tokens",
+                        "energy": energy_receipt(
+                            0, 0, model=sem_entry.get("model"),
+                            model_tier="small" if use_small and sem_entry.get("model") == cfg.small_model else "primary",
+                            cache_hit=True,
+                            grid_g_per_kwh=cfg.grid_g_per_kwh),
+                        "trimmed": False,
+                        "truncated": False,
+                        "latency_ms": round((time.monotonic() - started) * 1000),
+                    })
+                    self.log(f"chat semantic_cache_hit similarity={similarity} in=0 out=0 "
+                             f"task={meta.get('task_type') or '-'} tier={meta.get('model_tier')}")
+                    return {"answer": sem_entry["answer"], "meta": meta}
+
+        # Long-input pruning (opt-in): only the model prompt is
+        # pruned. Routing, the cache key, and scoring of the original
+        # question use the unpruned prompt, so a pruned answer is
+        # still cached under the prompt the user actually sent, and
+        # a repeat returns it without re-pruning.
+        model_prompt = prompt
+        if cfg.long_input_pruning and len(prompt) > cfg.long_input_max_chars:
+            model_prompt, dropped, _orig = prune_long_prompt(
+                prompt, max_chars=cfg.long_input_max_chars)
+            if dropped:
+                meta["long_input_pruned"] = True
+                meta["pruned_sentences"] = dropped
+                meta["pruned_chars"] = len(model_prompt)
 
         # 4. Primary model (then fallbacks); logprob-gated escalation only
         #    if a separate escalation model is configured. With small-model
@@ -775,26 +1206,88 @@ class Backend:
             chain_models = (cfg.model,) + cfg.fallback_models
         primary = _ModelChain(self, chain_models)
         escalation = _Recorder(self._make(cfg.escalation_model)) if cfg.cascade_enabled else None
+        # Length control, brief #4: max_tokens is a cap by default
+        # (multiplier 1.0, unchanged behaviour). Above 1.0 it becomes
+        # a safety net, with format suffixes and stop sequences doing
+        # the length control. Temperature and stop sequences are
+        # opt-in and task-gated: temperature only when task routing
+        # is on, stop only for fact/definition, never for expansions
+        # (a detail answer legitimately has paragraphs).
+        effective_max_tokens = int(MAX_TOKENS[mode] * cfg.max_tokens_multiplier)
+        temperature = (TASK_TEMPERATURES.get(task_route.task_type)
+                       if cfg.task_temperature and task_route is not None else None)
+        stop = (["\n\n"] if cfg.task_stop_sequences and not is_expansion
+                and task_route is not None
+                and task_route.task_type in ("fact", "definition") else None)
+        meta["max_tokens_used"] = effective_max_tokens
+        meta["temperature"] = temperature
+        meta["stop_sequences"] = stop
+        def _score(prompt_arg, comp):
+            return score_answer(
+                prompt_arg, comp.text, mode=mode,
+                task_type=task_route.task_type if task_route is not None else None,
+                avg_logprob=comp.avg_logprob,
+                finish_reason=comp.finish_reason,
+            )
+
         try:
             if escalation is not None:
                 result = run_cascade(
-                    primary, escalation, prompt,
-                    system=BREVITY_SYSTEM[mode], max_tokens=MAX_TOKENS[mode],
+                    primary, escalation, model_prompt,
+                    system=system_prompt, max_tokens=effective_max_tokens,
                     threshold=cfg.cascade_threshold,
+                    score_fn=_score,
+                    score_threshold=cfg.score_threshold,
+                    score_escalates=cfg.scorer_escalation,
+                    max_total_tokens=cfg.max_cascade_output_tokens or None,
+                    stop=stop, temperature=temperature,
                 )
             else:
                 comp = primary.complete_ex(
-                    prompt, system=BREVITY_SYSTEM[mode], max_tokens=MAX_TOKENS[mode],
-                    logprobs=True,
+                    model_prompt, system=system_prompt, max_tokens=effective_max_tokens,
+                    logprobs=True, stop=stop, temperature=temperature,
                 )
+                scored = _score(model_prompt, comp)
                 result = CascadeResult(
                     completion=comp, escalated=False, avg_logprob=comp.avg_logprob,
                     reason=SINGLE_MODEL_REASON, primary_model=primary.model,
+                    score=scored["score"], score_reasons=tuple(scored["reasons"]),
                 )
         except ProviderError as exc:
             if escalation is not None and escalation.attempted:
                 self.log("escalation call failed; no answer returned")
                 raise ClientError(502, MSG_ESCALATION_FAILED)
+            if bad_cache_entry is not None:
+                # The fresh call failed, but a cached answer exists:
+                # return it rather than turning a bad answer into an
+                # error. Meta says so explicitly.
+                meta.update({
+                    "cache_hit": True,
+                    "cache_fallback": True,
+                    "cache_bypass_reason": cache_bypass_reason,
+                    "model": None,
+                    "model_tier": "small" if use_small and bad_cache_entry.get("model") == cfg.small_model else "primary",
+                    "cached_from_model": bad_cache_entry.get("model"),
+                    "escalated": False,
+                    "escalation_reason": "fresh call failed; cached answer returned as fallback",
+                    "avg_logprob": None,
+                    "answer_score": bad_cache_entry.get("answer_score"),
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "new_output_tokens": 0,
+                    "tokens_source": "cache fallback: no new model call, 0 new tokens",
+                    "energy": energy_receipt(
+                        0, 0, model=bad_cache_entry.get("model"),
+                        model_tier="small" if use_small and bad_cache_entry.get("model") == cfg.small_model else "primary",
+                        cache_hit=True,
+                        grid_g_per_kwh=cfg.grid_g_per_kwh),
+                    "trimmed": False,
+                    "truncated": bool(bad_cache_entry.get("truncated")),
+                    "latency_ms": round((time.monotonic() - started) * 1000),
+                })
+                self.log(f"chat cache_fallback: fresh call failed, cached answer returned "
+                         f"task={meta.get('task_type') or '-'} tier={meta.get('model_tier')}")
+                return {"answer": bad_cache_entry["answer"], "meta": meta}
             mapped = _provider_error(exc)
             self.log(f"no model answered; returning {mapped.status}")
             raise mapped
@@ -812,9 +1305,22 @@ class Backend:
         if not answer:
             answer = raw_text  # nothing trimmable survived; show the model's text as-is
             fragment_fixed = False
+        # Single-word exception: brevity marks a lone unit without
+        # terminal punctuation as a fragment ("Paris" -> "Paris…").
+        # A single word is a plausible complete answer (a fact, a yes/no,
+        # a number), so when the provider explicitly finished ("stop")
+        # it is treated as complete, not cut off. Any other finish
+        # reason, including "length" and unreported, keeps the mark:
+        # a multi-word fragment, or an unconfirmed finish, stays visibly
+        # incomplete rather than silently looking finished.
+        if (getattr(comp, "finish_reason", None) == "stop"
+                and " " not in raw_text and answer == raw_text + "…"):
+            answer = raw_text
+            fragment_fixed = False
         output_tokens = _sum_or_none([c.completion_tokens for c in calls])
         input_tokens = _sum_or_none([c.prompt_tokens for c in calls])
         model_used = escalation.model if result.escalated else primary.model
+        is_truncated = fragment_fixed or getattr(comp, "finish_reason", None) == "length"
 
         if key:
             with self.sessions.lock:
@@ -822,10 +1328,12 @@ class Backend:
                 if key not in cache.entries and len(cache.entries) >= MAX_CACHE_ENTRIES_PER_SESSION:
                     cache.entries.pop(next(iter(cache.entries)))
                 cache.store(key, mode, answer, output_tokens or 0)
-                cache.entries[key].update(model=model_used, escalated=result.escalated)
+                cache.entries[key].update(model=model_used, escalated=result.escalated,
+                                          answer_score=result.score, truncated=is_truncated)
 
         meta.update({
             "cache_hit": False,
+            "cache_bypass_reason": cache_bypass_reason,
             "model": model_used,
             "model_tier": "small" if use_small and primary.model == cfg.small_model else "primary",
             "primary_model": primary.model,
@@ -841,6 +1349,9 @@ class Backend:
             "escalated": result.escalated,
             "escalation_reason": result.reason,
             "avg_logprob": result.avg_logprob,
+            "answer_score": result.score,
+            "score_reasons": list(result.score_reasons),
+            "scorer_escalation": cfg.scorer_escalation,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "new_output_tokens": output_tokens,
@@ -852,7 +1363,7 @@ class Backend:
                 escalated=result.escalated,
                 grid_g_per_kwh=cfg.grid_g_per_kwh),
             "trimmed": answer != raw_text,
-            "truncated": fragment_fixed or getattr(comp, "finish_reason", None) == "length",
+            "truncated": is_truncated,
         })
 
         if req.measure_baseline:
@@ -861,7 +1372,11 @@ class Backend:
 
         meta["latency_ms"] = round((time.monotonic() - started) * 1000)
         self.log(f"chat model={model_used} in={input_tokens} out={output_tokens} "
-                 f"cache_hit=False escalated={result.escalated} latency_ms={meta['latency_ms']}")
+                 f"cache_hit=False escalated={result.escalated} "
+                 f"expansion={is_expansion} "
+                 f"task={task_route.task_type if task_route is not None else '-'} "
+                 f"tier={'small' if use_small and primary.model == cfg.small_model else 'primary'} "
+                 f"score={result.score} latency_ms={meta['latency_ms']}")
         return {"answer": answer, "meta": meta}
 
     def _baseline(self, original_prompt, input_tokens, output_tokens, model):
@@ -1117,6 +1632,14 @@ def main(argv=None):
         f"{config.global_limit_per_day}/day global | "
         f"paid models: {'ALLOWED' if config.allow_paid_models else 'blocked'} | "
         f"small routing: {'on (' + config.small_model + ')' if config.small_model_routing else 'off'} | "
+        f"task routing: {'on' if config.task_routing else 'off'} | "
+        f"difficulty routing: {'on (threshold ' + str(config.router_threshold_effective) + ')' if config.difficulty_routing else 'off'} | "
+        f"scorer escalation: {'on' if config.scorer_escalation else 'off (report only)'} | "
+        f"max_tokens multiplier: {config.max_tokens_multiplier} | "
+        f"task temperature: {'on' if config.task_temperature else 'off'} | "
+        f"task stop sequences: {'on' if config.task_stop_sequences else 'off'} | "
+        f"long-input pruning: {'on' if config.long_input_pruning else 'off'} | "
+        f"semantic cache: {'on' if config.semantic_cache else 'off'} | "
         f"shrink: {config.shrink_version} | "
         f"prompt logging: {'ON (stderr only)' if config.debug_log else 'off'}"
     )

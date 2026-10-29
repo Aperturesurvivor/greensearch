@@ -1,0 +1,118 @@
+{
+  "cases": [
+    {
+      "mode": "sprout",
+      "prompt": "What is the capital of France?",
+      "task_type": "fact",
+      "tier": "small"
+    },
+    {
+      "mode": "sprout",
+      "prompt": "Could you please tell me, in your own words and whenever you have a moment, what the capital of France actually is?",
+      "task_type": "fact",
+      "tier": "small"
+    },
+    {
+      "mode": "sprout",
+      "prompt": "Who wrote Pride and Prejudice?",
+      "task_type": "fact",
+      "tier": "small"
+    },
+    {
+      "mode": "sprout",
+      "prompt": "What is DNS?",
+      "task_type": "definition",
+      "tier": "small"
+    },
+    {
+      "mode": "canopy",
+      "prompt": "What does photosynthesis mean in simple terms for a biology student studying plants?",
+      "task_type": "definition",
+      "tier": "small"
+    },
+    {
+      "mode": "canopy",
+      "prompt": "How do I reset my router?",
+      "task_type": "steps",
+      "tier": "small"
+    },
+    {
+      "mode": "full",
+      "prompt": "How to set up a home network, step by step, including a guest network and parental controls?",
+      "task_type": "steps",
+      "tier": "primary"
+    },
+    {
+      "mode": "full",
+      "prompt": "Prove the Pythagorean theorem.",
+      "task_type": "reasoning",
+      "tier": "primary"
+    },
+    {
+      "mode": "full",
+      "prompt": "Compare solar and wind power for a small town.",
+      "task_type": "reasoning",
+      "tier": "primary"
+    },
+    {
+      "mode": "full",
+      "prompt": "Should I buy or rent a house right now?",
+      "task_type": "reasoning",
+      "tier": "primary"
+    },
+    {
+      "mode": "canopy",
+      "prompt": "What is 12 + 7?",
+      "task_type": "math",
+      "tier": "small"
+    },
+    {
+      "mode": "full",
+      "prompt": "A shop sells 12 boxes with 30 pens each and 5 boxes with 6 pens each. How many pens in total, step by step?",
+      "task_type": "math",
+      "tier": "primary"
+    },
+    {
+      "mode": "canopy",
+      "prompt": "Write a Python function that reverses a string.",
+      "task_type": "code",
+      "tier": "primary"
+    },
+    {
+      "mode": "full",
+      "prompt": "Debug this code: ```python\nprint(x)\n```",
+      "task_type": "code",
+      "tier": "primary"
+    },
+    {
+      "mode": "full",
+      "prompt": "Write a short story about a lighthouse keeper.",
+      "task_type": "creative",
+      "tier": "primary"
+    },
+    {
+      "mode": "full",
+      "prompt": "Brainstorm names for a coffee shop.",
+      "task_type": "creative",
+      "tier": "primary"
+    },
+    {
+      "mode": "sprout",
+      "prompt": "Explain DNS simply",
+      "task_type": "definition",
+      "tier": "small"
+    },
+    {
+      "mode": "sprout",
+      "prompt": "Tell me about dogs.",
+      "task_type": "other",
+      "tier": "small"
+    },
+    {
+      "mode": "full",
+      "prompt": "Tell me about dogs, their history, their breeds, their training, and how they changed human society over thousands of years, their role in hunting, herding, guarding, companionship, therapy, and rescue work across different cultures and time periods.",
+      "task_type": "other",
+      "tier": "primary"
+    }
+  ]
+}

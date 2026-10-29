@@ -2246,7 +2246,7 @@ var liveSession=newLiveSession();
 var liveToggle=document.getElementById('live-toggle');
 var liveUrlEl=document.getElementById('live-url');
 var liveBaselineEl=document.getElementById('live-baseline');
-function zeroLive(){return{calls:0,inTok:0,outTok:0,unreported:0,hits:0,esc:0,measured:0,saved:0};}
+function zeroLive(){return{calls:0,inTok:0,outTok:0,unreported:0,hits:0,esc:0,exp:0,measured:0,saved:0};}
 function newLiveSession(){
   var a=new Uint8Array(12),s='web-';
   if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(a);
@@ -2307,6 +2307,11 @@ function liveMetaLine(m){
   if(m.truncated)p.push('truncated at the token cap');
   if(isNum(m.input_tokens)&&isNum(m.output_tokens))p.push('tokens in '+m.input_tokens+' / out '+m.output_tokens);
   else p.push('tokens not reported by provider');
+  if(m.local_answer)p.push('answered locally (no model call)');
+  if(m.expansion)p.push('expanded (more detail on an earlier question)');
+  if(m.semantic_cache_hit)p.push('semantic cache hit'+(isNum(m.semantic_similarity)?' (similarity '+m.semantic_similarity+')':''));
+  if(m.task_type&&m.routed_by==='task'){var tt2=m.difficulty_tier||m.task_tier;p.push('task: '+m.task_type+(tt2?' · '+tt2+' tier':''));}
+  if(m.energy&&m.energy.status==='estimate'&&isNum(m.energy.energy_wh)){var e2=m.energy,et2='energy (est.): '+e2.energy_wh+' Wh, '+e2.co2e_g+' g CO₂e';if(isNum(e2.water_ml_low)&&isNum(e2.water_ml_high))et2+=', '+e2.water_ml_low+'–'+e2.water_ml_high+' mL water';p.push(et2);}
   if(isNum(m.latency_ms))p.push(m.latency_ms+' ms');
   if(m.baseline){
     if(m.baseline.error)p.push('baseline: '+m.baseline.error);
@@ -2331,6 +2336,10 @@ function liveMetaRow(t){
     mm.appendChild(infoTag('from '+m.cached_from_model+(m.cached_answer_was_escalated?' (escalated)':''),'Cached answer: no model was called for this message'));
   }
   mm.appendChild(infoTag(isNum(m.input_tokens)&&isNum(m.output_tokens)?(m.input_tokens+' in / '+m.output_tokens+' out'):'tokens not reported','Provider-reported tokens for this message'));
+  if(m.local_answer)mm.appendChild(infoTag('answered locally','No model was called: pure arithmetic answered on the backend, 0 tokens'));
+  if(m.semantic_cache_hit)mm.appendChild(infoTag('semantic cache hit'+(isNum(m.semantic_similarity)?' ('+m.semantic_similarity+')':''),'Cached answer reused: a similar prompt in this session, with identical numbers'));
+  if(m.task_type&&m.routed_by==='task'){var tt=m.difficulty_tier||m.task_tier;mm.appendChild(infoTag('task: '+m.task_type+(tt?' · '+tt+' tier':''),'Task routing: model tier picked by task type'+(m.difficulty_score!==undefined?' (difficulty '+m.difficulty_score+')':'')));}
+  if(m.energy&&m.energy.status==='estimate'&&isNum(m.energy.energy_wh)){var e=m.energy,etxt=e.energy_wh+' Wh · '+e.co2e_g+' g CO₂e';if(isNum(e.water_ml_low)&&isNum(e.water_ml_high))etxt+=' · '+e.water_ml_low+'–'+e.water_ml_high+' mL water';mm.appendChild(infoTag(etxt+' (est.)',e.note||'Estimated from provider-reported tokens, not carbon accounting'));}
   if(isNum(m.latency_ms))mm.appendChild(infoTag(m.latency_ms+' ms','Backend latency'));
   if(m.truncated)mm.appendChild(infoTag('truncated','The answer hit the token cap: a cut-off last sentence was dropped or marked with …','tg-warn'));
   if(m.baseline){
@@ -2338,6 +2347,8 @@ function liveMetaRow(t){
     mm.appendChild(infoTag(b.error?'baseline failed':(isNum(b.saved_total_tokens)?'saved '+b.saved_total_tokens+' (measured)':'baseline: no counts'),b.error||b.note||''));
   }
   mm.appendChild(actBtn('⧉ Copy','Copy live answer to: '+short(t.raw),function(){copyText(t.answer,'Answer copied!');}));
+  if(m.expansion)mm.appendChild(infoTag('expanded','This answer was requested as more detail on an earlier question'));
+  else mm.appendChild(actBtn('More detail','Ask for a longer answer to this question (a second, primary-model call)',function(){sendLive('Explain in more detail: '+t.raw,'More detail: '+short(t.raw),t.raw);}));
   return mm;
 }
 /* Minimal SSE block parser: "event: x" + "data: <json>" lines. */
@@ -2407,14 +2418,14 @@ function liveRequest(url,body,on){
       :'Could not reach the backend at '+url+'. Is it running, and does it allow this page\'s origin?');
   });
 }
-function sendLive(raw){
+function sendLive(raw,display,expandOf){
   if(!raw.trim())return;
   var url=liveUrlEl.value.trim()||LIVE_DEFAULT_URL;
   var t={live:true,raw:raw,seq:++seqCounter,answer:'',meta:null,error:null};
   liveTurns.push(t);
   var wrap=document.createElement('div');wrap.className='turn';t.el=wrap;
   var urow=document.createElement('div');urow.className='mr user';
-  var ub=document.createElement('div');ub.className='bubble';ub.textContent=raw;
+  var ub=document.createElement('div');ub.className='bubble';ub.textContent=display||raw;
   urow.appendChild(ub);wrap.appendChild(urow);chatEl.appendChild(wrap);
   chatEl.scrollTop=chatEl.scrollHeight;
   var ind=addTypingIndicator(wrap),bubble=null;
@@ -2431,7 +2442,9 @@ function sendLive(raw){
     t.error='The backend URL must start with http:// or https://.';
     ensureBubble('err').textContent=t.error;return;
   }
-  liveRequest(url,{prompt:raw,session_id:liveSession,mode:'auto',stream:true,measure_baseline:!!liveBaselineEl.checked},{
+  var body={prompt:raw,session_id:liveSession,mode:expandOf?'full':'auto',stream:true,measure_baseline:!!liveBaselineEl.checked};
+  if(expandOf)body.expand_of=expandOf;
+  liveRequest(url,body,{
     chunk:function(text){
       if(liveTurns.indexOf(t)<0)return;
       t.answer+=text;ensureBubble('typing').textContent=t.answer;scrollBottom();
@@ -2452,6 +2465,7 @@ function sendLive(raw){
       var T=liveTotals;T.calls++;
       if(m.cache_hit)T.hits++;
       if(m.escalated)T.esc++;
+      if(m.expansion)T.exp++;
       if(isNum(m.input_tokens)&&isNum(m.output_tokens)){T.inTok+=m.input_tokens;T.outTok+=m.output_tokens;}
       else T.unreported++;
       if(m.baseline&&isNum(m.baseline.saved_total_tokens)){T.measured++;T.saved+=m.baseline.saved_total_tokens;}
