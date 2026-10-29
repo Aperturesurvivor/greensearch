@@ -816,14 +816,10 @@ a:hover { text-decoration-color: var(--teal) }
 /* ── Live mode ── */
 [hidden] { display: none !important }
 .live-pill { font-size: 10px; font-weight: 600; font-family: var(--font-mono); padding: 3px 9px; border-radius: 4px; background: var(--teal); color: var(--on-accent); letter-spacing: .08em; text-transform: uppercase }
-.live-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 6px 32px; background: var(--surface); font-size: 14px }
 .live-sw { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; color: var(--ink2); cursor: pointer; min-height: 44px }
 .live-sw input { width: 18px; height: 18px; accent-color: var(--teal); cursor: pointer }
-.live-opts { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; flex: 1 }
-.live-opts label { font-size: 13px; color: var(--ink2) }
 .live-url { flex: 1; min-width: 220px; max-width: 420px; min-height: 40px; background: var(--bg); border: 1px solid var(--border); color: var(--ink); border-radius: var(--rs); padding: 6px 12px; font: 13px var(--font-mono) }
 .live-url:focus { border-color: var(--teal); outline: none }
-.live-banner { width: 100%; background: var(--amber-dim); color: var(--ink); border-radius: var(--rs); padding: 6px 12px; font-size: 13px; font-weight: 600; margin-bottom: 4px }
 .ti-lbl { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font: 600 10px var(--font-mono); letter-spacing: .06em; color: var(--ink3); padding: 6px 12px; text-align: center; text-transform: uppercase }
 .totals-live { background: var(--totals-bg); max-width: 900px; margin: 0 auto }
 .totals-live .tn { color: var(--totals-num) }
@@ -917,7 +913,6 @@ a:hover { text-decoration-color: var(--teal) }
   .diff-row { max-width: 90% }
   .hd { padding: 14px 16px }
   .hd .lbl { display: none }
-  .live-bar { padding: 4px 16px }
   .edit-box { width: 100% }
 }
 /* ── Hero chat: mobile fixes ── */
@@ -1164,25 +1159,6 @@ a:hover { text-decoration-color: var(--teal) }
 
 <div class="main">
   <button class="side-toggle" id="side-toggle" type="button" aria-expanded="false" aria-controls="sidebar"><span>Topics, stats &amp; how it works</span><span class="chev" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span></button>
-  <div class="cp">
-    <div class="cs" id="chat-old" role="region" aria-label="Conversation"></div>
-    <div class="sr-only" id="sr-live-old" aria-live="polite" aria-atomic="true"></div>
-    <div class="ia">
-      <div class="ip-bar">
-        <div class="ip-preview" id="ip-prev-old"></div>
-        <div class="ip-count" id="ip-cnt-old"></div>
-      </div>
-      <div class="ir">
-        <input id="ci-old" type="text" placeholder="Ask something, try: Explain DNS simply" autocomplete="off" aria-label="Your question">
-        <button class="btn-s" id="sb-old" type="button">Send</button>
-        <button class="btn-cl" id="cb-old" type="button" title="Clear chat" aria-label="Clear chat and saved session"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-      </div>
-      <div class="chips" id="chips-old" role="group" aria-label="Sample questions"></div>
-      <div class="shrink-bar" id="shrink-bar-old"><div class="shrink-bar-fill" id="shrink-bar-fill-old"></div></div>
-      <p class="hint">Enter to send · 95 topics · try anything</p>
-    </div>
-  </div>
-
   <aside class="sidebar" id="sidebar" aria-label="About Arboris">
     <div class="panel">
       <div class="pt">How it works</div>
@@ -1238,10 +1214,7 @@ a:hover { text-decoration-color: var(--teal) }
 </div>
 
 <div hidden aria-hidden="true" style="display:none">
-  <div id="live-bar"></div>
   <input id="live-toggle" type="checkbox">
-  <div id="live-opts"></div>
-  <div id="live-banner"></div>
 </div>
 <footer class="site-footer">
   <div class="footer-line">
@@ -2209,7 +2182,7 @@ function ask(raw){if(liveOn)sendLive(raw);else send(raw);}
 document.getElementById('cb').addEventListener('click',function(){
   epoch++;
   chatEl.innerHTML='';cache={};totals=zeroTotals();history=[];turns=[];restored=false;
-  clearState();
+  clearState();clearLiveState();
   var heroEl=document.querySelector('.hero');if(heroEl)heroEl.classList.remove('chatting');
   ['t-calls','t-base','t-green','t-saved'].forEach(function(id){
     var el=document.getElementById(id);if(el){el.textContent='0';el.dataset.v='0';}
@@ -2349,8 +2322,10 @@ SAMPLES.forEach(function(s){
    the raw text: the backend runs PromptShrink, cache, routing, the 4B→8B
    cascade and the brevity trim, so nothing is shrunk twice. No API key ever
    lives in this page. Live answers and totals are kept apart from the demo
-   ones and are not written to localStorage; only the backend URL is. */
+   ones. The backend URL and live conversation history are saved to
+   localStorage so the session survives a page reload. */
 var LIVE_URL_KEY='greensearch-live-backend-url';
+var LIVE_STATE_KEY='greensearch-live-v1';
 /* On a Cloud Run host (*.run.app) the backend serves this page, so the
    live URL defaults to the same origin. Everywhere else (including the
    GitHub Pages demo, which has no backend) it defaults to localhost,
@@ -2421,8 +2396,26 @@ function setLive(on,quiet){
 function resetLive(){
   liveCtrls.forEach(function(c){try{c.abort();}catch(e){}});
   liveCtrls=[];liveTurns=[];liveTotals=zeroLive();liveSession=newLiveSession();
+  clearLiveState();
   renderLiveTotals();
 }
+function saveLiveState(){
+  try{
+    localStorage.setItem(LIVE_STATE_KEY,JSON.stringify({v:1,savedAt:new Date().toISOString(),
+      turns:liveTurns.filter(function(t){return t.answer&&!t.error;}).map(function(t){
+        return{raw:t.raw,answer:t.answer,meta:t.meta};
+      }),
+      totals:liveTotals,session:liveSession}));
+  }catch(e){}
+}
+function loadLiveState(){
+  var s;
+  try{s=JSON.parse(localStorage.getItem(LIVE_STATE_KEY)||'null');}catch(e){return null;}
+  if(!s||s.v!==1||!Array.isArray(s.turns)||!s.turns.length||!s.totals)return null;
+  var ok=s.turns.every(function(t){return t&&typeof t.raw==='string'&&typeof t.answer==='string';});
+  return ok?s:null;
+}
+function clearLiveState(){try{localStorage.removeItem(LIVE_STATE_KEY);}catch(e){}}
 function renderLiveTotals(){
   var T=liveTotals;
   function set(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
@@ -2610,6 +2603,7 @@ function sendLive(raw,display,expandOf){
       else T.unreported++;
       if(m.baseline&&isNum(m.baseline.saved_total_tokens)){T.measured++;T.saved+=m.baseline.saved_total_tokens;}
       renderLiveTotals();
+      saveLiveState();
       announce('Live answer ('+liveMetaLine(m)+'): '+t.answer);
     }
   });
@@ -2636,6 +2630,30 @@ if(saved){
 } else {
   addWelcome();
   renderTotals(true);
+}
+/* ── Restore live turns ── */
+var savedLive=loadLiveState();
+if(savedLive){
+  liveSession=savedLive.session||newLiveSession();
+  liveTotals=savedLive.totals;
+  savedLive.turns.forEach(function(st){
+    var t={live:true,raw:st.raw,seq:++seqCounter,answer:st.answer,meta:st.meta||{},error:null};
+    liveTurns.push(t);
+    var wrap=document.createElement('div');wrap.className='turn';t.el=wrap;
+    var urow=document.createElement('div');urow.className='mr user';
+    var ub=document.createElement('div');ub.className='bubble';ub.textContent=st.raw;
+    urow.appendChild(ub);wrap.appendChild(urow);
+    var brow=document.createElement('div');brow.className='mr bot';
+    var bb=document.createElement('div');bb.className='bubble';bb.textContent=st.answer;
+    brow.appendChild(bb);wrap.appendChild(brow);
+    wrap.appendChild(liveMetaRow(t));
+    chatEl.appendChild(wrap);
+  });
+  renderLiveTotals();
+  if(liveTurns.length){
+    chatEl.scrollTop=chatEl.scrollHeight;
+    var heroEl=document.querySelector('.hero');if(heroEl)heroEl.classList.add('chatting');
+  }
 }
 });
 }
