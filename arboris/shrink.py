@@ -139,7 +139,7 @@ def shrink(prompt: str, count_fn=None) -> "ShrinkResult":
     default it is the word estimate from tokens.py.
     """
     if count_fn is None:
-        from greensearch.tokens import est_tokens  # deferred to avoid circular import
+        from arboris.tokens import est_tokens  # deferred to avoid circular import
         count_fn = est_tokens
 
     if not prompt or not prompt.strip():
@@ -282,7 +282,7 @@ def _recapitalise(text: str) -> str:
 #      drop a constraint. A prompt that fails the gate gets pass 1 only.
 #
 # Tokenizer-aware counting is not a new pass: shrink_v2() takes the same
-# count_fn as shrink(), so callers can pass greensearch.tokenizer
+# count_fn as shrink(), so callers can pass arboris.tokenizer
 # .count_tokens with backend="tiktoken" for real token counts, or leave
 # the default word estimate. The quality script (scripts/shrink_quality.py)
 # reports both tokens saved AND answers changed, because a shrink that
@@ -358,7 +358,7 @@ def shrink_v2(prompt: str, count_fn=None) -> "ShrinkResult":
     keep v1 numbers until a switch is explicitly approved.
     """
     if count_fn is None:
-        from greensearch.tokens import est_tokens  # deferred, as in shrink()
+        from arboris.tokens import est_tokens  # deferred, as in shrink()
         count_fn = est_tokens
 
     if not prompt or not prompt.strip():

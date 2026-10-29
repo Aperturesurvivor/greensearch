@@ -17,14 +17,14 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.brevity import apply_brevity, split_sentences, strip_filler_clauses
-from greensearch.cli import main
-from greensearch.footprint import CO2_PER_TOKEN_G, footprint
-from greensearch.providers import (
+from arboris.brevity import apply_brevity, split_sentences, strip_filler_clauses
+from arboris.cli import main
+from arboris.footprint import CO2_PER_TOKEN_G, footprint
+from arboris.providers import (
     DemoProvider, OpenAICompatibleProvider, ProviderError,
 )
-from greensearch.router import route_mode
-from greensearch.session import Session
+from arboris.router import route_mode
+from arboris.session import Session
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = json.loads((ROOT / "spec" / "routing_cases.json").read_text())
@@ -240,7 +240,7 @@ class TestCliHonesty(unittest.TestCase):
         with mock.patch("urllib.request.urlopen", side_effect=replies) as urlopen:
             code, out, _ = self.run_cli(
                 ["explain it", "--provider", "live", "--mode", "sprout", "--measure-baseline"],
-                env={"GREENSEARCH_API_KEY": "k"},
+                env={"ARBORIS_API_KEY": "k"},
             )
         self.assertEqual(code, 0)
         self.assertEqual(urlopen.call_count, 2)
@@ -249,7 +249,7 @@ class TestCliHonesty(unittest.TestCase):
     def test_live_no_constrain_sends_no_system_prompt(self):
         with mock.patch("urllib.request.urlopen", return_value=reply("Hi.")) as urlopen:
             self.run_cli(["hello", "--provider", "live", "--no-constrain"],
-                         env={"GREENSEARCH_API_KEY": "k"})
+                         env={"ARBORIS_API_KEY": "k"})
         body = json.loads(urlopen.call_args[0][0].data)
         self.assertEqual(len(body["messages"]), 1)
         self.assertNotIn("max_tokens", body)
@@ -257,7 +257,7 @@ class TestCliHonesty(unittest.TestCase):
     def test_live_default_constrains_generation(self):
         with mock.patch("urllib.request.urlopen", return_value=reply("Hi.")) as urlopen:
             self.run_cli(["hello", "--provider", "live", "--mode", "sprout"],
-                         env={"GREENSEARCH_API_KEY": "k"})
+                         env={"ARBORIS_API_KEY": "k"})
         body = json.loads(urlopen.call_args[0][0].data)
         self.assertEqual(body["messages"][0]["role"], "system")
         self.assertEqual(body["max_tokens"], 120)
@@ -266,7 +266,7 @@ class TestCliHonesty(unittest.TestCase):
         fake = FakeResponse(b'{"choices":[{"message":{"content":null}}]}')
         with mock.patch("urllib.request.urlopen", return_value=fake):
             code, _out, err = self.run_cli(
-                ["hello", "--provider", "live"], env={"GREENSEARCH_API_KEY": "k"}
+                ["hello", "--provider", "live"], env={"ARBORIS_API_KEY": "k"}
             )
         self.assertEqual(code, 2)
         self.assertIn("Error:", err)

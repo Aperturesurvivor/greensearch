@@ -1,32 +1,32 @@
 #!/usr/bin/env python3
-"""GreenSearch live backend: POST /api/chat and GET /api/health.
+"""Arboris live backend: POST /api/chat and GET /api/health.
 
 Standard library only. All secrets and model choices come from the
 environment; nothing secret is ever accepted from, or returned to, the
 client. See server/README.md for the full env var table and run steps.
 
 Pipeline per chat request, in order:
-  1. PromptShrink the prompt (greensearch.shrink).
-  2. Session cache check (greensearch.cache), per client session id,
+  1. PromptShrink the prompt (arboris.shrink).
+  2. Session cache check (arboris.cache), per client session id,
      mode-aware. A hit makes no model call: 0 new output tokens.
-  3. Auto routing (greensearch.router), unless the client sent a mode.
-  4. One call to the primary model (GREENSEARCH_MODEL, default
+  3. Auto routing (arboris.router), unless the client sent a mode.
+  4. One call to the primary model (ARBORIS_MODEL, default
      google/gemma-4-31b-it:free, a named general chat model) with the
      brevity system prompt and token cap, logprobs
      requested. By default that is the only model call: escalated=false,
      reason "single model: no separate escalation model configured".
      If that call fails with HTTP 429/404/502/503 (or 402 when the next
-     model is free), each GREENSEARCH_MODEL_FALLBACKS model is tried in
+     model is free), each ARBORIS_MODEL_FALLBACKS model is tried in
      order until one answers; 401 fails at once. If a provider rejects
      logprobs, the same model is retried once without them first.
-     Optional cascade: only if GREENSEARCH_ESCALATION_MODEL is set to a
+     Optional cascade: only if ARBORIS_ESCALATION_MODEL is set to a
      DIFFERENT model does the logprob-gated cascade run
-     (greensearch.cascade): if avg_logprob is present and below the
+     (arboris.cascade): if avg_logprob is present and below the
      threshold, the escalation model is called with the SAME system
      prompt and cap. Missing logprobs never escalate. An escalation
      failure is an error to the client, never a silent fallback to the
      primary answer.
-  5. apply_brevity as a safety-net trim (greensearch.brevity). A
+  5. apply_brevity as a safety-net trim (arboris.brevity). A
      cut-off final sentence is dropped (or marked with an ellipsis), and
      meta "truncated" says so.
 
@@ -58,22 +58,22 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from greensearch.brevity import apply_brevity_with_flag  # noqa: E402
-from greensearch.cache import SessionCache, cache_key  # noqa: E402
-from greensearch.cascade import CascadeResult, run_cascade  # noqa: E402
-from greensearch.providers import (  # noqa: E402
+from arboris.brevity import apply_brevity_with_flag  # noqa: E402
+from arboris.cache import SessionCache, cache_key  # noqa: E402
+from arboris.cascade import CascadeResult, run_cascade  # noqa: E402
+from arboris.providers import (  # noqa: E402
     BREVITY_SYSTEM,
     MAX_TOKENS,
     OpenAICompatibleProvider,
     ProviderError,
 )
-from greensearch.router import route_mode  # noqa: E402
-from greensearch.task_router import QUALITY_THRESHOLDS, TASK_TEMPERATURES, difficulty_score, route_task  # noqa: E402
-from greensearch.long_input import prune_long_prompt  # noqa: E402
-from greensearch.local_calc import try_local_calc  # noqa: E402
-from greensearch.scorer import score_answer  # noqa: E402
-from greensearch.footprint import energy_receipt  # noqa: E402
-from greensearch.shrink import shrink, shrink_v2  # noqa: E402
+from arboris.router import route_mode  # noqa: E402
+from arboris.task_router import QUALITY_THRESHOLDS, TASK_TEMPERATURES, difficulty_score, route_task  # noqa: E402
+from arboris.long_input import prune_long_prompt  # noqa: E402
+from arboris.local_calc import try_local_calc  # noqa: E402
+from arboris.scorer import score_answer  # noqa: E402
+from arboris.footprint import energy_receipt  # noqa: E402
+from arboris.shrink import shrink, shrink_v2  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Plain-language client messages. These are the ONLY error texts a client
@@ -87,11 +87,11 @@ MSG_RATE_LIMITED = "Too many requests, try again later"
 MSG_KEY_REJECTED = "The model provider rejected the API key, check the key on the server"
 MSG_NO_CREDITS = (
     "The model provider reports no credits for this paid model: add credits "
-    "or switch GREENSEARCH_MODEL to a free model"
+    "or switch ARBORIS_MODEL to a free model"
 )
 MSG_MODEL_NOT_FOUND = (
     "The model was not found or is deprecated at the provider: check the "
-    "GREENSEARCH_MODEL id"
+    "ARBORIS_MODEL id"
 )
 MSG_ESCALATION_FAILED = (
     "The escalation model could not be reached, so no answer was returned "
@@ -135,64 +135,65 @@ _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 # model choice is server configuration.
 _FORBIDDEN_FIELDS = {
     "api_key", "apikey", "key", "token", "authorization", "secret",
-    "openai_api_key", "greensearch_api_key", "model", "base_url",
+    "openai_api_key", "arboris_api_key", "greensearch_api_key",
+    "model", "base_url",
 }
 
 # (name, default shown in --help and README, description)
 ENV_VARS = [
-    ("GREENSEARCH_API_KEY", "(unset)",
+    ("ARBORIS_API_KEY", "(unset)",
      "Provider API key. Server-side only. Unset = /api/chat returns 503."),
-    ("GREENSEARCH_BASE_URL", DEFAULT_BASE_URL,
+    ("ARBORIS_BASE_URL", DEFAULT_BASE_URL,
      "OpenAI-compatible base URL (https; http only for localhost)."),
-    ("GREENSEARCH_MODEL", DEFAULT_MODEL, "Primary model; answers every request."),
-    ("GREENSEARCH_MODEL_FALLBACKS", ",".join(DEFAULT_FALLBACKS),
+    ("ARBORIS_MODEL", DEFAULT_MODEL, "Primary model; answers every request."),
+    ("ARBORIS_MODEL_FALLBACKS", ",".join(DEFAULT_FALLBACKS),
      "Comma-separated models tried in order when the primary call fails "
      "(429/404/502/503, or 402 towards a free model). 'none' disables."),
-    ("GREENSEARCH_ESCALATION_MODEL", "(= GREENSEARCH_MODEL: no escalation)",
+    ("ARBORIS_ESCALATION_MODEL", "(= ARBORIS_MODEL: no escalation)",
      "Optional. Set to a DIFFERENT model to enable the logprob cascade."),
-    ("GREENSEARCH_CASCADE_THRESHOLD", "-1.0",
+    ("ARBORIS_CASCADE_THRESHOLD", "-1.0",
      "Mean-logprob escalation threshold, must be <= 0. Cascade only."),
-    ("GREENSEARCH_BACKEND_ORIGIN", ",".join(DEFAULT_ORIGINS),
+    ("ARBORIS_BACKEND_ORIGIN", ",".join(DEFAULT_ORIGINS),
      "CORS allowlist of exact origins, separated by commas and/or spaces; "
      "trailing slashes are stripped. '*' is refused."),
-    ("GREENSEARCH_RATE_LIMIT_PER_HOUR", "30",
+    ("ARBORIS_RATE_LIMIT_PER_HOUR", "30",
      "Chat requests per client IP per rolling hour. 0 disables the limit."),
-    ("GREENSEARCH_RATE_LIMIT_PER_DAY", "100",
+    ("ARBORIS_RATE_LIMIT_PER_DAY", "100",
      "Chat requests per client IP per rolling day (86400s). 0 disables."),
-    ("GREENSEARCH_GLOBAL_LIMIT_PER_DAY", "800",
+    ("ARBORIS_GLOBAL_LIMIT_PER_DAY", "800",
      "Chat requests in total per rolling day, all IPs combined. 0 disables. "
      "POC guard: keeps one abusive IP, or many IPs, from burning the "
      "OpenRouter free quota (1000/day after a $10 credit) or paid credits."),
-    ("GREENSEARCH_ALLOW_PAID_MODELS", "off",
+    ("ARBORIS_ALLOW_PAID_MODELS", "off",
      "1/true/yes/on allows a non-free primary, fallback, or escalation model. "
      "Off by default: a paid model must be enabled deliberately, so a config "
      "mistake cannot drain credits."),
-    ("GREENSEARCH_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free",
+    ("ARBORIS_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free",
      "Small model tried first for sprout prompts when small-model routing "
      "is on. 2.6B vs the 31B primary: the efficiency lever, not a quality "
-     "claim. Must be free unless GREENSEARCH_ALLOW_PAID_MODELS is on."),
-    ("GREENSEARCH_SMALL_MODEL_ROUTING", "off",
+     "claim. Must be free unless ARBORIS_ALLOW_PAID_MODELS is on."),
+    ("ARBORIS_SMALL_MODEL_ROUTING", "off",
      "1/true/yes/on routes sprout prompts (short, simple, per route_mode) "
-     "to GREENSEARCH_SMALL_MODEL first, with the primary chain as fallback. "
+     "to ARBORIS_SMALL_MODEL first, with the primary chain as fallback. "
      "Off by default: enable live, judge small-model answers, then decide."),
-    ("GREENSEARCH_SHRINK_VERSION", "v1",
+    ("ARBORIS_SHRINK_VERSION", "v1",
      "PromptShrink version for live requests: v1 (default) or v2 "
      "(redundancy + gated telegraphic, 39% vs 32% saved on the corpus). "
      "v2 is opt-in only: flip it live, judge v1-vs-v2 answers, then decide. "
      "Any other value refuses to start."),
-    ("GREENSEARCH_GRID_G_PER_KWH", "400",
+    ("ARBORIS_GRID_G_PER_KWH", "400",
      "Grid carbon intensity for the per-answer energy receipt, in "
      "gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter "
      "does not disclose where inference ran, so no region is claimed. "
      "A non-positive value refuses to start."),
-    ("GREENSEARCH_TASK_ROUTING", "off",
+    ("ARBORIS_TASK_ROUTING", "off",
      "1/true/yes/on routes by task type (fact, definition, steps, "
      "reasoning, math, code, creative, other) instead of word count, "
      "when the client did not choose a mode explicitly. Unknown "
      "prompts fall back to word-count routing. Off by default: "
      "enable live, judge routed answers, then decide. Meta reports "
      "task_type, task_tier, and routed_by on every answer."),
-    ("GREENSEARCH_DIFFICULTY_ROUTING", "off",
+    ("ARBORIS_DIFFICULTY_ROUTING", "off",
      "1/true/yes/on lets a 0-1 difficulty score override the task "
      "tier when task routing is on: score below the threshold goes "
      "small, at or above goes primary. The score is a transparent "
@@ -200,61 +201,61 @@ ENV_VARS = [
      "0.5 threshold it reproduces the task tiers exactly, so "
      "turning it on alone changes nothing. Moving the threshold is "
      "what moves traffic. Meta reports difficulty_score."),
-    ("GREENSEARCH_ROUTER_THRESHOLD", "0.5",
+    ("ARBORIS_ROUTER_THRESHOLD", "0.5",
      "Difficulty-score threshold for small vs primary, 0-1. "
-     "Overridden by GREENSEARCH_QUALITY_TARGET=eco (0.7) or "
+     "Overridden by ARBORIS_QUALITY_TARGET=eco (0.7) or "
      "=quality (0.3) when that target is set."),
-    ("GREENSEARCH_QUALITY_TARGET", "balanced",
+    ("ARBORIS_QUALITY_TARGET", "balanced",
      "Routing preset: eco (threshold 0.7, more small-model answers), "
-     "balanced (uses GREENSEARCH_ROUTER_THRESHOLD), quality (0.3, "
+     "balanced (uses ARBORIS_ROUTER_THRESHOLD), quality (0.3, "
      "more primary answers). Only affects routing when difficulty "
      "routing is on. Any other value refuses to start."),
-    ("GREENSEARCH_SCORER_ESCALATION", "off",
+    ("ARBORIS_SCORER_ESCALATION", "off",
      "1/true/yes/on lets the transparent answer scorer trigger "
-     "escalation when its score is below GREENSEARCH_SCORE_THRESHOLD. "
+     "escalation when its score is below ARBORIS_SCORE_THRESHOLD. "
      "Off by default: the score is still reported in meta, but only "
      "the logprob cascade can escalate. Unlike logprobs, the scorer "
      "works when logprobs are unavailable."),
-    ("GREENSEARCH_SCORE_THRESHOLD", "0.5",
+    ("ARBORIS_SCORE_THRESHOLD", "0.5",
      "Answer-score escalation threshold, 0-1. Only used when "
-     "GREENSEARCH_SCORER_ESCALATION is on."),
-    ("GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS", "0",
+     "ARBORIS_SCORER_ESCALATION is on."),
+    ("ARBORIS_MAX_CASCADE_OUTPUT_TOKENS", "0",
      "Budget gate: if the primary answer already used more than "
      "this many output tokens, no escalation happens, even on a "
      "low-confidence trigger. 0 disables. Provider-reported tokens "
      "only; unreported tokens never block escalation."),
-    ("GREENSEARCH_MAX_TOKENS_MULTIPLIER", "1.0",
+    ("ARBORIS_MAX_TOKENS_MULTIPLIER", "1.0",
      "Multiplier on the per-mode max_tokens cap (120/240/400 for "
      "sprout/canopy/full). 1.0 is the current behaviour. Above 1.0, "
      "max_tokens becomes a safety net well above the expected budget, "
      "with format suffixes and (optionally) stop sequences doing the "
      "length control instead of the cap. Must be > 0 and at most 4; "
      "anything else refuses to start. Meta reports max_tokens_used."),
-    ("GREENSEARCH_TASK_TEMPERATURE", "off",
+    ("ARBORIS_TASK_TEMPERATURE", "off",
      "1/true/yes/on sends a temperature by task type (fact, "
      "definition, math, code 0.2; steps, reasoning 0.5; creative "
      "0.8; other: provider default) when task routing is on. Off "
      "by default: no temperature is sent, so the provider default "
      "applies. Meta reports temperature."),
-    ("GREENSEARCH_TASK_STOP_SEQUENCES", "off",
+    ("ARBORIS_TASK_STOP_SEQUENCES", "off",
      "1/true/yes/on sends stop=[\"\\n\\n\"] for fact and definition "
      "prompts when task routing is on, so the model ends at a "
      "paragraph boundary instead of running on. Off by default: "
      "no stop sequence is sent. Meta reports stop_sequences."),
-    ("GREENSEARCH_LONG_INPUT_PRUNING", "off",
+    ("ARBORIS_LONG_INPUT_PRUNING", "off",
      "1/true/yes/on enables conservative extractive pruning for "
-     "prompts longer than GREENSEARCH_LONG_INPUT_MAX_CHARS: first "
+     "prompts longer than ARBORIS_LONG_INPUT_MAX_CHARS: first "
      "and last sentences, plus sentences with digits, questions, "
      "quoted strings, proper nouns, or code, are kept; other "
      "sentences are dropped, and a pruning note is appended so "
      "the model knows input was pruned. Off by default: normal "
      "chat prompts are untouched. Meta reports long_input_pruned, "
      "pruned_sentences, and pruned_chars."),
-    ("GREENSEARCH_LONG_INPUT_MAX_CHARS", "1500",
+    ("ARBORIS_LONG_INPUT_MAX_CHARS", "1500",
      "Prompt length above which long-input pruning runs, when "
      "pruning is on. Must be at least 500; anything else refuses "
      "to start."),
-    ("GREENSEARCH_SEMANTIC_CACHE", "off",
+    ("ARBORIS_SEMANTIC_CACHE", "off",
      "1/true/yes/on enables a conservative lexical semantic cache: "
      "a fact/definition prompt with a difflib ratio at least 0.90 "
      "and token overlap at least 0.80 against a cached prompt in "
@@ -263,7 +264,7 @@ ENV_VARS = [
      "so it misses true paraphrases rather than risking a wrong "
      "answer. Meta reports semantic_cache_hit and "
      "semantic_similarity when it fires."),
-    ("GREENSEARCH_DEBUG_LOG", "off",
+    ("ARBORIS_DEBUG_LOG", "off",
      "1/true/yes/on logs prompts to local stderr only, never to responses."),
     ("PORT", str(DEFAULT_PORT), "Listen port (also --port)."),
 ]
@@ -283,22 +284,22 @@ class ClientError(Exception):
 # ---------------------------------------------------------------------------
 
 def _shrink_version(env):
-    """Validate GREENSEARCH_SHRINK_VERSION: v1 or v2 only."""
-    version = (env.get("GREENSEARCH_SHRINK_VERSION", "") or "").strip().lower() or "v1"
+    """Validate ARBORIS_SHRINK_VERSION: v1 or v2 only."""
+    version = (env.get("ARBORIS_SHRINK_VERSION", "") or "").strip().lower() or "v1"
     if version not in ("v1", "v2"):
-        raise ValueError("GREENSEARCH_SHRINK_VERSION must be v1 or v2")
+        raise ValueError("ARBORIS_SHRINK_VERSION must be v1 or v2")
     return version
 
 
 def _grid_factor(env):
-    """Validate GREENSEARCH_GRID_G_PER_KWH: a positive number, or 400."""
-    raw = (env.get("GREENSEARCH_GRID_G_PER_KWH", "") or "").strip() or "400"
+    """Validate ARBORIS_GRID_G_PER_KWH: a positive number, or 400."""
+    raw = (env.get("ARBORIS_GRID_G_PER_KWH", "") or "").strip() or "400"
     try:
         value = float(raw)
     except ValueError:
-        raise ValueError("GREENSEARCH_GRID_G_PER_KWH must be a number") from None
+        raise ValueError("ARBORIS_GRID_G_PER_KWH must be a number") from None
     if value <= 0:
-        raise ValueError("GREENSEARCH_GRID_G_PER_KWH must be positive")
+        raise ValueError("ARBORIS_GRID_G_PER_KWH must be positive")
     return value
 
 
@@ -315,32 +316,56 @@ def _unit_threshold(env, name, default):
 
 
 def _quality_target(env):
-    target = (env.get("GREENSEARCH_QUALITY_TARGET", "") or "").strip().lower() or "balanced"
+    target = (env.get("ARBORIS_QUALITY_TARGET", "") or "").strip().lower() or "balanced"
     if target not in QUALITY_THRESHOLDS:
-        raise ValueError("GREENSEARCH_QUALITY_TARGET must be eco, balanced, or quality")
+        raise ValueError("ARBORIS_QUALITY_TARGET must be eco, balanced, or quality")
     return target
 
 
 def _long_input_max_chars(env):
-    raw = (env.get("GREENSEARCH_LONG_INPUT_MAX_CHARS", "") or "").strip() or "1500"
+    raw = (env.get("ARBORIS_LONG_INPUT_MAX_CHARS", "") or "").strip() or "1500"
     try:
         value = int(raw)
     except ValueError:
-        raise ValueError("GREENSEARCH_LONG_INPUT_MAX_CHARS must be a whole number") from None
+        raise ValueError("ARBORIS_LONG_INPUT_MAX_CHARS must be a whole number") from None
     if value < 500:
-        raise ValueError("GREENSEARCH_LONG_INPUT_MAX_CHARS must be at least 500")
+        raise ValueError("ARBORIS_LONG_INPUT_MAX_CHARS must be at least 500")
     return value
 
 
 def _max_tokens_multiplier(env):
-    raw = (env.get("GREENSEARCH_MAX_TOKENS_MULTIPLIER", "") or "").strip() or "1.0"
+    raw = (env.get("ARBORIS_MAX_TOKENS_MULTIPLIER", "") or "").strip() or "1.0"
     try:
         value = float(raw)
     except ValueError:
-        raise ValueError("GREENSEARCH_MAX_TOKENS_MULTIPLIER must be a number") from None
+        raise ValueError("ARBORIS_MAX_TOKENS_MULTIPLIER must be a number") from None
     if value != value or value <= 0 or value > 4:
-        raise ValueError("GREENSEARCH_MAX_TOKENS_MULTIPLIER must be > 0 and at most 4")
+        raise ValueError("ARBORIS_MAX_TOKENS_MULTIPLIER must be > 0 and at most 4")
     return value
+
+
+_LEGACY_ENV_PREFIX = "GREENSEARCH_"
+_ENV_PREFIX = "ARBORIS_"
+
+
+def _with_legacy_env(env):
+    """Return (env copy, legacy names used) with GREENSEARCH_* mapped to ARBORIS_*.
+
+    The project was renamed from GreenSearch in 0.9.0. For one release a
+    deployment that still sets GREENSEARCH_X keeps working: the value is
+    used for ARBORIS_X when ARBORIS_X is unset or blank. An ARBORIS_X
+    value always wins. The names used are returned so startup can log them.
+    """
+    merged = dict(env)
+    used = []
+    for name, value in env.items():
+        if not name.startswith(_LEGACY_ENV_PREFIX):
+            continue
+        new_name = _ENV_PREFIX + name[len(_LEGACY_ENV_PREFIX):]
+        if not str(merged.get(new_name, "")).strip():
+            merged[new_name] = value
+            used.append(name)
+    return merged, tuple(sorted(used))
 
 
 @dataclass
@@ -376,6 +401,8 @@ class Config:
     long_input_max_chars: int = 1500
     semantic_cache: bool = False
     debug_log: bool = False
+    # GREENSEARCH_* names read because their ARBORIS_* twin was unset.
+    legacy_env_names: tuple = ()
 
     @property
     def router_threshold_effective(self):
@@ -405,14 +432,15 @@ class Config:
         Raises ValueError with a plain message on an invalid value, so
         the server refuses to start instead of running misconfigured.
         """
-        env = os.environ if env is None else env
+        env, legacy_names = _with_legacy_env(
+            os.environ if env is None else env)
 
         def get(name, default):
             value = env.get(name, "").strip()
             return value or default
 
-        model = get("GREENSEARCH_MODEL", DEFAULT_MODEL)
-        raw_fallbacks = env.get("GREENSEARCH_MODEL_FALLBACKS", "").strip()
+        model = get("ARBORIS_MODEL", DEFAULT_MODEL)
+        raw_fallbacks = env.get("ARBORIS_MODEL_FALLBACKS", "").strip()
         if not raw_fallbacks:
             fallbacks = DEFAULT_FALLBACKS
         elif raw_fallbacks.lower() == "none":
@@ -420,11 +448,11 @@ class Config:
         else:
             fallbacks = raw_fallbacks.split(",")
         try:
-            threshold = float(get("GREENSEARCH_CASCADE_THRESHOLD", "-1.0"))
+            threshold = float(get("ARBORIS_CASCADE_THRESHOLD", "-1.0"))
         except ValueError:
-            raise ValueError("GREENSEARCH_CASCADE_THRESHOLD must be a number, e.g. -1.0")
+            raise ValueError("ARBORIS_CASCADE_THRESHOLD must be a number, e.g. -1.0")
         if threshold != threshold or threshold > 0:  # NaN or positive
-            raise ValueError("GREENSEARCH_CASCADE_THRESHOLD must be <= 0 (logprobs are <= 0)")
+            raise ValueError("ARBORIS_CASCADE_THRESHOLD must be <= 0 (logprobs are <= 0)")
         def _int(name, default):
             try:
                 value = int(get(name, str(default)))
@@ -433,52 +461,53 @@ class Config:
             if value < 0:
                 raise ValueError(f"{name} must be 0 or more")
             return value
-        rate = _int("GREENSEARCH_RATE_LIMIT_PER_HOUR", 30)
-        rate_day = _int("GREENSEARCH_RATE_LIMIT_PER_DAY", 100)
-        global_day = _int("GREENSEARCH_GLOBAL_LIMIT_PER_DAY", 800)
-        origins = parse_origins(env.get("GREENSEARCH_BACKEND_ORIGIN", "")) or DEFAULT_ORIGINS
+        rate = _int("ARBORIS_RATE_LIMIT_PER_HOUR", 30)
+        rate_day = _int("ARBORIS_RATE_LIMIT_PER_DAY", 100)
+        global_day = _int("ARBORIS_GLOBAL_LIMIT_PER_DAY", 800)
+        origins = parse_origins(env.get("ARBORIS_BACKEND_ORIGIN", "")) or DEFAULT_ORIGINS
         if any(o == "*" or "*" in o for o in origins):
-            raise ValueError("GREENSEARCH_BACKEND_ORIGIN must list exact origins; '*' is not allowed")
+            raise ValueError("ARBORIS_BACKEND_ORIGIN must list exact origins; '*' is not allowed")
         config = cls(
-            api_key=env.get("GREENSEARCH_API_KEY", "").strip(),
-            base_url=get("GREENSEARCH_BASE_URL", DEFAULT_BASE_URL),
+            api_key=env.get("ARBORIS_API_KEY", "").strip(),
+            base_url=get("ARBORIS_BASE_URL", DEFAULT_BASE_URL),
             model=model,
             fallback_models=fallbacks,
-            escalation_model=get("GREENSEARCH_ESCALATION_MODEL", model),
+            escalation_model=get("ARBORIS_ESCALATION_MODEL", model),
             cascade_threshold=threshold,
             allowed_origins=origins,
             rate_limit_per_hour=rate,
             rate_limit_per_day=rate_day,
             global_limit_per_day=global_day,
-            allow_paid_models=env.get("GREENSEARCH_ALLOW_PAID_MODELS", "").strip().lower()
+            allow_paid_models=env.get("ARBORIS_ALLOW_PAID_MODELS", "").strip().lower()
             in ("1", "true", "yes", "on"),
-            small_model=get("GREENSEARCH_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free"),
-            small_model_routing=env.get("GREENSEARCH_SMALL_MODEL_ROUTING", "").strip().lower()
+            small_model=get("ARBORIS_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free"),
+            small_model_routing=env.get("ARBORIS_SMALL_MODEL_ROUTING", "").strip().lower()
             in ("1", "true", "yes", "on"),
             shrink_version=_shrink_version(env),
             grid_g_per_kwh=_grid_factor(env),
-            task_routing=env.get("GREENSEARCH_TASK_ROUTING", "").strip().lower()
+            task_routing=env.get("ARBORIS_TASK_ROUTING", "").strip().lower()
             in ("1", "true", "yes", "on"),
-            difficulty_routing=env.get("GREENSEARCH_DIFFICULTY_ROUTING", "").strip().lower()
+            difficulty_routing=env.get("ARBORIS_DIFFICULTY_ROUTING", "").strip().lower()
             in ("1", "true", "yes", "on"),
-            router_threshold=_unit_threshold(env, "GREENSEARCH_ROUTER_THRESHOLD", 0.5),
+            router_threshold=_unit_threshold(env, "ARBORIS_ROUTER_THRESHOLD", 0.5),
             quality_target=_quality_target(env),
-            scorer_escalation=env.get("GREENSEARCH_SCORER_ESCALATION", "").strip().lower()
+            scorer_escalation=env.get("ARBORIS_SCORER_ESCALATION", "").strip().lower()
             in ("1", "true", "yes", "on"),
-            score_threshold=_unit_threshold(env, "GREENSEARCH_SCORE_THRESHOLD", 0.5),
-            max_cascade_output_tokens=_int("GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS", 0),
+            score_threshold=_unit_threshold(env, "ARBORIS_SCORE_THRESHOLD", 0.5),
+            max_cascade_output_tokens=_int("ARBORIS_MAX_CASCADE_OUTPUT_TOKENS", 0),
             max_tokens_multiplier=_max_tokens_multiplier(env),
-            task_temperature=env.get("GREENSEARCH_TASK_TEMPERATURE", "").strip().lower()
+            task_temperature=env.get("ARBORIS_TASK_TEMPERATURE", "").strip().lower()
             in ("1", "true", "yes", "on"),
-            task_stop_sequences=env.get("GREENSEARCH_TASK_STOP_SEQUENCES", "").strip().lower()
+            task_stop_sequences=env.get("ARBORIS_TASK_STOP_SEQUENCES", "").strip().lower()
             in ("1", "true", "yes", "on"),
-            long_input_pruning=env.get("GREENSEARCH_LONG_INPUT_PRUNING", "").strip().lower()
+            long_input_pruning=env.get("ARBORIS_LONG_INPUT_PRUNING", "").strip().lower()
             in ("1", "true", "yes", "on"),
             long_input_max_chars=_long_input_max_chars(env),
-            semantic_cache=env.get("GREENSEARCH_SEMANTIC_CACHE", "").strip().lower()
+            semantic_cache=env.get("ARBORIS_SEMANTIC_CACHE", "").strip().lower()
             in ("1", "true", "yes", "on"),
-            debug_log=env.get("GREENSEARCH_DEBUG_LOG", "").strip().lower()
+            debug_log=env.get("ARBORIS_DEBUG_LOG", "").strip().lower()
             in ("1", "true", "yes", "on"),
+            legacy_env_names=legacy_names,
         )
         # Paid guard lives here, not in __post_init__: direct Config() is
         # the test harness (fake model names are not real paid models), while
@@ -492,9 +521,9 @@ class Config:
                     seen.append(m)
             if seen:
                 raise ValueError(
-                    "Paid model(s) configured without GREENSEARCH_ALLOW_PAID_MODELS: "
+                    "Paid model(s) configured without ARBORIS_ALLOW_PAID_MODELS: "
                     + ", ".join(seen)
-                    + ". Set GREENSEARCH_ALLOW_PAID_MODELS=1 to allow paid models deliberately.")
+                    + ". Set ARBORIS_ALLOW_PAID_MODELS=1 to allow paid models deliberately.")
         return config
 
 
@@ -884,19 +913,19 @@ class Backend:
 
     def log(self, message):
         if not self.quiet:
-            print(f"[greensearch-server] {message}", file=self.log_stream, flush=True)
+            print(f"[arboris-server] {message}", file=self.log_stream, flush=True)
 
     def debug(self, message):
-        """Prompt-bearing log lines: only with GREENSEARCH_DEBUG_LOG, stderr only."""
+        """Prompt-bearing log lines: only with ARBORIS_DEBUG_LOG, stderr only."""
         if self.config.debug_log:
-            print(f"[greensearch-server debug] {message}", file=self.log_stream, flush=True)
+            print(f"[arboris-server debug] {message}", file=self.log_stream, flush=True)
 
     def _make(self, model):
         try:
             return self.provider_factory(model)
         except ValueError:
             # e.g. a non-https base URL. The detail stays on the server.
-            self.log("provider setup failed: check GREENSEARCH_BASE_URL")
+            self.log("provider setup failed: check ARBORIS_BASE_URL")
             raise ClientError(503, MSG_MISCONFIGURED)
 
     def health(self):
@@ -943,7 +972,7 @@ class Backend:
         if not cfg.configured:
             raise ClientError(503, MSG_NOT_CONFIGURED)
 
-        # 1. PromptShrink: v1 by default, v2 only when GREENSEARCH_SHRINK_VERSION=v2.
+        # 1. PromptShrink: v1 by default, v2 only when ARBORIS_SHRINK_VERSION=v2.
         sr = shrink_v2(req.prompt) if cfg.shrink_version == "v2" else shrink(req.prompt)
         prompt = sr.text
         if not prompt.strip():
@@ -1395,7 +1424,7 @@ class Backend:
             "output_tokens": base.completion_tokens,
             "saved_output_tokens": None,
             "saved_total_tokens": None,
-            "note": "measured: unconstrained call vs GreenSearch call, provider-reported tokens",
+            "note": "measured: unconstrained call vs Arboris call, provider-reported tokens",
         }
         if base.completion_tokens is not None and output_tokens is not None:
             out["saved_output_tokens"] = base.completion_tokens - output_tokens
@@ -1455,7 +1484,7 @@ def make_handler(backend):
     site_index = ROOT / "website" / "index.html"
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "GreenSearch"
+        server_version = "Arboris"
         sys_version = ""
 
         # -- helpers --------------------------------------------------------
@@ -1602,7 +1631,7 @@ def _help_epilog():
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="python server/app.py",
-        description="GreenSearch live backend (local; stdlib only).",
+        description="Arboris live backend (local; stdlib only).",
         epilog=_help_epilog(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1621,6 +1650,10 @@ def main(argv=None):
 
     backend = Backend(config)
     server = make_server(backend, args.host, port)
+    if config.legacy_env_names:
+        backend.log(
+            "legacy environment names in use (rename to ARBORIS_*; support "
+            "ends after 0.9.0): " + ", ".join(config.legacy_env_names))
     backend.log(
         f"listening on http://{args.host}:{server.server_address[1]} | "
         f"live: {'configured' if config.configured else 'NOT configured (no API key)'} | "

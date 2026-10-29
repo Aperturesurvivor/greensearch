@@ -3,12 +3,12 @@
 Two modes:
   1. Offline (default): runs the demo provider, verifies shrunk forms match
      spec/corpus.json, and prints a saving summary. Always runs in CI.
-  2. Live (GREENSEARCH_CORPUS_LIVE=1): uses the real model with
+  2. Live (ARBORIS_CORPUS_LIVE=1): uses the real model with
      --measure-baseline logic and writes results/corpus_results.json.
      Skip this in CI unless you want to spend API tokens.
 
 Run: python -m unittest tests.test_corpus -v
-     GREENSEARCH_CORPUS_LIVE=1 python -m unittest tests.test_corpus -v
+     ARBORIS_CORPUS_LIVE=1 python -m unittest tests.test_corpus -v
 """
 
 import io
@@ -21,10 +21,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.providers import DemoProvider
-from greensearch.router import route_mode
-from greensearch.shrink import shrink
-from greensearch.tokens import est_tokens
+from arboris.providers import DemoProvider
+from arboris.router import route_mode
+from arboris.shrink import shrink
+from arboris.tokens import est_tokens
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = json.loads((ROOT / "spec" / "corpus.json").read_text())
@@ -82,8 +82,8 @@ class TestCorpusSavings(unittest.TestCase):
 
     def test_corpus_saving_summary(self):
         """Print a saving summary table and assert overall saving is positive."""
-        from greensearch.brevity import apply_brevity
-        from greensearch.footprint import footprint
+        from arboris.brevity import apply_brevity
+        from arboris.footprint import footprint
 
         provider = DemoProvider()
         results = []

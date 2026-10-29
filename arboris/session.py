@@ -13,7 +13,7 @@ import json
 import os
 import tempfile
 
-from greensearch.cache import SessionCache
+from arboris.cache import SessionCache
 
 _REQUIRED_CALL_KEYS = (
     "prompt",
@@ -107,7 +107,7 @@ class Session:
     def markdown_report(self):
         totals = self.totals
         lines = [
-            "# GreenSearch session report",
+            "# Arboris session report",
             "",
             f"Generated: {datetime.datetime.now().isoformat(timespec='seconds')}",
             "",

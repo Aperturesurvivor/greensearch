@@ -39,7 +39,7 @@ git-ignored `.env`; the script never reads `.env` itself, so load it into
 the shell first). From the repo root:
 
 ```bash
-set -a; . ./.env; set +a          # puts GREENSEARCH_API_KEY in the environment
+set -a; . ./.env; set +a          # puts ARBORIS_API_KEY in the environment
 python3 scripts/baseline_study.py --provider live \
   --base-url https://openrouter.ai/api/v1 \
   --report-out results/baseline_live.md \

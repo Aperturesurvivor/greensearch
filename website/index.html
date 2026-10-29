@@ -1262,9 +1262,9 @@ a:hover { text-decoration-color: var(--teal) }
       <li>All the savings still need to be measured again against the live model. The demo percentages shown here do not carry over automatically.</li>
     </ul>
     <h3>Live mode (on by default on the hosted site)</h3>
-    <p>The <b>Live mode</b> switch sends each question to an Arboris backend. On the hosted site the default is the same-origin backend (<code>/api/chat</code> on this site); on your own machine the default is <code>http://localhost:8000/api/chat</code>, i.e. <code>python server/app.py</code>. You can enter a different backend URL in the Live row at the top. The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a <b>truncated</b> marker when the answer hit the token cap. Live totals sit in their own LIVE row and are never added to the demo estimates. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers aren't saved in localStorage; only the backend URL is, under <code>greensearch-live-backend-url</code>.</p>
+    <p>The <b>Live mode</b> switch sends each question to an Arboris backend. On the hosted site the default is the same-origin backend (<code>/api/chat</code> on this site); on your own machine the default is <code>http://localhost:8000/api/chat</code>, i.e. <code>python server/app.py</code>. You can enter a different backend URL in the Live row at the top. The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a <b>truncated</b> marker when the answer hit the token cap. Live totals sit in their own LIVE row and are never added to the demo estimates. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers aren't saved in localStorage; only the backend URL is, under <code>arboris-live-backend-url</code>.</p>
     <h3>Privacy</h3>
-    <p>In demo mode the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
+    <p>In demo mode the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>arboris-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
   </div>
 </dialog>
 
@@ -1638,7 +1638,7 @@ function greenAnswer(topic,topicText,mode){
   var name=cleaned.length>80?cleaned.slice(0,80).trim()+'...':cleaned;
   return 'That topic is not in the demo library yet. You asked about: \''+name+'\'. Try rephrasing with a clearer keyword, or switch to live mode for a real model response. The demo covers 95 topics including technology, science, math, history, business, health, cooking, home maintenance, and programming.';
 }
-/* Output-weighted CO2e, matching greensearch/footprint.py: an output token
+/* Output-weighted CO2e, matching arboris/footprint.py: an output token
    is 0.0006 Wh (Epoch AI 2025), an input token 1/800 of that (Ruf and
    Detyniecki, HotCarbon '26), at an assumed 400 g CO2e/kWh. Estimates only. */
 var WH_OUT=0.0006,IN_OUT_RATIO=800,GRID_G_KWH=400;
@@ -1703,7 +1703,22 @@ themeBtn.addEventListener('click',function(){
 
 /* State. turns[] is the source of truth: each turn is {raw, bypass, r} where r is the
    integrateChat result. totals and history are adjusted per turn (never re-added). */
-var STORE_KEY='greensearch-demo-v1';
+var STORE_KEY='arboris-demo-v1';
+/* Renamed from GreenSearch in 0.9.0: move anything saved under the old keys
+   to the new ones once, then delete the old keys. A new key that already
+   holds data is never overwritten. */
+(function migrateLegacyKeys(){
+  try{
+    [['greensearch-demo-v1','arboris-demo-v1'],
+     ['greensearch-live-v1','arboris-live-v1'],
+     ['greensearch-live-backend-url','arboris-live-backend-url']].forEach(function(pair){
+      var old=localStorage.getItem(pair[0]);
+      if(old===null)return;
+      if(localStorage.getItem(pair[1])===null)localStorage.setItem(pair[1],old);
+      localStorage.removeItem(pair[0]);
+    });
+  }catch(e){/* storage disabled: nothing to migrate */}
+})();
 function zeroTotals(){return{calls:0,base:0,green:0,saved:0,co2:0};}
 var cache={},totals=zeroTotals(),history=[],turns=[];
 var epoch=0;          /* bumped on clear/edit so in-flight animations stop */
@@ -2333,8 +2348,8 @@ SAMPLES.forEach(function(s){
    lives in this page. Live answers and totals are kept apart from the demo
    ones. The backend URL and live conversation history are saved to
    localStorage so the session survives a page reload. */
-var LIVE_URL_KEY='greensearch-live-backend-url';
-var LIVE_STATE_KEY='greensearch-live-v1';
+var LIVE_URL_KEY='arboris-live-backend-url';
+var LIVE_STATE_KEY='arboris-live-v1';
 /* On a Cloud Run host (*.run.app) the backend serves this page, so the
    live URL defaults to the same origin. Everywhere else (including the
    GitHub Pages demo, which has no backend) it defaults to localhost,

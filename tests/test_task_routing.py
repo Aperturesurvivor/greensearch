@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from greensearch.task_router import classify_task, route_task
+from arboris.task_router import classify_task, route_task
 
 
 class TestGoldenCases(unittest.TestCase):

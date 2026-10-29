@@ -17,7 +17,7 @@ Usage:
       --report-out results/baseline_live.md
   # --model defaults to google/gemma-4-31b-it:free (an OpenRouter id, so
   # pass the OpenRouter --base-url); --model still overrides it.
-  # Live mode requires GREENSEARCH_API_KEY. Without it, this script
+  # Live mode requires ARBORIS_API_KEY. Without it, this script
   # exits 2 and writes nothing -- it never fabricates a live result.
 
 Output JSON (with --json-out) records, per prompt, the model, mode,
@@ -34,17 +34,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.brevity import apply_brevity
-from greensearch.footprint import footprint
-from greensearch.providers import (
+from arboris.brevity import apply_brevity
+from arboris.footprint import footprint
+from arboris.providers import (
     BREVITY_SYSTEM,
     MAX_TOKENS,
     DemoProvider,
     OpenAICompatibleProvider,
     ProviderError,
 )
-from greensearch.shrink import shrink
-from greensearch.tokens import est_tokens
+from arboris.shrink import shrink
+from arboris.tokens import est_tokens
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -189,7 +189,7 @@ def markdown_report(rows, provider_name, model, mode, token_source):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Run the GreenSearch baseline study over spec/corpus.json.")
+    parser = argparse.ArgumentParser(description="Run the Arboris baseline study over spec/corpus.json.")
     parser.add_argument("--provider", choices=["demo", "live"], default="demo")
     parser.add_argument("--base-url", default="https://api.openai.com/v1")
     parser.add_argument("--model", default="google/gemma-4-31b-it:free")

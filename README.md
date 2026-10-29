@@ -1,4 +1,4 @@
-# GreenSearch
+# Arboris
 
 A small, runnable harness for answering questions concisely and estimating
 the footprint of the shorter answer, plus a browser demo of the same idea.
@@ -7,18 +7,20 @@ Standard library only, Python 3.9+.
 **Vision.** An eco-friendly AI chat that runs on very low-carbon electricity
 (reference point: Google Cloud europe-north1 in Finland, cited in
 `website/README.md`), with PromptShrink trimming prompts before they reach a
-model. **This repository is not that yet.** There is no Finland hosting, no
-live chat service and no measured per-model energy use. The harness shows
-the mechanics honestly; the numbers it prints are estimates.
+model. **This repository is part of the way there.** A live backend runs on
+Google Cloud Run (currently us-central1, not Finland), there is no measured
+per-model energy use, and hosting region says nothing about where the model
+provider runs inference. The harness shows the mechanics honestly; the
+numbers it prints are estimates.
 
 ## Quickstart (offline, no key)
 
 ```bash
 pip install -e .
-greensearch --demo                          # all topics, with totals
-greensearch "explain DNS simply" --mode auto
-greensearch "explain DNS simply" --session-file session.json
-python -m greensearch "explain DNS simply"  # without installing
+arboris --demo                          # all topics, with totals
+arboris "explain DNS simply" --mode auto
+arboris "explain DNS simply" --session-file session.json
+python -m arboris "explain DNS simply"  # without installing
 ```
 
 Modes: `sprout` (about 2 sentences), `canopy` (4), `full` (6, default), or
@@ -30,8 +32,15 @@ science, math, history, business, health, cooking, home maintenance,
 programming). It says plainly when a topic is not covered.
 
 Open `website/index.html` in a browser for the chat-style demo site,
-**Arboris**: no server, no network, same canned topics. (The site is named
-Arboris; the package, CLI and repo are still `greensearch` for now.)
+**Arboris**: no server, no network, same canned topics.
+
+**Renamed from GreenSearch (0.9.0).** The package, CLI and environment
+variables are now `arboris`, `arboris` and `ARBORIS_*`. For one release the
+old names still work: `import greensearch`, `python -m greensearch` and the
+`greensearch` command forward to `arboris`, and the server and live provider
+read a `GREENSEARCH_*` variable when its `ARBORIS_*` twin is unset, logging
+which legacy names it used. The GitHub repository is renamed separately;
+GitHub redirects the old URL.
 
 ## How the numbers work
 
@@ -54,8 +63,8 @@ input and output alike, which priced answers 7 to 9 times above the 2025
 estimates. Override the factors to run your own scenario:
 
 ```bash
-greensearch "explain DNS simply" --grid-g-per-kwh 30   # a low-carbon grid
-greensearch "explain DNS simply" --wh-per-token 0.001
+arboris "explain DNS simply" --grid-g-per-kwh 30   # a low-carbon grid
+arboris "explain DNS simply" --wh-per-token 0.001
 ```
 
 Changing the grid factor changes CO2e only; token savings are unaffected.
@@ -75,8 +84,8 @@ That is the point of keeping the two levers separate.
 ## Live mode
 
 ```bash
-export GREENSEARCH_API_KEY="your-key"
-greensearch "explain DNS simply" --provider live --base-url https://api.openai.com/v1 --mode sprout
+export ARBORIS_API_KEY="your-key"
+arboris "explain DNS simply" --provider live --base-url https://api.openai.com/v1 --mode sprout
 ```
 
 Any OpenAI-compatible `/chat/completions` endpoint works. Plain `http` base
@@ -100,18 +109,18 @@ version stays 0.8.0.
   lists every env var. The key, base URL, model, cascade threshold, CORS
   origins, rate limit and debug logging all come from the environment
   only. Per request: PromptShrink → per-session, mode-aware cache → routing
-  → one call to the primary model (`GREENSEARCH_MODEL`, default
+  → one call to the primary model (`ARBORIS_MODEL`, default
   `google/gemma-4-31b-it:free`, a named general chat model; free models
   are rate-limited and rotate) with the brevity
   prompt, token cap and logprobs → `apply_brevity`. If that call fails
   with HTTP 429/404/502/503 (or 402 when the next model is free), the
-  models in `GREENSEARCH_MODEL_FALLBACKS` are tried in order; 401 never
+  models in `ARBORIS_MODEL_FALLBACKS` are tried in order; 401 never
   falls back. If a provider rejects logprobs, the same model is retried
   once without them. `meta.model` reports the model id that answered
   (`openrouter/free` itself when the last-resort router answered; `meta.provider_model`
   passes through the response's own `model` field, unverified live). There is
   no escalation call by default. The logprob cascade runs only if
-  `GREENSEARCH_ESCALATION_MODEL` is set to a different model, and then an
+  `ARBORIS_ESCALATION_MODEL` is set to a different model, and then an
   escalation failure returns an error, never a downgrade. Answers
   stream as SSE (chunk, meta, done), with a JSON fallback (`"stream": false`).
   The provider itself is called without streaming because the brevity
@@ -127,7 +136,7 @@ version stays 0.8.0.
 - **Website (Arboris) Live mode**: a labelled toggle, OFF on every load. With it off,
   the demo behaves exactly as before. With it on, the page shows a LIVE
   pill and a banner saying it is not browser-only. It sends the raw prompt
-  to an editable backend URL (stored under `greensearch-live-backend-url`),
+  to an editable backend URL (stored under `arboris-live-backend-url`),
   renders streamed chunks, and shows the model (plus the provider-reported
   model when it differs), escalation, cache hit, tokens, latency and a
   truncated marker when the answer was cut at the token cap. Backend errors show as plain chat messages. Live
@@ -136,8 +145,8 @@ version stays 0.8.0.
   unconstrained call to measure savings, which doubles API cost.
 - **`tests/test_live_backend.py`**: 63 tests, with fake providers only and
   no key or network (the HTTP tests use loopback).
-- **`.env.example`**: placeholders only, `GREENSEARCH_MODEL=google/gemma-4-31b-it:free`
-  and the default `GREENSEARCH_MODEL_FALLBACKS` list (`openrouter/free` last).
+- **`.env.example`**: placeholders only, `ARBORIS_MODEL=google/gemma-4-31b-it:free`
+  and the default `ARBORIS_MODEL_FALLBACKS` list (`openrouter/free` last).
 
 Model decision: the default was Qwen3-8B (`qwen/qwen3-8b`) until OpenRouter
 deprecated it on 2026-10-09, then briefly `openrouter/free`. It is now the
@@ -208,15 +217,15 @@ session caching, and a logprob-gated cascade (`--cascade`).
 
 ## Layout
 
-- `greensearch/brevity.py`: sentence budgets; keeps lists, code, subject and sign-off
-- `greensearch/router.py`: `--mode auto` rules, shared with the site
-- `greensearch/tokens.py`, `footprint.py`: estimates and the CO2e formula
-- `greensearch/tokenizer.py`: optional real tiktoken counting
-- `greensearch/cache.py`: session cache, ported from the website demo
-- `greensearch/cascade.py`: logprob-gated escalation, no invented confidence
-- `greensearch/providers.py`: offline provider (6 hardcoded + 89 templated topics) and OpenAI-compatible provider
+- `arboris/brevity.py`: sentence budgets; keeps lists, code, subject and sign-off
+- `arboris/router.py`: `--mode auto` rules, shared with the site
+- `arboris/tokens.py`, `footprint.py`: estimates and the CO2e formula
+- `arboris/tokenizer.py`: optional real tiktoken counting
+- `arboris/cache.py`: session cache, ported from the website demo
+- `arboris/cascade.py`: logprob-gated escalation, no invented confidence
+- `arboris/providers.py`: offline provider (6 hardcoded + 89 templated topics) and OpenAI-compatible provider
 - `spec/templates.json`: the 89-topic expanded canned-answer library
-- `greensearch/session.py`: totals, markdown report, atomic JSON persistence
+- `arboris/session.py`: totals, markdown report, atomic JSON persistence
 - `spec/routing_cases.json`, `spec/corpus.json`, `tests/`: shared spec, fixed corpus, tests
 - `scripts/baseline_study.py`: canned/live baseline study over the corpus
 - `BASELINE.md`: baseline study results (canned until a live run is done)

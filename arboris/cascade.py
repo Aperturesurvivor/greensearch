@@ -16,7 +16,7 @@ Rules, stated up front so they can be checked:
   5. A judge-model cascade is NOT implemented here. That would need a
      second model call with a judge prompt and a threshold for the
      judge's score, which is a separate, more expensive design.
-  6. An optional transparent scorer (greensearch.scorer, local, no
+  6. An optional transparent scorer (arboris.scorer, local, no
      model call) can also trigger escalation, and unlike logprobs it
      works when logprobs are unavailable. By default it only reports;
      it triggers escalation only when score_escalates is True.
@@ -32,12 +32,12 @@ should be recorded with their data.
 
 from dataclasses import dataclass
 
-from greensearch.providers import ProviderError
+from arboris.providers import ProviderError
 
 
 @dataclass
 class CascadeResult:
-    completion: object  # greensearch.providers.Completion
+    completion: object  # arboris.providers.Completion
     escalated: bool
     avg_logprob: object  # float or None
     reason: str

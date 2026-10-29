@@ -12,7 +12,7 @@ transparent version of the same idea:
   can be argued with and fixed from one example.
 - The score is reported in meta on every answer. It only triggers
   escalation when the server is explicitly configured to let it
-  (GREENSEARCH_SCORER_ESCALATION). Otherwise it is a measurement, not
+  (ARBORIS_SCORER_ESCALATION). Otherwise it is a measurement, not
   a decision, and the logprob cascade keeps its old behaviour.
 
 Components (weights sum to 1):

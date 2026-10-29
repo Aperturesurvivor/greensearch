@@ -1,6 +1,6 @@
 """Standalone-program tests: entry points and --demo mode.
 
-Run from the greensearch directory:
+Run from the arboris directory:
     python -m unittest discover -s tests -v
 """
 
@@ -15,15 +15,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import greensearch
-from greensearch.cli import DEMO_PROMPTS, main
+import arboris
+from arboris.cli import DEMO_PROMPTS, main
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class TestEntryPoints(unittest.TestCase):
     def test_version_matches_pyproject(self):
-        self.assertEqual(greensearch.__version__, "0.8.0")
+        self.assertEqual(arboris.__version__, "0.9.0")
 
     def test_demo_prompts_cover_all_six_topics_plus_generic(self):
         topics = [topic for topic, _prompt in DEMO_PROMPTS]
@@ -37,7 +37,7 @@ class TestEntryPoints(unittest.TestCase):
 
     def test_python_m_entry_point_exists(self):
         result = subprocess.run(
-            [sys.executable, "-m", "greensearch", "Explain DNS simply", "--mode", "sprout"],
+            [sys.executable, "-m", "arboris", "Explain DNS simply", "--mode", "sprout"],
             capture_output=True, text=True, cwd=ROOT,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -59,7 +59,7 @@ class TestDemoMode(unittest.TestCase):
             code = main(["--demo", "--mode", "canopy"])
         output = buffer.getvalue()
         self.assertEqual(code, 0)
-        self.assertIn("GreenSearch demo", output)
+        self.assertIn("Arboris demo", output)
         self.assertIn("internet phone book", output)
         self.assertIn("Demo totals: 7 calls", output)
         self.assertIn("not in the demo library yet", output)

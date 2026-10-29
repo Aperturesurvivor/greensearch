@@ -1,4 +1,4 @@
-# Deploying the GreenSearch backend to Google Cloud Run
+# Deploying the Arboris backend to Google Cloud Run
 
 This deploys one container that serves **both** the website (`/`) and the
 API (`/api/chat`), so a visitor gets a working live demo at a single URL,
@@ -31,6 +31,38 @@ Finland hosting for this deployment unless you actually deploy to
 if the region matches the claim. Changing region later is just a
 `--region` change and a redeploy.
 
+Hosting region only covers this server. The model runs wherever
+OpenRouter's provider runs it, which is not disclosed, so even a
+europe-north1 deployment must not be described as Finland-powered
+inference.
+
+## Migrating an existing GreenSearch deployment
+
+The project was renamed from GreenSearch to Arboris in 0.9.0. The
+commands below use the new names (service `arboris`, secret
+`arboris-api-key`, `ARBORIS_*` variables). A service deployed before the
+rename is called `greensearch`, uses the secret `greensearch-api-key`, and
+sets `GREENSEARCH_*` variables. It keeps working after you deploy the new
+code: for one release the server reads each `GREENSEARCH_*` variable when
+its `ARBORIS_*` twin is unset, and logs the legacy names it used at
+startup.
+
+Cloud Run cannot rename a service, and a new service gets a new URL. To
+move over:
+
+1. Create `arboris-api-key` (step 2 below) or keep using the old secret
+   by naming it in `--set-secrets`.
+2. Deploy a new `arboris` service (step 3), in `europe-north1` if you want
+   the low-carbon hosting region; check that region's price and free tier
+   first.
+3. Put the new URL in `ARBORIS_BACKEND_ORIGIN` (step 5) and check
+   `/api/health`.
+4. Once the new URL works, delete the old service:
+   `gcloud run services delete greensearch --region us-central1`.
+
+Until then, manage the old service with its own name, for example
+`gcloud run services describe greensearch --region us-central1`.
+
 ## Deploy, step by step
 
 Replace `YOUR_PROJECT_ID` with your project id throughout.
@@ -48,21 +80,21 @@ server, but write origins without one.
 # env.yaml: local deploy state. Do NOT commit it (it is git-ignored).
 # Not a secret (it holds the public service URL), but it is per-deploy
 # state, not repo content. The API key is NEVER in here: it is a secret.
-GREENSEARCH_MODEL: "google/gemma-4-31b-it:free"
-GREENSEARCH_BACKEND_ORIGIN: "http://localhost:8000,http://127.0.0.1:8000"
+ARBORIS_MODEL: "google/gemma-4-31b-it:free"
+ARBORIS_BACKEND_ORIGIN: "http://localhost:8000,http://127.0.0.1:8000"
 ```
 
 > **Warning: `--set-env-vars` and `--env-vars-file` REPLACE the whole
 > env var list; `--update-env-vars` changes only the vars you name and
 > keeps the rest.** A single-var
-> `gcloud run services update ... --set-env-vars GREENSEARCH_MODEL=...`
-> once wiped `GREENSEARCH_BACKEND_ORIGIN` in production: the allowlist
+> `gcloud run services update ... --set-env-vars ARBORIS_MODEL=...`
+> once wiped `ARBORIS_BACKEND_ORIGIN` in production: the allowlist
 > fell back to localhost and the hosted page got "This page's origin is
 > not allowed". So: either pass the **complete** `env.yaml` (every
 > non-secret var, origins and model together), or change one var with
 > `--update-env-vars`. Never use `--set-env-vars` for a one-var change.
 > After any env change, check with
-> `gcloud run services describe greensearch --region us-central1 --format='yaml(spec.template.spec.containers[0].env)'`.
+> `gcloud run services describe arboris --region us-central1 --format='yaml(spec.template.spec.containers[0].env)'`.
 
 ```bash
 # 1. Point gcloud at your project, enable the services.
@@ -74,34 +106,34 @@ gcloud services enable run.googleapis.com secretmanager.googleapis.com \
 #    Type or paste the key when prompted; it is not echoed into history
 #    if you use --data-file=- with stdin, and it is never committed.
 printf '%s' 'YOUR_OPENROUTER_KEY' | \
-  gcloud secrets create greensearch-api-key --data-file=-
+  gcloud secrets create arboris-api-key --data-file=-
 
 # 3. Build and deploy from the repo root (the folder with Dockerfile).
 #    --allow-unauthenticated makes the demo public, which is what a
 #    demo wants. Remove it if you want a private service instead.
 #    The first deploy does NOT yet know its own URL, so env.yaml lists
 #    localhost only for now; step 5 fixes that.
-gcloud run deploy greensearch \
+gcloud run deploy arboris \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-secrets GREENSEARCH_API_KEY=greensearch-api-key:latest \
+  --set-secrets ARBORIS_API_KEY=arboris-api-key:latest \
   --env-vars-file env.yaml
 ```
 
 Note the deploy command for the URL it prints, e.g.
-`https://greensearch-abc123-uc.a.run.app`.
+`https://arboris-abc123-uc.a.run.app`.
 
 ```bash
 # 4. Check health. It must say "configured": true.
-curl https://greensearch-abc123-uc.a.run.app/api/health
+curl https://arboris-abc123-uc.a.run.app/api/health
 
-# 5. Add the hosted URL to GREENSEARCH_BACKEND_ORIGIN in env.yaml
-#    (commas, no spaces), keep GREENSEARCH_MODEL in the same file, then
+# 5. Add the hosted URL to ARBORIS_BACKEND_ORIGIN in env.yaml
+#    (commas, no spaces), keep ARBORIS_MODEL in the same file, then
 #    apply the whole file. No rebuild is needed for an env change.
-#      GREENSEARCH_MODEL: "google/gemma-4-31b-it:free"
-#      GREENSEARCH_BACKEND_ORIGIN: "https://greensearch-abc123-uc.a.run.app,http://localhost:8000,http://127.0.0.1:8000"
-gcloud run services update greensearch --region us-central1 \
+#      ARBORIS_MODEL: "google/gemma-4-31b-it:free"
+#      ARBORIS_BACKEND_ORIGIN: "https://arboris-abc123-uc.a.run.app,http://localhost:8000,http://127.0.0.1:8000"
+gcloud run services update arboris --region us-central1 \
   --env-vars-file env.yaml
 ```
 
@@ -111,8 +143,8 @@ Use `--update-env-vars`, which leaves the CORS allowlist (and every
 other var) in place:
 
 ```bash
-gcloud run services update greensearch --region us-central1 \
-  --update-env-vars GREENSEARCH_MODEL=google/gemma-4-31b-it:free
+gcloud run services update arboris --region us-central1 \
+  --update-env-vars ARBORIS_MODEL=google/gemma-4-31b-it:free
 ```
 
 Then update `env.yaml` to match, so the next full `--env-vars-file`
@@ -144,7 +176,7 @@ so `https://x.run.app/` matches `https://x.run.app`.
   shared across instances. That is fine for a demo and is not a
   production session store.
 - If you rotate the OpenRouter key, update the secret
-  (`gcloud secrets versions add greensearch-api-key --data-file=-`) and
+  (`gcloud secrets versions add arboris-api-key --data-file=-`) and
   redeploy; the container never holds the old key after that.
-- To take the demo down: `gcloud run services delete greensearch
+- To take the demo down: `gcloud run services delete arboris
   --region us-central1`.

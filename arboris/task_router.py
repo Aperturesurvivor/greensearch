@@ -218,7 +218,7 @@ _DIFFICULTY_BASE = {
 }
 _DIFFICULTY_OTHER = {"sprout": 0.4, "canopy": 0.55, "full": 0.7}
 QUALITY_THRESHOLDS = {"eco": 0.7, "balanced": 0.5, "quality": 0.3}
-# Task temperatures, opt-in only (GREENSEARCH_TASK_TEMPERATURE).
+# Task temperatures, opt-in only (ARBORIS_TASK_TEMPERATURE).
 # Factual tasks get a low temperature for consistency; creative gets
 # a high one for variety; steps/reasoning sit in the middle. "other"
 # gets no temperature (provider default), because an unknown task

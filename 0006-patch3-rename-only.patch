@@ -1,0 +1,2755 @@
+From 634e42ef2ccfb3b5bf912fad05524e9600e5252a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 29 Oct 2026 02:23:34 -0700
+Subject: [PATCH 3/3] Rename GreenSearch to Arboris across package, CLI, env
+ and site (0.9.0)
+
+Decision D3. The package, command, distribution, env vars and
+localStorage keys are now arboris / ARBORIS_*. For one release the old
+names keep working: a greensearch shim package, the greensearch command,
+GREENSEARCH_* env fallbacks logged at startup, and a one-time migration
+of saved chats in the browser. The Cloud Run runbook explains moving
+the existing greensearch service.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01QwFoL83RLwMbjVMnWRkYs7
+---
+ .env.example                                  |  24 +-
+ AUDIT.md                                      |   2 +-
+ BASELINE.md                                   |   2 +-
+ CHANGELOG.md                                  |   8 +
+ Dockerfile                                    |   6 +-
+ README.md                                     |  65 +++--
+ arboris/__init__.py                           |   8 +
+ arboris/__main__.py                           |   8 +
+ {greensearch => arboris}/brevity.py           |   0
+ {greensearch => arboris}/cache.py             |   0
+ {greensearch => arboris}/cascade.py           |   6 +-
+ {greensearch => arboris}/cli.py               |  38 +--
+ {greensearch => arboris}/footprint.py         |   0
+ {greensearch => arboris}/local_calc.py        |   0
+ {greensearch => arboris}/long_input.py        |   0
+ {greensearch => arboris}/providers.py         |  11 +-
+ {greensearch => arboris}/router.py            |   0
+ {greensearch => arboris}/scorer.py            |   2 +-
+ {greensearch => arboris}/session.py           |   4 +-
+ {greensearch => arboris}/shrink.py            |   6 +-
+ {greensearch => arboris}/task_router.py       |   2 +-
+ {greensearch => arboris}/tokenizer.py         |   6 +-
+ {greensearch => arboris}/tokens.py            |   0
+ cli.py                                        |   6 +-
+ greensearch/__init__.py                       |  36 ++-
+ greensearch/__main__.py                       |   8 +-
+ pyproject.toml                                |  12 +-
+ scripts/baseline_study.py                     |  14 +-
+ scripts/compare_qwen.py                       |  12 +-
+ scripts/shrink_quality.py                     |   6 +-
+ server/CLOUDRUN.md                            |  72 +++--
+ server/README.md                              | 102 +++----
+ server/__init__.py                            |   2 +-
+ server/app.py                                 | 257 ++++++++++--------
+ spec/templates.json                           |   2 +-
+ .../{test_greensearch.py => test_arboris.py}  |  24 +-
+ tests/test_baseline_retry.py                  |   2 +-
+ tests/test_corpus.py                          |  16 +-
+ tests/test_expanded.py                        |   4 +-
+ tests/test_improvements.py                    |  20 +-
+ tests/test_live_backend.py                    | 114 ++++----
+ tests/test_long_input.py                      |   4 +-
+ tests/test_new_features.py                    |  12 +-
+ tests/test_proven_routing.py                  |  10 +-
+ tests/test_rename.py                          | 102 +++++++
+ tests/test_session_live.py                    |  12 +-
+ tests/test_shrink_v2.py                       |   2 +-
+ tests/test_standalone.py                      |  12 +-
+ tests/test_task_routing.py                    |   2 +-
+ website/README.md                             |   8 +-
+ website/SELFHOST.md                           |   2 +-
+ website/index.html                            |  27 +-
+ 52 files changed, 671 insertions(+), 429 deletions(-)
+ create mode 100644 arboris/__init__.py
+ create mode 100644 arboris/__main__.py
+ rename {greensearch => arboris}/brevity.py (100%)
+ rename {greensearch => arboris}/cache.py (100%)
+ rename {greensearch => arboris}/cascade.py (97%)
+ rename {greensearch => arboris}/cli.py (93%)
+ rename {greensearch => arboris}/footprint.py (100%)
+ rename {greensearch => arboris}/local_calc.py (100%)
+ rename {greensearch => arboris}/long_input.py (100%)
+ rename {greensearch => arboris}/providers.py (97%)
+ rename {greensearch => arboris}/router.py (100%)
+ rename {greensearch => arboris}/scorer.py (98%)
+ rename {greensearch => arboris}/session.py (98%)
+ rename {greensearch => arboris}/shrink.py (98%)
+ rename {greensearch => arboris}/task_router.py (99%)
+ rename {greensearch => arboris}/tokenizer.py (91%)
+ rename {greensearch => arboris}/tokens.py (100%)
+ rename tests/{test_greensearch.py => test_arboris.py} (93%)
+ create mode 100644 tests/test_rename.py
+
+diff --git a/.env.example b/.env.example
+index bc15ef8..64b4972 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,33 +1,33 @@
+-# GreenSearch live backend settings (server/app.py).
++# Arboris live backend settings (server/app.py).
+ # Copy to .env (already git-ignored) and fill in locally. NEVER commit a real key.
+ # The server reads these from the process environment; it does not load .env
+ # itself. One way:  set -a; . ./.env; set +a; python3 server/app.py
+ #
+-# Placeholder values only. Leaving GREENSEARCH_API_KEY empty keeps the server
++# Placeholder values only. Leaving ARBORIS_API_KEY empty keeps the server
+ # in "not configured" mode: /api/chat answers 503 and no provider is called.
+ 
+-GREENSEARCH_API_KEY=
+-GREENSEARCH_BASE_URL=https://openrouter.ai/api/v1
++ARBORIS_API_KEY=
++ARBORIS_BASE_URL=https://openrouter.ai/api/v1
+ # Primary model: a named general chat model. Not openrouter/free: that router
+ # can pick non-chat free models (a content-safety model once answered a
+ # hamburger question with "User Safety: safe"), and fallback only triggers on
+ # errors, not on wrong-type answers. Free models are rate-limited and rotate.
+ # (qwen/qwen3-8b, an older default, was deprecated on OpenRouter on 2026-10-09.)
+-GREENSEARCH_MODEL=google/gemma-4-31b-it:free
++ARBORIS_MODEL=google/gemma-4-31b-it:free
+ # Tried in order when the primary call fails with HTTP 429/404/502/503, or
+ # 402 (no credits) when the next model is free. 401 (bad key) never falls
+ # back. Comma-separated; "none" disables. Empty uses this same default list.
+ # openrouter/free stays last, as a last resort only.
+-GREENSEARCH_MODEL_FALLBACKS=liquid/lfm-2.5-2.6b:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free,openrouter/free
+-# Optional. Leave empty (or equal to GREENSEARCH_MODEL) for no escalation call.
++ARBORIS_MODEL_FALLBACKS=liquid/lfm-2.5-2.6b:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free,openrouter/free
++# Optional. Leave empty (or equal to ARBORIS_MODEL) for no escalation call.
+ # Only a DIFFERENT model id here turns on the logprob-gated cascade.
+-GREENSEARCH_ESCALATION_MODEL=
++ARBORIS_ESCALATION_MODEL=
+ # Only used when the cascade is on.
+-GREENSEARCH_CASCADE_THRESHOLD=-1.0
++ARBORIS_CASCADE_THRESHOLD=-1.0
+ # Exact origins, separated by commas and/or spaces. Trailing slashes are
+ # stripped. '*' is refused.
+-GREENSEARCH_BACKEND_ORIGIN=http://localhost:8000,http://127.0.0.1:8000
+-GREENSEARCH_RATE_LIMIT_PER_HOUR=100
++ARBORIS_BACKEND_ORIGIN=http://localhost:8000,http://127.0.0.1:8000
++ARBORIS_RATE_LIMIT_PER_HOUR=100
+ # Off by default. When on, prompts are logged to local stderr only.
+-GREENSEARCH_DEBUG_LOG=
++ARBORIS_DEBUG_LOG=
+ PORT=8000
+diff --git a/AUDIT.md b/AUDIT.md
+index f8e2c08..a6ba03f 100644
+--- a/AUDIT.md
++++ b/AUDIT.md
+@@ -4,7 +4,7 @@ Scope: the v0.6.0 working tree in this folder, plus the website demo.
+ Method: full test run, grep for authorship references and secrets,
+ manual read of providers / CLI / session / shrink / footprint, and
+ re-running the corpus numbers. No live model was available (no
+-GREENSEARCH_API_KEY in the environment), so live-provider code paths
++ARBORIS_API_KEY in the environment), so live-provider code paths
+ were reviewed and unit-tested with fakes, not exercised against a
+ real endpoint.
+ 
+diff --git a/BASELINE.md b/BASELINE.md
+index cbf1618..2033964 100644
+--- a/BASELINE.md
++++ b/BASELINE.md
+@@ -39,7 +39,7 @@ git-ignored `.env`; the script never reads `.env` itself, so load it into
+ the shell first). From the repo root:
+ 
+ ```bash
+-set -a; . ./.env; set +a          # puts GREENSEARCH_API_KEY in the environment
++set -a; . ./.env; set +a          # puts ARBORIS_API_KEY in the environment
+ python3 scripts/baseline_study.py --provider live \
+   --base-url https://openrouter.ai/api/v1 \
+   --report-out results/baseline_live.md \
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 4f063ca..d88d083 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,13 @@
+ # Changelog
+ 
++- **0.9.0 -- Renamed from GreenSearch to Arboris (2026-10-29):**
++  - The Python package is now `arboris` (`import arboris`, `python -m arboris`), the CLI command is `arboris`, the PyPI distribution name is `arboris`, and the optional extra is `arboris[tokenizer]`. Environment variables are `ARBORIS_*` (for example `ARBORIS_API_KEY`, `ARBORIS_MODEL`, `ARBORIS_BACKEND_ORIGIN`). The site's localStorage keys are `arboris-demo-v1`, `arboris-live-v1` and `arboris-live-backend-url`. Docs, docstrings, the CLI banner, the session report heading, the server's log prefix and `Server` header all say Arboris.
++  - One-release compatibility, removed after 0.9.0: a `greensearch` shim package forwards every `greensearch.<module>` to the same `arboris.<module>` object and raises a DeprecationWarning; `python -m greensearch` and the `greensearch` command run the Arboris CLI; the server reads each `GREENSEARCH_*` variable when its `ARBORIS_*` twin is unset or blank (an `ARBORIS_*` value always wins) and logs the legacy names it used at startup; the live provider accepts `GREENSEARCH_API_KEY` when `ARBORIS_API_KEY` is unset; the site moves chats saved under the old `greensearch-*` keys to the new keys on first load and never overwrites a new key that already holds data.
++  - Removed: the `ECOWRAPPER_API_KEY` fallback, which was promised for one version at the 0.3.0 rename.
++  - `server/CLOUDRUN.md` uses the service name `arboris` and secret `arboris-api-key`, and adds a migration section: Cloud Run cannot rename a service, so the existing `greensearch` service keeps running on its old variables until a new `arboris` service (optionally in europe-north1) is verified and the old one deleted. Hosting region covers the server only, never the model's inference.
++  - Not renamed here: the GitHub repository (the owner renames it in GitHub settings; GitHub redirects the old URL, so the site's links keep working) and the existing Cloud Run service.
++  - `tests/test_greensearch.py` is now `tests/test_arboris.py`; `tests/test_rename.py` covers the shim, the env fallbacks and the storage migration.
++
+ - **Unreleased -- Output-weighted energy estimates (2026-10-29):**
+   - Energy is now output-weighted everywhere: output tokens x 0.0006 Wh plus input tokens x 0.0006 / 800 Wh, at the same assumed 400 g CO2e/kWh. 0.0006 Wh per output token is derived from Epoch AI's 2025 estimate (about 0.3 Wh for a GPT-4o query with 500 output tokens); 1/800 is the midpoint of the 750-850x output-to-input energy ratio Ruf and Detyniecki measured on vLLM (HotCarbon '26). The old default, 0.0045 Wh for every token, priced answers 7 to 9 times above the 2025 published estimates. Every energy, CO2e and water figure drops accordingly; token counts and token savings are unchanged.
+   - `energy_receipt` adds `factors.weighting`, `wh_per_input_token` and `input_output_energy_ratio`, rounds to 6 decimals so small answers no longer round to zero, and rejects a non-positive ratio. `footprint()` (output tokens only) uses the new default; `CO2_PER_TOKEN_G` is now 0.00024.
+diff --git a/Dockerfile b/Dockerfile
+index 6fc137e..1285f00 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,13 +1,13 @@
+-# GreenSearch live backend for Cloud Run (and any container host).
++# Arboris live backend for Cloud Run (and any container host).
+ # Python standard library only, no dependencies to install.
+ # The server serves the website at / and the API at /api/chat, so one
+ # container is the whole demo: no separate frontend host, no CORS split
+-# once GREENSEARCH_BACKEND_ORIGIN includes the Cloud Run URL.
++# once ARBORIS_BACKEND_ORIGIN includes the Cloud Run URL.
+ FROM python:3.12-slim
+ WORKDIR /app
+ # Copy only what the server needs to run. Tests, scripts, results and
+ # docs are not needed at runtime and are left out to keep the image small.
+-COPY greensearch/ ./greensearch/
++COPY arboris/ ./arboris/
+ COPY server/ ./server/
+ COPY website/ ./website/
+ ENV PYTHONUNBUFFERED=1
+diff --git a/README.md b/README.md
+index af0f261..8ea37f0 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,4 @@
+-# GreenSearch
++# Arboris
+ 
+ A small, runnable harness for answering questions concisely and estimating
+ the footprint of the shorter answer, plus a browser demo of the same idea.
+@@ -7,18 +7,20 @@ Standard library only, Python 3.9+.
+ **Vision.** An eco-friendly AI chat that runs on very low-carbon electricity
+ (reference point: Google Cloud europe-north1 in Finland, cited in
+ `website/README.md`), with PromptShrink trimming prompts before they reach a
+-model. **This repository is not that yet.** There is no Finland hosting, no
+-live chat service and no measured per-model energy use. The harness shows
+-the mechanics honestly; the numbers it prints are estimates.
++model. **This repository is part of the way there.** A live backend runs on
++Google Cloud Run (currently us-central1, not Finland), there is no measured
++per-model energy use, and hosting region says nothing about where the model
++provider runs inference. The harness shows the mechanics honestly; the
++numbers it prints are estimates.
+ 
+ ## Quickstart (offline, no key)
+ 
+ ```bash
+ pip install -e .
+-greensearch --demo                          # all topics, with totals
+-greensearch "explain DNS simply" --mode auto
+-greensearch "explain DNS simply" --session-file session.json
+-python -m greensearch "explain DNS simply"  # without installing
++arboris --demo                          # all topics, with totals
++arboris "explain DNS simply" --mode auto
++arboris "explain DNS simply" --session-file session.json
++python -m arboris "explain DNS simply"  # without installing
+ ```
+ 
+ Modes: `sprout` (about 2 sentences), `canopy` (4), `full` (6, default), or
+@@ -30,8 +32,15 @@ science, math, history, business, health, cooking, home maintenance,
+ programming). It says plainly when a topic is not covered.
+ 
+ Open `website/index.html` in a browser for the chat-style demo site,
+-**Arboris**: no server, no network, same canned topics. (The site is named
+-Arboris; the package, CLI and repo are still `greensearch` for now.)
++**Arboris**: no server, no network, same canned topics.
++
++**Renamed from GreenSearch (0.9.0).** The package, CLI and environment
++variables are now `arboris`, `arboris` and `ARBORIS_*`. For one release the
++old names still work: `import greensearch`, `python -m greensearch` and the
++`greensearch` command forward to `arboris`, and the server and live provider
++read a `GREENSEARCH_*` variable when its `ARBORIS_*` twin is unset, logging
++which legacy names it used. The GitHub repository is renamed separately;
++GitHub redirects the old URL.
+ 
+ ## How the numbers work
+ 
+@@ -54,8 +63,8 @@ input and output alike, which priced answers 7 to 9 times above the 2025
+ estimates. Override the factors to run your own scenario:
+ 
+ ```bash
+-greensearch "explain DNS simply" --grid-g-per-kwh 30   # a low-carbon grid
+-greensearch "explain DNS simply" --wh-per-token 0.001
++arboris "explain DNS simply" --grid-g-per-kwh 30   # a low-carbon grid
++arboris "explain DNS simply" --wh-per-token 0.001
+ ```
+ 
+ Changing the grid factor changes CO2e only; token savings are unaffected.
+@@ -75,8 +84,8 @@ That is the point of keeping the two levers separate.
+ ## Live mode
+ 
+ ```bash
+-export GREENSEARCH_API_KEY="your-key"
+-greensearch "explain DNS simply" --provider live --base-url https://api.openai.com/v1 --mode sprout
++export ARBORIS_API_KEY="your-key"
++arboris "explain DNS simply" --provider live --base-url https://api.openai.com/v1 --mode sprout
+ ```
+ 
+ Any OpenAI-compatible `/chat/completions` endpoint works. Plain `http` base
+@@ -100,18 +109,18 @@ version stays 0.8.0.
+   lists every env var. The key, base URL, model, cascade threshold, CORS
+   origins, rate limit and debug logging all come from the environment
+   only. Per request: PromptShrink → per-session, mode-aware cache → routing
+-  → one call to the primary model (`GREENSEARCH_MODEL`, default
++  → one call to the primary model (`ARBORIS_MODEL`, default
+   `google/gemma-4-31b-it:free`, a named general chat model; free models
+   are rate-limited and rotate) with the brevity
+   prompt, token cap and logprobs → `apply_brevity`. If that call fails
+   with HTTP 429/404/502/503 (or 402 when the next model is free), the
+-  models in `GREENSEARCH_MODEL_FALLBACKS` are tried in order; 401 never
++  models in `ARBORIS_MODEL_FALLBACKS` are tried in order; 401 never
+   falls back. If a provider rejects logprobs, the same model is retried
+   once without them. `meta.model` reports the model id that answered
+   (`openrouter/free` itself when the last-resort router answered; `meta.provider_model`
+   passes through the response's own `model` field, unverified live). There is
+   no escalation call by default. The logprob cascade runs only if
+-  `GREENSEARCH_ESCALATION_MODEL` is set to a different model, and then an
++  `ARBORIS_ESCALATION_MODEL` is set to a different model, and then an
+   escalation failure returns an error, never a downgrade. Answers
+   stream as SSE (chunk, meta, done), with a JSON fallback (`"stream": false`).
+   The provider itself is called without streaming because the brevity
+@@ -127,7 +136,7 @@ version stays 0.8.0.
+ - **Website (Arboris) Live mode**: a labelled toggle, OFF on every load. With it off,
+   the demo behaves exactly as before. With it on, the page shows a LIVE
+   pill and a banner saying it is not browser-only. It sends the raw prompt
+-  to an editable backend URL (stored under `greensearch-live-backend-url`),
++  to an editable backend URL (stored under `arboris-live-backend-url`),
+   renders streamed chunks, and shows the model (plus the provider-reported
+   model when it differs), escalation, cache hit, tokens, latency and a
+   truncated marker when the answer was cut at the token cap. Backend errors show as plain chat messages. Live
+@@ -136,8 +145,8 @@ version stays 0.8.0.
+   unconstrained call to measure savings, which doubles API cost.
+ - **`tests/test_live_backend.py`**: 63 tests, with fake providers only and
+   no key or network (the HTTP tests use loopback).
+-- **`.env.example`**: placeholders only, `GREENSEARCH_MODEL=google/gemma-4-31b-it:free`
+-  and the default `GREENSEARCH_MODEL_FALLBACKS` list (`openrouter/free` last).
++- **`.env.example`**: placeholders only, `ARBORIS_MODEL=google/gemma-4-31b-it:free`
++  and the default `ARBORIS_MODEL_FALLBACKS` list (`openrouter/free` last).
+ 
+ Model decision: the default was Qwen3-8B (`qwen/qwen3-8b`) until OpenRouter
+ deprecated it on 2026-10-09, then briefly `openrouter/free`. It is now the
+@@ -208,15 +217,15 @@ session caching, and a logprob-gated cascade (`--cascade`).
+ 
+ ## Layout
+ 
+-- `greensearch/brevity.py`: sentence budgets; keeps lists, code, subject and sign-off
+-- `greensearch/router.py`: `--mode auto` rules, shared with the site
+-- `greensearch/tokens.py`, `footprint.py`: estimates and the CO2e formula
+-- `greensearch/tokenizer.py`: optional real tiktoken counting
+-- `greensearch/cache.py`: session cache, ported from the website demo
+-- `greensearch/cascade.py`: logprob-gated escalation, no invented confidence
+-- `greensearch/providers.py`: offline provider (6 hardcoded + 89 templated topics) and OpenAI-compatible provider
++- `arboris/brevity.py`: sentence budgets; keeps lists, code, subject and sign-off
++- `arboris/router.py`: `--mode auto` rules, shared with the site
++- `arboris/tokens.py`, `footprint.py`: estimates and the CO2e formula
++- `arboris/tokenizer.py`: optional real tiktoken counting
++- `arboris/cache.py`: session cache, ported from the website demo
++- `arboris/cascade.py`: logprob-gated escalation, no invented confidence
++- `arboris/providers.py`: offline provider (6 hardcoded + 89 templated topics) and OpenAI-compatible provider
+ - `spec/templates.json`: the 89-topic expanded canned-answer library
+-- `greensearch/session.py`: totals, markdown report, atomic JSON persistence
++- `arboris/session.py`: totals, markdown report, atomic JSON persistence
+ - `spec/routing_cases.json`, `spec/corpus.json`, `tests/`: shared spec, fixed corpus, tests
+ - `scripts/baseline_study.py`: canned/live baseline study over the corpus
+ - `BASELINE.md`: baseline study results (canned until a live run is done)
+diff --git a/arboris/__init__.py b/arboris/__init__.py
+new file mode 100644
+index 0000000..f8a00a3
+--- /dev/null
++++ b/arboris/__init__.py
+@@ -0,0 +1,8 @@
++"""Arboris: a low-carbon GPT-wrapper harness.
++
++Modes (sprout/canopy/full) control answer length; the brevity layer trims
++draft answers to a sentence budget; token and CO2e figures are ESTIMATES
++from token counts, not measurements. See README.md for the honest limits.
++"""
++
++__version__ = "0.9.0"
+diff --git a/arboris/__main__.py b/arboris/__main__.py
+new file mode 100644
+index 0000000..a1ecae5
+--- /dev/null
++++ b/arboris/__main__.py
+@@ -0,0 +1,8 @@
++"""Allow `python -m arboris ...` as an entry point."""
++
++import sys
++
++from arboris.cli import main
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/greensearch/brevity.py b/arboris/brevity.py
+similarity index 100%
+rename from greensearch/brevity.py
+rename to arboris/brevity.py
+diff --git a/greensearch/cache.py b/arboris/cache.py
+similarity index 100%
+rename from greensearch/cache.py
+rename to arboris/cache.py
+diff --git a/greensearch/cascade.py b/arboris/cascade.py
+similarity index 97%
+rename from greensearch/cascade.py
+rename to arboris/cascade.py
+index 1f0d8c1..127845d 100644
+--- a/greensearch/cascade.py
++++ b/arboris/cascade.py
+@@ -16,7 +16,7 @@ Rules, stated up front so they can be checked:
+   5. A judge-model cascade is NOT implemented here. That would need a
+      second model call with a judge prompt and a threshold for the
+      judge's score, which is a separate, more expensive design.
+-  6. An optional transparent scorer (greensearch.scorer, local, no
++  6. An optional transparent scorer (arboris.scorer, local, no
+      model call) can also trigger escalation, and unlike logprobs it
+      works when logprobs are unavailable. By default it only reports;
+      it triggers escalation only when score_escalates is True.
+@@ -32,12 +32,12 @@ should be recorded with their data.
+ 
+ from dataclasses import dataclass
+ 
+-from greensearch.providers import ProviderError
++from arboris.providers import ProviderError
+ 
+ 
+ @dataclass
+ class CascadeResult:
+-    completion: object  # greensearch.providers.Completion
++    completion: object  # arboris.providers.Completion
+     escalated: bool
+     avg_logprob: object  # float or None
+     reason: str
+diff --git a/greensearch/cli.py b/arboris/cli.py
+similarity index 93%
+rename from greensearch/cli.py
+rename to arboris/cli.py
+index 8eab747..aece1b9 100644
+--- a/greensearch/cli.py
++++ b/arboris/cli.py
+@@ -1,16 +1,16 @@
+-"""GreenSearch CLI: concise answers with a footprint comparison.
++"""Arboris CLI: concise answers with a footprint comparison.
+ 
+ Installed entry points (see pyproject.toml):
+-  greensearch "explain DNS simply" --mode sprout
+-  python -m greensearch "explain DNS simply" --mode sprout
++  arboris "explain DNS simply" --mode sprout
++  python -m arboris "explain DNS simply" --mode sprout
+   python cli.py "explain DNS simply" --mode sprout   (legacy, same code)
+ 
+ Demo mode (offline, no key, no network):
+-  greensearch --demo
+-  greensearch --demo --mode canopy --report-out demo-report.md
++  arboris --demo
++  arboris --demo --mode canopy --report-out demo-report.md
+ 
+ Without --provider live, runs the offline demo provider: no key, no
+-network, no model. Live mode needs GREENSEARCH_API_KEY in the
++network, no model. Live mode needs ARBORIS_API_KEY in the
+ environment. With --session-file, calls persist to a JSON file across
+ runs and the printed session totals accumulate; without it, each run
+ is a single-call session. All user-facing failures exit 2 with a
+@@ -20,21 +20,21 @@ readable "Error:" line, never a traceback.
+ import argparse
+ import sys
+ 
+-from greensearch.brevity import apply_brevity
+-from greensearch.cache import cache_key
+-from greensearch.shrink import shrink
+-from greensearch.tokenizer import TokenizerError, count_tokens
+-from greensearch.tokens import est_tokens
+-from greensearch.footprint import GRID_G_PER_KWH, WH_PER_TOKEN, footprint
+-from greensearch.router import route_mode
+-from greensearch.providers import (
++from arboris.brevity import apply_brevity
++from arboris.cache import cache_key
++from arboris.shrink import shrink
++from arboris.tokenizer import TokenizerError, count_tokens
++from arboris.tokens import est_tokens
++from arboris.footprint import GRID_G_PER_KWH, WH_PER_TOKEN, footprint
++from arboris.router import route_mode
++from arboris.providers import (
+     BREVITY_SYSTEM,
+     MAX_TOKENS,
+     DemoProvider,
+     OpenAICompatibleProvider,
+     ProviderError,
+ )
+-from greensearch.session import Session
++from arboris.session import Session
+ 
+ # The demo runs the same six topics the site demo covers, plus one
+ # uncovered topic to show the honest generic fallback. It always uses
+@@ -158,7 +158,7 @@ def _run_one(provider, session, prompt, mode_arg, opts=None):
+         if opts.get("cascade"):
+             if not live:
+                 return "Cascade requires a live provider with logprobs; the demo provider has no confidence signal."
+-            from greensearch.cascade import run_cascade
++            from arboris.cascade import run_cascade
+             escalation = OpenAICompatibleProvider(
+                 provider.base_url, api_key=provider.api_key,
+                 model=opts.get("escalation_model", "gpt-4o"),
+@@ -242,7 +242,7 @@ def _run_one(provider, session, prompt, mode_arg, opts=None):
+ def _run_demo(session, mode, opts=None):
+     """Run the offline demo: all six topics plus a generic fallback."""
+     provider = DemoProvider()
+-    print("[demo (offline) | GreenSearch demo]\n")
++    print("[demo (offline) | Arboris demo]\n")
+     print(
+         "Six templated topics, plus one uncovered topic to show the "
+         "honest fallback. No key, no network, no model.\n"
+@@ -264,7 +264,7 @@ def _run_demo(session, mode, opts=None):
+ 
+ 
+ def main(argv=None):
+-    parser = argparse.ArgumentParser(description="GreenSearch: concise answers, estimated footprint.")
++    parser = argparse.ArgumentParser(description="Arboris: concise answers, estimated footprint.")
+     parser.add_argument("prompt", nargs="?", default=None,
+                         help="Prompt to answer (omit with --demo)")
+     parser.add_argument("--mode", choices=["sprout", "canopy", "full", "auto"], default="full",
+@@ -291,7 +291,7 @@ def main(argv=None):
+     parser.add_argument("--cascade-threshold", type=float, default=-1.0,
+                         help="Mean logprob below which --cascade escalates (default %(default)s; must be <= 0)")
+     parser.add_argument("--tokenizer", choices=["estimate", "tiktoken"], default="estimate",
+-                        help="Token counter: word estimate (default) or real tiktoken count (requires pip install 'greensearch[tokenizer]')")
++                        help="Token counter: word estimate (default) or real tiktoken count (requires pip install 'arboris[tokenizer]')")
+     parser.add_argument("--no-cache", action="store_true",
+                         help="Bypass the session cache (cached answers are reused verbatim and may be stale)")
+     parser.add_argument("--demo", action="store_true",
+diff --git a/greensearch/footprint.py b/arboris/footprint.py
+similarity index 100%
+rename from greensearch/footprint.py
+rename to arboris/footprint.py
+diff --git a/greensearch/local_calc.py b/arboris/local_calc.py
+similarity index 100%
+rename from greensearch/local_calc.py
+rename to arboris/local_calc.py
+diff --git a/greensearch/long_input.py b/arboris/long_input.py
+similarity index 100%
+rename from greensearch/long_input.py
+rename to arboris/long_input.py
+diff --git a/greensearch/providers.py b/arboris/providers.py
+similarity index 97%
+rename from greensearch/providers.py
+rename to arboris/providers.py
+index 80a0b46..9bd2561 100644
+--- a/greensearch/providers.py
++++ b/arboris/providers.py
+@@ -13,7 +13,7 @@ mistaken for a live model response:
+   returns one full draft and the brevity layer trims it to the mode
+   budget.
+ - OpenAICompatibleProvider: POSTs to a /chat/completions endpoint with a
+-  bearer key from the environment (GREENSEARCH_API_KEY). Only used when
++  bearer key from the environment (ARBORIS_API_KEY). Only used when
+   the user explicitly asks for live mode and supplies a key and base URL.
+   Standard library only (urllib).
+ """
+@@ -242,16 +242,17 @@ class OpenAICompatibleProvider:
+                 "base URL must use https (plain http is only allowed for "
+                 "localhost), because the API key is sent in a header."
+             )
+-        # GREENSEARCH_API_KEY is canonical since the 0.3.0 rename.
+-        # ECOWRAPPER_API_KEY is accepted as a one-version fallback.
++        # ARBORIS_API_KEY is canonical since the 0.3.0 rename.
++        # ARBORIS_API_KEY is canonical since the 0.9.0 rename.
++        # GREENSEARCH_API_KEY is accepted as a one-version fallback.
+         self.api_key = (
+             api_key
++            or os.environ.get("ARBORIS_API_KEY", "")
+             or os.environ.get("GREENSEARCH_API_KEY", "")
+-            or os.environ.get("ECOWRAPPER_API_KEY", "")
+         )
+         if not self.api_key:
+             raise ValueError(
+-                "No API key: set GREENSEARCH_API_KEY or pass api_key explicitly."
++                "No API key: set ARBORIS_API_KEY or pass api_key explicitly."
+             )
+         self.model = model
+ 
+diff --git a/greensearch/router.py b/arboris/router.py
+similarity index 100%
+rename from greensearch/router.py
+rename to arboris/router.py
+diff --git a/greensearch/scorer.py b/arboris/scorer.py
+similarity index 98%
+rename from greensearch/scorer.py
+rename to arboris/scorer.py
+index f1fcab2..2aa8cb9 100644
+--- a/greensearch/scorer.py
++++ b/arboris/scorer.py
+@@ -12,7 +12,7 @@ transparent version of the same idea:
+   can be argued with and fixed from one example.
+ - The score is reported in meta on every answer. It only triggers
+   escalation when the server is explicitly configured to let it
+-  (GREENSEARCH_SCORER_ESCALATION). Otherwise it is a measurement, not
++  (ARBORIS_SCORER_ESCALATION). Otherwise it is a measurement, not
+   a decision, and the logprob cascade keeps its old behaviour.
+ 
+ Components (weights sum to 1):
+diff --git a/greensearch/session.py b/arboris/session.py
+similarity index 98%
+rename from greensearch/session.py
+rename to arboris/session.py
+index ae33b88..2722040 100644
+--- a/greensearch/session.py
++++ b/arboris/session.py
+@@ -13,7 +13,7 @@ import json
+ import os
+ import tempfile
+ 
+-from greensearch.cache import SessionCache
++from arboris.cache import SessionCache
+ 
+ _REQUIRED_CALL_KEYS = (
+     "prompt",
+@@ -107,7 +107,7 @@ class Session:
+     def markdown_report(self):
+         totals = self.totals
+         lines = [
+-            "# GreenSearch session report",
++            "# Arboris session report",
+             "",
+             f"Generated: {datetime.datetime.now().isoformat(timespec='seconds')}",
+             "",
+diff --git a/greensearch/shrink.py b/arboris/shrink.py
+similarity index 98%
+rename from greensearch/shrink.py
+rename to arboris/shrink.py
+index 2b61f0e..3736357 100644
+--- a/greensearch/shrink.py
++++ b/arboris/shrink.py
+@@ -139,7 +139,7 @@ def shrink(prompt: str, count_fn=None) -> "ShrinkResult":
+     default it is the word estimate from tokens.py.
+     """
+     if count_fn is None:
+-        from greensearch.tokens import est_tokens  # deferred to avoid circular import
++        from arboris.tokens import est_tokens  # deferred to avoid circular import
+         count_fn = est_tokens
+ 
+     if not prompt or not prompt.strip():
+@@ -282,7 +282,7 @@ def _recapitalise(text: str) -> str:
+ #      drop a constraint. A prompt that fails the gate gets pass 1 only.
+ #
+ # Tokenizer-aware counting is not a new pass: shrink_v2() takes the same
+-# count_fn as shrink(), so callers can pass greensearch.tokenizer
++# count_fn as shrink(), so callers can pass arboris.tokenizer
+ # .count_tokens with backend="tiktoken" for real token counts, or leave
+ # the default word estimate. The quality script (scripts/shrink_quality.py)
+ # reports both tokens saved AND answers changed, because a shrink that
+@@ -358,7 +358,7 @@ def shrink_v2(prompt: str, count_fn=None) -> "ShrinkResult":
+     keep v1 numbers until a switch is explicitly approved.
+     """
+     if count_fn is None:
+-        from greensearch.tokens import est_tokens  # deferred, as in shrink()
++        from arboris.tokens import est_tokens  # deferred, as in shrink()
+         count_fn = est_tokens
+ 
+     if not prompt or not prompt.strip():
+diff --git a/greensearch/task_router.py b/arboris/task_router.py
+similarity index 99%
+rename from greensearch/task_router.py
+rename to arboris/task_router.py
+index f66e2f6..f793771 100644
+--- a/greensearch/task_router.py
++++ b/arboris/task_router.py
+@@ -218,7 +218,7 @@ _DIFFICULTY_BASE = {
+ }
+ _DIFFICULTY_OTHER = {"sprout": 0.4, "canopy": 0.55, "full": 0.7}
+ QUALITY_THRESHOLDS = {"eco": 0.7, "balanced": 0.5, "quality": 0.3}
+-# Task temperatures, opt-in only (GREENSEARCH_TASK_TEMPERATURE).
++# Task temperatures, opt-in only (ARBORIS_TASK_TEMPERATURE).
+ # Factual tasks get a low temperature for consistency; creative gets
+ # a high one for variety; steps/reasoning sit in the middle. "other"
+ # gets no temperature (provider default), because an unknown task
+diff --git a/greensearch/tokenizer.py b/arboris/tokenizer.py
+similarity index 91%
+rename from greensearch/tokenizer.py
+rename to arboris/tokenizer.py
+index 9bdb56f..db9f103 100644
+--- a/greensearch/tokenizer.py
++++ b/arboris/tokenizer.py
+@@ -10,7 +10,7 @@ instead of reporting 1 token for a whole sentence.
+ Supported backend, for now: tiktoken's cl100k_base encoding (the
+ GPT-4o family encoding). Install it with:
+ 
+-    pip install 'greensearch[tokenizer]'
++    pip install 'arboris[tokenizer]'
+ 
+ If tiktoken is not installed and a caller asks for it, count_tokens
+ raises TokenizerError instead of silently falling back to the
+@@ -18,7 +18,7 @@ estimate -- a silent fallback would make a "real tokenizer" number
+ indistinguishable from an estimate.
+ """
+ 
+-from greensearch.tokens import est_tokens
++from arboris.tokens import est_tokens
+ 
+ 
+ class TokenizerError(Exception):
+@@ -39,7 +39,7 @@ def count_tokens(text, backend="estimate", encoding="cl100k_base"):
+             import tiktoken
+         except ImportError as exc:
+             raise TokenizerError(
+-                "tiktoken is not installed: pip install 'greensearch[tokenizer]'"
++                "tiktoken is not installed: pip install 'arboris[tokenizer]'"
+             ) from exc
+         try:
+             enc = tiktoken.get_encoding(encoding)
+diff --git a/greensearch/tokens.py b/arboris/tokens.py
+similarity index 100%
+rename from greensearch/tokens.py
+rename to arboris/tokens.py
+diff --git a/cli.py b/cli.py
+index 5a8c142..bbd21cf 100644
+--- a/cli.py
++++ b/cli.py
+@@ -1,13 +1,13 @@
+ """Legacy entry point: `python cli.py ...` still works.
+ 
+-The canonical entry points are the installed `greensearch` command and
+-`python -m greensearch`. This file exists only so existing scripts and
++The canonical entry points are the installed `arboris` command and
++`python -m arboris`. This file exists only so existing scripts and
+ docs that call `python cli.py` do not break; it runs the same code.
+ """
+ 
+ import sys
+ 
+-from greensearch.cli import main
++from arboris.cli import main
+ 
+ if __name__ == "__main__":
+     sys.exit(main())
+diff --git a/greensearch/__init__.py b/greensearch/__init__.py
+index a850f43..bf8d8e3 100644
+--- a/greensearch/__init__.py
++++ b/greensearch/__init__.py
+@@ -1,8 +1,34 @@
+-"""GreenSearch: a low-carbon GPT-wrapper harness.
++"""Legacy name for the Arboris package (renamed from GreenSearch in 0.9.0).
+ 
+-Modes (sprout/canopy/full) control answer length; the brevity layer trims
+-draft answers to a sentence budget; token and CO2e figures are ESTIMATES
+-from token counts, not measurements. See README.md for the honest limits.
++``import greensearch`` and ``from greensearch.footprint import ...`` keep
++working for one release: every ``greensearch.<module>`` name points at the
++same module object as ``arboris.<module>``, so patches and state are
++shared. New code should import ``arboris``. This shim will be removed in
++the release after 0.9.0.
+ """
+ 
+-__version__ = "0.8.0"
++import importlib
++import sys
++import warnings
++
++import arboris as _arboris
++
++_SUBMODULES = (
++    "brevity", "cache", "cascade", "cli", "footprint", "local_calc",
++    "long_input", "providers", "router", "scorer", "session", "shrink",
++    "task_router", "tokenizer", "tokens",
++)
++
++for _name in _SUBMODULES:
++    _module = importlib.import_module(f"arboris.{_name}")
++    sys.modules[f"{__name__}.{_name}"] = _module
++    globals()[_name] = _module
++
++__version__ = _arboris.__version__
++
++warnings.warn(
++    "The 'greensearch' package is now 'arboris'; import arboris instead. "
++    "The greensearch name will be removed after 0.9.0.",
++    DeprecationWarning,
++    stacklevel=2,
++)
+diff --git a/greensearch/__main__.py b/greensearch/__main__.py
+index f35d101..8ea3fea 100644
+--- a/greensearch/__main__.py
++++ b/greensearch/__main__.py
+@@ -1,8 +1,6 @@
+-"""Allow `python -m greensearch ...` as an entry point."""
++"""Legacy ``python -m greensearch``: runs the Arboris CLI unchanged."""
+ 
+-import sys
+-
+-from greensearch.cli import main
++from arboris.cli import main
+ 
+ if __name__ == "__main__":
+-    sys.exit(main())
++    raise SystemExit(main())
+diff --git a/pyproject.toml b/pyproject.toml
+index 9c024cd..c4caf28 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
+ build-backend = "setuptools.build_meta"
+ 
+ [project]
+-name = "greensearch"
+-version = "0.8.0"
+-description = "GreenSearch: a low-carbon GPT-wrapper harness — concise answers with estimated footprint"
++name = "arboris"
++version = "0.9.0"
++description = "Arboris: lower-carbon AI chat harness — right-sized answers with an honest, estimated footprint"
+ readme = "README.md"
+ requires-python = ">=3.9"
+ license = { text = "MIT" }
+@@ -23,7 +23,9 @@ classifiers = [
+ tokenizer = ["tiktoken>=0.5"]
+ 
+ [project.scripts]
+-greensearch = "greensearch.cli:main"
++arboris = "arboris.cli:main"
++# Legacy command name, kept for one release after the GreenSearch rename.
++greensearch = "arboris.cli:main"
+ 
+ [tool.setuptools.packages.find]
+-include = ["greensearch*"]
++include = ["arboris*", "greensearch*"]
+diff --git a/scripts/baseline_study.py b/scripts/baseline_study.py
+index f139edf..e169608 100644
+--- a/scripts/baseline_study.py
++++ b/scripts/baseline_study.py
+@@ -17,7 +17,7 @@ Usage:
+       --report-out results/baseline_live.md
+   # --model defaults to google/gemma-4-31b-it:free (an OpenRouter id, so
+   # pass the OpenRouter --base-url); --model still overrides it.
+-  # Live mode requires GREENSEARCH_API_KEY. Without it, this script
++  # Live mode requires ARBORIS_API_KEY. Without it, this script
+   # exits 2 and writes nothing -- it never fabricates a live result.
+ 
+ Output JSON (with --json-out) records, per prompt, the model, mode,
+@@ -34,17 +34,17 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.brevity import apply_brevity
+-from greensearch.footprint import footprint
+-from greensearch.providers import (
++from arboris.brevity import apply_brevity
++from arboris.footprint import footprint
++from arboris.providers import (
+     BREVITY_SYSTEM,
+     MAX_TOKENS,
+     DemoProvider,
+     OpenAICompatibleProvider,
+     ProviderError,
+ )
+-from greensearch.shrink import shrink
+-from greensearch.tokens import est_tokens
++from arboris.shrink import shrink
++from arboris.tokens import est_tokens
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ 
+@@ -189,7 +189,7 @@ def markdown_report(rows, provider_name, model, mode, token_source):
+ 
+ 
+ def main(argv=None):
+-    parser = argparse.ArgumentParser(description="Run the GreenSearch baseline study over spec/corpus.json.")
++    parser = argparse.ArgumentParser(description="Run the Arboris baseline study over spec/corpus.json.")
+     parser.add_argument("--provider", choices=["demo", "live"], default="demo")
+     parser.add_argument("--base-url", default="https://api.openai.com/v1")
+     parser.add_argument("--model", default="google/gemma-4-31b-it:free")
+diff --git a/scripts/compare_qwen.py b/scripts/compare_qwen.py
+index 48c5667..ba94c5a 100644
+--- a/scripts/compare_qwen.py
++++ b/scripts/compare_qwen.py
+@@ -1,4 +1,4 @@
+-"""Compare Qwen3-4B vs Qwen3-8B on the fixed corpus, GreenSearch-style.
++"""Compare Qwen3-4B vs Qwen3-8B on the fixed corpus, Arboris-style.
+ 
+ Method: for each prompt in spec/corpus.json, for each model:
+   1. Shrink the prompt with PromptShrink (input side, same as production).
+@@ -22,9 +22,9 @@ Usage:
+   #   --input-price 0.06 --output-price 0.20
+   # Without prices, no cost is reported -- it is never guessed.
+ 
+-Live mode requires GREENSEARCH_API_KEY. Without it, this script
++Live mode requires ARBORIS_API_KEY. Without it, this script
+ exits 2 and writes nothing -- it never fabricates a live result.
+-For OpenRouter, set GREENSEARCH_API_KEY to your OpenRouter key.
++For OpenRouter, set ARBORIS_API_KEY to your OpenRouter key.
+ """
+ 
+ import argparse
+@@ -36,14 +36,14 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.providers import (
++from arboris.providers import (
+     BREVITY_SYSTEM,
+     MAX_TOKENS,
+     OpenAICompatibleProvider,
+     ProviderError,
+ )
+-from greensearch.shrink import shrink
+-from greensearch.tokens import est_tokens
++from arboris.shrink import shrink
++from arboris.tokens import est_tokens
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ 
+diff --git a/scripts/shrink_quality.py b/scripts/shrink_quality.py
+index 3fbf46e..4abf434 100644
+--- a/scripts/shrink_quality.py
++++ b/scripts/shrink_quality.py
+@@ -19,9 +19,9 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.providers import DemoProvider
+-from greensearch.shrink import shrink, shrink_v2
+-from greensearch.tokenizer import count_tokens
++from arboris.providers import DemoProvider
++from arboris.shrink import shrink, shrink_v2
++from arboris.tokenizer import count_tokens
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ 
+diff --git a/server/CLOUDRUN.md b/server/CLOUDRUN.md
+index 4165f90..cbfe2f6 100644
+--- a/server/CLOUDRUN.md
++++ b/server/CLOUDRUN.md
+@@ -1,4 +1,4 @@
+-# Deploying the GreenSearch backend to Google Cloud Run
++# Deploying the Arboris backend to Google Cloud Run
+ 
+ This deploys one container that serves **both** the website (`/`) and the
+ API (`/api/chat`), so a visitor gets a working live demo at a single URL,
+@@ -31,6 +31,38 @@ Finland hosting for this deployment unless you actually deploy to
+ if the region matches the claim. Changing region later is just a
+ `--region` change and a redeploy.
+ 
++Hosting region only covers this server. The model runs wherever
++OpenRouter's provider runs it, which is not disclosed, so even a
++europe-north1 deployment must not be described as Finland-powered
++inference.
++
++## Migrating an existing GreenSearch deployment
++
++The project was renamed from GreenSearch to Arboris in 0.9.0. The
++commands below use the new names (service `arboris`, secret
++`arboris-api-key`, `ARBORIS_*` variables). A service deployed before the
++rename is called `greensearch`, uses the secret `greensearch-api-key`, and
++sets `GREENSEARCH_*` variables. It keeps working after you deploy the new
++code: for one release the server reads each `GREENSEARCH_*` variable when
++its `ARBORIS_*` twin is unset, and logs the legacy names it used at
++startup.
++
++Cloud Run cannot rename a service, and a new service gets a new URL. To
++move over:
++
++1. Create `arboris-api-key` (step 2 below) or keep using the old secret
++   by naming it in `--set-secrets`.
++2. Deploy a new `arboris` service (step 3), in `europe-north1` if you want
++   the low-carbon hosting region; check that region's price and free tier
++   first.
++3. Put the new URL in `ARBORIS_BACKEND_ORIGIN` (step 5) and check
++   `/api/health`.
++4. Once the new URL works, delete the old service:
++   `gcloud run services delete greensearch --region us-central1`.
++
++Until then, manage the old service with its own name, for example
++`gcloud run services describe greensearch --region us-central1`.
++
+ ## Deploy, step by step
+ 
+ Replace `YOUR_PROJECT_ID` with your project id throughout.
+@@ -48,21 +80,21 @@ server, but write origins without one.
+ # env.yaml: local deploy state. Do NOT commit it (it is git-ignored).
+ # Not a secret (it holds the public service URL), but it is per-deploy
+ # state, not repo content. The API key is NEVER in here: it is a secret.
+-GREENSEARCH_MODEL: "google/gemma-4-31b-it:free"
+-GREENSEARCH_BACKEND_ORIGIN: "http://localhost:8000,http://127.0.0.1:8000"
++ARBORIS_MODEL: "google/gemma-4-31b-it:free"
++ARBORIS_BACKEND_ORIGIN: "http://localhost:8000,http://127.0.0.1:8000"
+ ```
+ 
+ > **Warning: `--set-env-vars` and `--env-vars-file` REPLACE the whole
+ > env var list; `--update-env-vars` changes only the vars you name and
+ > keeps the rest.** A single-var
+-> `gcloud run services update ... --set-env-vars GREENSEARCH_MODEL=...`
+-> once wiped `GREENSEARCH_BACKEND_ORIGIN` in production: the allowlist
++> `gcloud run services update ... --set-env-vars ARBORIS_MODEL=...`
++> once wiped `ARBORIS_BACKEND_ORIGIN` in production: the allowlist
+ > fell back to localhost and the hosted page got "This page's origin is
+ > not allowed". So: either pass the **complete** `env.yaml` (every
+ > non-secret var, origins and model together), or change one var with
+ > `--update-env-vars`. Never use `--set-env-vars` for a one-var change.
+ > After any env change, check with
+-> `gcloud run services describe greensearch --region us-central1 --format='yaml(spec.template.spec.containers[0].env)'`.
++> `gcloud run services describe arboris --region us-central1 --format='yaml(spec.template.spec.containers[0].env)'`.
+ 
+ ```bash
+ # 1. Point gcloud at your project, enable the services.
+@@ -74,34 +106,34 @@ gcloud services enable run.googleapis.com secretmanager.googleapis.com \
+ #    Type or paste the key when prompted; it is not echoed into history
+ #    if you use --data-file=- with stdin, and it is never committed.
+ printf '%s' 'YOUR_OPENROUTER_KEY' | \
+-  gcloud secrets create greensearch-api-key --data-file=-
++  gcloud secrets create arboris-api-key --data-file=-
+ 
+ # 3. Build and deploy from the repo root (the folder with Dockerfile).
+ #    --allow-unauthenticated makes the demo public, which is what a
+ #    demo wants. Remove it if you want a private service instead.
+ #    The first deploy does NOT yet know its own URL, so env.yaml lists
+ #    localhost only for now; step 5 fixes that.
+-gcloud run deploy greensearch \
++gcloud run deploy arboris \
+   --source . \
+   --region us-central1 \
+   --allow-unauthenticated \
+-  --set-secrets GREENSEARCH_API_KEY=greensearch-api-key:latest \
++  --set-secrets ARBORIS_API_KEY=arboris-api-key:latest \
+   --env-vars-file env.yaml
+ ```
+ 
+ Note the deploy command for the URL it prints, e.g.
+-`https://greensearch-abc123-uc.a.run.app`.
++`https://arboris-abc123-uc.a.run.app`.
+ 
+ ```bash
+ # 4. Check health. It must say "configured": true.
+-curl https://greensearch-abc123-uc.a.run.app/api/health
++curl https://arboris-abc123-uc.a.run.app/api/health
+ 
+-# 5. Add the hosted URL to GREENSEARCH_BACKEND_ORIGIN in env.yaml
+-#    (commas, no spaces), keep GREENSEARCH_MODEL in the same file, then
++# 5. Add the hosted URL to ARBORIS_BACKEND_ORIGIN in env.yaml
++#    (commas, no spaces), keep ARBORIS_MODEL in the same file, then
+ #    apply the whole file. No rebuild is needed for an env change.
+-#      GREENSEARCH_MODEL: "google/gemma-4-31b-it:free"
+-#      GREENSEARCH_BACKEND_ORIGIN: "https://greensearch-abc123-uc.a.run.app,http://localhost:8000,http://127.0.0.1:8000"
+-gcloud run services update greensearch --region us-central1 \
++#      ARBORIS_MODEL: "google/gemma-4-31b-it:free"
++#      ARBORIS_BACKEND_ORIGIN: "https://arboris-abc123-uc.a.run.app,http://localhost:8000,http://127.0.0.1:8000"
++gcloud run services update arboris --region us-central1 \
+   --env-vars-file env.yaml
+ ```
+ 
+@@ -111,8 +143,8 @@ Use `--update-env-vars`, which leaves the CORS allowlist (and every
+ other var) in place:
+ 
+ ```bash
+-gcloud run services update greensearch --region us-central1 \
+-  --update-env-vars GREENSEARCH_MODEL=google/gemma-4-31b-it:free
++gcloud run services update arboris --region us-central1 \
++  --update-env-vars ARBORIS_MODEL=google/gemma-4-31b-it:free
+ ```
+ 
+ Then update `env.yaml` to match, so the next full `--env-vars-file`
+@@ -144,7 +176,7 @@ so `https://x.run.app/` matches `https://x.run.app`.
+   shared across instances. That is fine for a demo and is not a
+   production session store.
+ - If you rotate the OpenRouter key, update the secret
+-  (`gcloud secrets versions add greensearch-api-key --data-file=-`) and
++  (`gcloud secrets versions add arboris-api-key --data-file=-`) and
+   redeploy; the container never holds the old key after that.
+-- To take the demo down: `gcloud run services delete greensearch
++- To take the demo down: `gcloud run services delete arboris
+   --region us-central1`.
+diff --git a/server/README.md b/server/README.md
+index 1622601..ab0d639 100644
+--- a/server/README.md
++++ b/server/README.md
+@@ -1,4 +1,4 @@
+-# GreenSearch live backend (Phase 2, local only)
++# Arboris live backend (Phase 2, local only)
+ 
+ A thin server that lets the website's **Live mode** get real model answers
+ without ever putting an API key in the browser. Python standard library
+@@ -16,19 +16,19 @@ router can pick non-chat free models, and the fallback chain only
+ triggers on errors, never on a wrong-type answer, so a named chat model
+ must answer first. Free models are rate-limited and rotate in and out of
+ service. An older default, `qwen/qwen3-8b`, was deprecated on OpenRouter
+-on 2026-10-09 and now returns 404. Set `GREENSEARCH_MODEL` to pin a
++on 2026-10-09 and now returns 404. Set `ARBORIS_MODEL` to pin a
+ different model. The logprob cascade remains available only as an
+-opt-in: set `GREENSEARCH_ESCALATION_MODEL` to a *different* model to turn
++opt-in: set `ARBORIS_ESCALATION_MODEL` to a *different* model to turn
+ it on.
+ 
+ ## Model and fallbacks
+ 
+-Each request first calls `GREENSEARCH_MODEL`. If that call fails, the
+-models in `GREENSEARCH_MODEL_FALLBACKS` are tried in order, and the first
++Each request first calls `ARBORIS_MODEL`. If that call fails, the
++models in `ARBORIS_MODEL_FALLBACKS` are tried in order, and the first
+ one that answers is used. **Exception, opt-in only:** with
+-`GREENSEARCH_SMALL_MODEL_ROUTING` on, sprout prompts (short, simple, per
++`ARBORIS_SMALL_MODEL_ROUTING` on, sprout prompts (short, simple, per
+ `route_mode`: at most 12 words, no complexity markers, at most one
+-question) try `GREENSEARCH_SMALL_MODEL` (default 2.6B) first, then the
++question) try `ARBORIS_SMALL_MODEL` (default 2.6B) first, then the
+ primary chain. That routing is a length heuristic, not a measured
+ difficulty score, so small-model answers need live judging before routing
+ is left on. Meta reports `routed_to_small` and `model_tier` (`small` /
+@@ -45,7 +45,7 @@ primary answers under separate keys.
+   not a generic unreachable message.
+ 
+ Before any model is called, a **no-model gate** answers pure arithmetic
+-locally (`greensearch/local_calc.py`): a prompt that is only an
++locally (`arboris/local_calc.py`): a prompt that is only an
+ expression, after stripping "what is / calculate / compute", is parsed
+ (not executed) and answered with 0 tokens and 0 estimated energy.
+ Division by zero, any letters, `**`, `//`, unbalanced parentheses, or
+@@ -62,8 +62,8 @@ render, built from provider-reported tokens only:
+ - `energy_wh` = output tokens x 0.0006 Wh + input tokens x 0.0006 / 800 Wh.
+   Output tokens are the provider's completion count, which includes
+   reasoning tokens. Sources and the published range (0.0006-0.005 Wh
+-  per output token) are in `greensearch/footprint.py`.
+-- `co2e_g` = `energy_wh` / 1000 x `GREENSEARCH_GRID_G_PER_KWH`.
++  per output token) are in `arboris/footprint.py`.
++- `co2e_g` = `energy_wh` / 1000 x `ARBORIS_GRID_G_PER_KWH`.
+ - `water_ml_low` / `water_ml_high` = `energy_wh` x WUE, with WUE
+   0.1-0.3 L/kWh (modern closed-loop cooling only; electricity-
+   generation water is excluded, and the receipt's note says so).
+@@ -127,7 +127,7 @@ With a key (once you have one; never commit it):
+ 
+ ```bash
+ cp .env.example .env              # .env is git-ignored
+-# edit .env: set GREENSEARCH_API_KEY
++# edit .env: set ARBORIS_API_KEY
+ set -a; . ./.env; set +a
+ python3 server/app.py
+ ```
+@@ -153,7 +153,7 @@ Options: `--host` (default `127.0.0.1`, local only) and `--port` (default
+ | Network | None | Prompt goes to the backend URL you set, then to its provider |
+ | Tokens | Estimates (words × 1.33) | Provider-reported |
+ | Totals | Demo row | Separate LIVE row, never mixed with demo totals |
+-| Saved in localStorage | Chat under `greensearch-demo-v1` | Only the backend URL, under `greensearch-live-backend-url` |
++| Saved in localStorage | Chat under `arboris-demo-v1` | Only the backend URL, under `arboris-live-backend-url` |
+ 
+ Live mode resets to OFF on every page load. **Measure baseline** is also off
+ by default and resets to off: when on, every live message makes a second,
+@@ -167,35 +167,35 @@ requests, files in the repo, or the command line.
+ 
+ | Variable | Default | Meaning |
+ |---|---|---|
+-| `GREENSEARCH_API_KEY` | unset | Provider key. Server-side only. Unset means `/api/chat` returns 503 and no provider is called. |
+-| `GREENSEARCH_BASE_URL` | `https://openrouter.ai/api/v1` | OpenAI-compatible base URL. https required (http only for localhost). |
+-| `GREENSEARCH_MODEL` | `google/gemma-4-31b-it:free` | Primary model, called first on every request. A named chat model; do not set the `openrouter/free` router here (it can route to non-chat models, see above). |
+-| `GREENSEARCH_MODEL_FALLBACKS` | `liquid/lfm-2.5-2.6b:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free,openrouter/free` | Comma-separated models tried in order when the primary call fails (see "Model and fallbacks"). Whitespace, empty entries, repeats and the primary model are dropped. Unset or empty uses the default list; `none` disables fallbacks. |
+-| `GREENSEARCH_ESCALATION_MODEL` | value of `GREENSEARCH_MODEL` | Optional. While it equals `GREENSEARCH_MODEL` (the default) there is **no** escalation call. Set it to a different model to turn on the logprob cascade. |
+-| `GREENSEARCH_CASCADE_THRESHOLD` | `-1.0` | Cascade only: escalate when the primary model's mean token logprob is below this. Must be ≤ 0. A starting point to tune, not a sourced constant. |
+-| `GREENSEARCH_BACKEND_ORIGIN` | `http://localhost:8000,http://127.0.0.1:8000` | CORS allowlist of exact origins, separated by commas and/or whitespace (so a space-separated list works too). Trailing slashes are stripped, so `https://example.com/` matches `https://example.com`. Matching is otherwise exact; `*` is refused at startup. For Cloud Run, see `CLOUDRUN.md` (env-vars file, commas, no spaces). |
+-| `GREENSEARCH_RATE_LIMIT_PER_HOUR` | `30` | `/api/chat` requests per client IP per rolling hour. `0` disables. |
+-| `GREENSEARCH_RATE_LIMIT_PER_DAY` | `100` | `/api/chat` requests per client IP per rolling day. `0` disables. |
+-| `GREENSEARCH_GLOBAL_LIMIT_PER_DAY` | `800` | `/api/chat` requests in total per rolling day, all IPs combined. `0` disables. POC guard: keeps one abusive IP, or many IPs, from burning the OpenRouter free quota (1000/day after a $10 credit) or paid credits. |
+-| `GREENSEARCH_ALLOW_PAID_MODELS` | off | `1`/`true`/`yes`/`on` allows a non-free primary, fallback, or escalation model. Off by default: a paid model must be enabled deliberately, so a config mistake cannot drain credits. Server refuses to start on a paid model without it. |
+-| `GREENSEARCH_SMALL_MODEL` | `liquid/lfm-2.5-2.6b:free` | Small model tried first for sprout prompts when small-model routing is on. Must be free unless `GREENSEARCH_ALLOW_PAID_MODELS` is on. |
+-| `GREENSEARCH_SMALL_MODEL_ROUTING` | off | `1`/`true`/`yes`/`on` routes sprout prompts (short, simple, per `route_mode`) to `GREENSEARCH_SMALL_MODEL` first, with the primary chain as fallback. Off by default. |
+-| `GREENSEARCH_SHRINK_VERSION` | `v1` | PromptShrink version for live requests: `v1` (default) or `v2` (redundancy + gated telegraphic, 39% vs 32% saved on the corpus). v2 is opt-in only; any other value refuses to start. Meta reports the version used. |
+-| `GREENSEARCH_GRID_G_PER_KWH` | `400` | Grid carbon intensity for the per-answer energy receipt, in gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter does not disclose where inference ran, so no region is claimed. Must be positive; anything else refuses to start. |
+-| `GREENSEARCH_TASK_ROUTING` | `off` | `1`/`true`/`yes`/`on` routes by task type (fact, definition, steps, reasoning, math, code, creative, other; see `greensearch/task_router.py` and `spec/task_cases.json`) instead of word count, for auto mode only. Unknown prompts fall back to word-count routing, and an explicit client mode always wins. Off by default. Meta reports `task_type`, `task_tier`, and `routed_by` on every answer. When task routing is on, the task tier replaces the sprout rule for small-model routing: a long, easy fact goes small, a short, hard question goes primary. Small-model routing must still be enabled separately for the small model to be used at all. |
+-| `GREENSEARCH_DIFFICULTY_ROUTING` | `off` | `1`/`true`/`yes`/`on` lets a 0-1 difficulty score override the task tier when task routing is on: below the threshold goes small, at or above goes primary. The score is a transparent feature formula (`difficulty_score` in `greensearch/task_router.py`), not a learned RouteLLM-style router: at the default 0.5 threshold it reproduces the task tiers exactly, so turning it on alone changes nothing. Moving the threshold is what moves traffic. Meta reports `difficulty_score`, `difficulty_tier`, and `router_threshold`. |
+-| `GREENSEARCH_ROUTER_THRESHOLD` | `0.5` | Difficulty-score threshold for small vs primary, 0-1. Overridden by `GREENSEARCH_QUALITY_TARGET=eco` (0.7) or `=quality` (0.3). |
+-| `GREENSEARCH_QUALITY_TARGET` | `balanced` | Routing preset: `eco` (threshold 0.7, more small-model answers), `balanced` (uses `GREENSEARCH_ROUTER_THRESHOLD`), `quality` (0.3, more primary answers). Only affects routing when difficulty routing is on. Any other value refuses to start. |
+-| `GREENSEARCH_SCORER_ESCALATION` | `off` | `1`/`true`/`yes`/`on` lets the transparent answer scorer (`greensearch/scorer.py`, FrugalGPT-style but local and rule-based, no model call) trigger escalation when its score is below `GREENSEARCH_SCORE_THRESHOLD`. Off by default: the score is still reported in meta as `answer_score`, but only the logprob cascade can escalate. Unlike logprobs, the scorer works when logprobs are unavailable. |
+-| `GREENSEARCH_SCORE_THRESHOLD` | `0.5` | Answer-score escalation threshold, 0-1. Only used when `GREENSEARCH_SCORER_ESCALATION` is on. |
+-| `GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS` | `0` | Budget gate: if the primary answer already used more than this many output tokens, no escalation happens, even on a low-confidence trigger. `0` disables. Provider-reported tokens only; unreported tokens never block escalation. |
+-| `GREENSEARCH_SEMANTIC_CACHE` | `off` | `1`/`true`/`yes`/`on` enables a conservative lexical semantic cache: a fact/definition prompt with difflib ratio at least 0.90 and token overlap at least 0.80 against a cached prompt in the same session, with identical numbers, reuses the cached answer. String similarity, not an embedding model, so it misses true paraphrases rather than risking a wrong answer. Meta reports `semantic_cache_hit` and `semantic_similarity` when it fires. |
+-| `GREENSEARCH_MAX_TOKENS_MULTIPLIER` | `1.0` | Multiplier on the per-mode max_tokens cap (120/240/400). 1.0 is the current behaviour. Above 1.0, max_tokens becomes a safety net well above the expected budget, with format suffixes and (optionally) stop sequences doing the length control. Must be > 0 and at most 4. Meta reports `max_tokens_used`. |
+-| `GREENSEARCH_TASK_TEMPERATURE` | `off` | `1`/`true`/`yes`/`on` sends a temperature by task type (fact, definition, math, code 0.2; steps, reasoning 0.5; creative 0.8; other: provider default) when task routing is on. Off by default: no temperature is sent. Meta reports `temperature`. |
+-| `GREENSEARCH_TASK_STOP_SEQUENCES` | `off` | `1`/`true`/`yes`/`on` sends stop `["\n\n"]` for fact and definition prompts when task routing is on, so the model ends at a paragraph boundary. Off by default. Never sent for expansions. Meta reports `stop_sequences`. |
+-| `GREENSEARCH_LONG_INPUT_PRUNING` | `off` | `1`/`true`/`yes`/`on` enables conservative extractive pruning for prompts longer than `GREENSEARCH_LONG_INPUT_MAX_CHARS` (see `greensearch/long_input.py`): first/last sentences plus sentences with digits, questions, quoted strings, proper nouns, or code are kept; other sentences are dropped, with a pruning note appended. Off by default. Meta reports `long_input_pruned`, `pruned_sentences`, and `pruned_chars`. |
+-| `GREENSEARCH_LONG_INPUT_MAX_CHARS` | `1500` | Prompt length above which pruning runs, when pruning is on. Must be at least 500. |
+-| `GREENSEARCH_DEBUG_LOG` | off | `1`/`true`/`yes`/`on` logs prompts to local stderr. Never sent in responses. |
++| `ARBORIS_API_KEY` | unset | Provider key. Server-side only. Unset means `/api/chat` returns 503 and no provider is called. |
++| `ARBORIS_BASE_URL` | `https://openrouter.ai/api/v1` | OpenAI-compatible base URL. https required (http only for localhost). |
++| `ARBORIS_MODEL` | `google/gemma-4-31b-it:free` | Primary model, called first on every request. A named chat model; do not set the `openrouter/free` router here (it can route to non-chat models, see above). |
++| `ARBORIS_MODEL_FALLBACKS` | `liquid/lfm-2.5-2.6b:free,thinkingmachines/inkling-small:free,poolside/laguna-xs-2.1:free,openrouter/free` | Comma-separated models tried in order when the primary call fails (see "Model and fallbacks"). Whitespace, empty entries, repeats and the primary model are dropped. Unset or empty uses the default list; `none` disables fallbacks. |
++| `ARBORIS_ESCALATION_MODEL` | value of `ARBORIS_MODEL` | Optional. While it equals `ARBORIS_MODEL` (the default) there is **no** escalation call. Set it to a different model to turn on the logprob cascade. |
++| `ARBORIS_CASCADE_THRESHOLD` | `-1.0` | Cascade only: escalate when the primary model's mean token logprob is below this. Must be ≤ 0. A starting point to tune, not a sourced constant. |
++| `ARBORIS_BACKEND_ORIGIN` | `http://localhost:8000,http://127.0.0.1:8000` | CORS allowlist of exact origins, separated by commas and/or whitespace (so a space-separated list works too). Trailing slashes are stripped, so `https://example.com/` matches `https://example.com`. Matching is otherwise exact; `*` is refused at startup. For Cloud Run, see `CLOUDRUN.md` (env-vars file, commas, no spaces). |
++| `ARBORIS_RATE_LIMIT_PER_HOUR` | `30` | `/api/chat` requests per client IP per rolling hour. `0` disables. |
++| `ARBORIS_RATE_LIMIT_PER_DAY` | `100` | `/api/chat` requests per client IP per rolling day. `0` disables. |
++| `ARBORIS_GLOBAL_LIMIT_PER_DAY` | `800` | `/api/chat` requests in total per rolling day, all IPs combined. `0` disables. POC guard: keeps one abusive IP, or many IPs, from burning the OpenRouter free quota (1000/day after a $10 credit) or paid credits. |
++| `ARBORIS_ALLOW_PAID_MODELS` | off | `1`/`true`/`yes`/`on` allows a non-free primary, fallback, or escalation model. Off by default: a paid model must be enabled deliberately, so a config mistake cannot drain credits. Server refuses to start on a paid model without it. |
++| `ARBORIS_SMALL_MODEL` | `liquid/lfm-2.5-2.6b:free` | Small model tried first for sprout prompts when small-model routing is on. Must be free unless `ARBORIS_ALLOW_PAID_MODELS` is on. |
++| `ARBORIS_SMALL_MODEL_ROUTING` | off | `1`/`true`/`yes`/`on` routes sprout prompts (short, simple, per `route_mode`) to `ARBORIS_SMALL_MODEL` first, with the primary chain as fallback. Off by default. |
++| `ARBORIS_SHRINK_VERSION` | `v1` | PromptShrink version for live requests: `v1` (default) or `v2` (redundancy + gated telegraphic, 39% vs 32% saved on the corpus). v2 is opt-in only; any other value refuses to start. Meta reports the version used. |
++| `ARBORIS_GRID_G_PER_KWH` | `400` | Grid carbon intensity for the per-answer energy receipt, in gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter does not disclose where inference ran, so no region is claimed. Must be positive; anything else refuses to start. |
++| `ARBORIS_TASK_ROUTING` | `off` | `1`/`true`/`yes`/`on` routes by task type (fact, definition, steps, reasoning, math, code, creative, other; see `arboris/task_router.py` and `spec/task_cases.json`) instead of word count, for auto mode only. Unknown prompts fall back to word-count routing, and an explicit client mode always wins. Off by default. Meta reports `task_type`, `task_tier`, and `routed_by` on every answer. When task routing is on, the task tier replaces the sprout rule for small-model routing: a long, easy fact goes small, a short, hard question goes primary. Small-model routing must still be enabled separately for the small model to be used at all. |
++| `ARBORIS_DIFFICULTY_ROUTING` | `off` | `1`/`true`/`yes`/`on` lets a 0-1 difficulty score override the task tier when task routing is on: below the threshold goes small, at or above goes primary. The score is a transparent feature formula (`difficulty_score` in `arboris/task_router.py`), not a learned RouteLLM-style router: at the default 0.5 threshold it reproduces the task tiers exactly, so turning it on alone changes nothing. Moving the threshold is what moves traffic. Meta reports `difficulty_score`, `difficulty_tier`, and `router_threshold`. |
++| `ARBORIS_ROUTER_THRESHOLD` | `0.5` | Difficulty-score threshold for small vs primary, 0-1. Overridden by `ARBORIS_QUALITY_TARGET=eco` (0.7) or `=quality` (0.3). |
++| `ARBORIS_QUALITY_TARGET` | `balanced` | Routing preset: `eco` (threshold 0.7, more small-model answers), `balanced` (uses `ARBORIS_ROUTER_THRESHOLD`), `quality` (0.3, more primary answers). Only affects routing when difficulty routing is on. Any other value refuses to start. |
++| `ARBORIS_SCORER_ESCALATION` | `off` | `1`/`true`/`yes`/`on` lets the transparent answer scorer (`arboris/scorer.py`, FrugalGPT-style but local and rule-based, no model call) trigger escalation when its score is below `ARBORIS_SCORE_THRESHOLD`. Off by default: the score is still reported in meta as `answer_score`, but only the logprob cascade can escalate. Unlike logprobs, the scorer works when logprobs are unavailable. |
++| `ARBORIS_SCORE_THRESHOLD` | `0.5` | Answer-score escalation threshold, 0-1. Only used when `ARBORIS_SCORER_ESCALATION` is on. |
++| `ARBORIS_MAX_CASCADE_OUTPUT_TOKENS` | `0` | Budget gate: if the primary answer already used more than this many output tokens, no escalation happens, even on a low-confidence trigger. `0` disables. Provider-reported tokens only; unreported tokens never block escalation. |
++| `ARBORIS_SEMANTIC_CACHE` | `off` | `1`/`true`/`yes`/`on` enables a conservative lexical semantic cache: a fact/definition prompt with difflib ratio at least 0.90 and token overlap at least 0.80 against a cached prompt in the same session, with identical numbers, reuses the cached answer. String similarity, not an embedding model, so it misses true paraphrases rather than risking a wrong answer. Meta reports `semantic_cache_hit` and `semantic_similarity` when it fires. |
++| `ARBORIS_MAX_TOKENS_MULTIPLIER` | `1.0` | Multiplier on the per-mode max_tokens cap (120/240/400). 1.0 is the current behaviour. Above 1.0, max_tokens becomes a safety net well above the expected budget, with format suffixes and (optionally) stop sequences doing the length control. Must be > 0 and at most 4. Meta reports `max_tokens_used`. |
++| `ARBORIS_TASK_TEMPERATURE` | `off` | `1`/`true`/`yes`/`on` sends a temperature by task type (fact, definition, math, code 0.2; steps, reasoning 0.5; creative 0.8; other: provider default) when task routing is on. Off by default: no temperature is sent. Meta reports `temperature`. |
++| `ARBORIS_TASK_STOP_SEQUENCES` | `off` | `1`/`true`/`yes`/`on` sends stop `["\n\n"]` for fact and definition prompts when task routing is on, so the model ends at a paragraph boundary. Off by default. Never sent for expansions. Meta reports `stop_sequences`. |
++| `ARBORIS_LONG_INPUT_PRUNING` | `off` | `1`/`true`/`yes`/`on` enables conservative extractive pruning for prompts longer than `ARBORIS_LONG_INPUT_MAX_CHARS` (see `arboris/long_input.py`): first/last sentences plus sentences with digits, questions, quoted strings, proper nouns, or code are kept; other sentences are dropped, with a pruning note appended. Off by default. Meta reports `long_input_pruned`, `pruned_sentences`, and `pruned_chars`. |
++| `ARBORIS_LONG_INPUT_MAX_CHARS` | `1500` | Prompt length above which pruning runs, when pruning is on. Must be at least 500. |
++| `ARBORIS_DEBUG_LOG` | off | `1`/`true`/`yes`/`on` logs prompts to local stderr. Never sent in responses. |
+ | `PORT` | `8000` | Listen port (`--port` overrides). |
+ 
+ Invalid values (a positive threshold, `*` origin, a non-numeric rate limit)
+@@ -234,12 +234,12 @@ model call: `meta.escalated` is `false` and `meta.escalation_reason` is
+ `single model: no separate escalation model configured`. `avg_logprob` is
+ still reported when the provider returns it.
+ 
+-Optional cascade (off by default): only when `GREENSEARCH_ESCALATION_MODEL`
++Optional cascade (off by default): only when `ARBORIS_ESCALATION_MODEL`
+ is set to a different model, the escalation model is called with the
+ **same** system prompt and cap if `avg_logprob` is present **and** below
+ the threshold (missing logprobs never escalate). If that escalation call
+ fails, the client gets a 502 and **no answer**. The primary model's
+-low-confidence answer is never silently returned instead. All of this reuses `greensearch/shrink.py`,
++low-confidence answer is never silently returned instead. All of this reuses `arboris/shrink.py`,
+ `cache.py`, `router.py`, `cascade.py`, `providers.py` and `brevity.py`.
+ 
+ Cut-off answers: a model that hits its token cap stops mid-sentence (a
+@@ -285,7 +285,7 @@ not shorten time-to-first-token; it delivers the finished answer progressively.
+ `meta` fields: `mode`, `mode_source` (`auto`/`explicit`), `model` (null on
+ a cache hit; otherwise the model that answered, which may be a fallback),
+ `primary_model` (the primary-side model that answered), `requested_model`
+-(`GREENSEARCH_MODEL`), `fallback_used`, `provider_model` (the response's own
++(`ARBORIS_MODEL`), `fallback_used`, `provider_model` (the response's own
+ `model` field, or null), `escalated`, `escalation_reason`,
+ `avg_logprob`, `cache_hit`, `cached_from_model` and
+ `cached_answer_was_escalated` (cache hits only), `input_tokens`,
+@@ -308,8 +308,8 @@ fallback chain has run (see "Model and fallbacks").
+ | 403 | Browser `Origin` not in the allowlist | `This page's origin is not allowed to use this backend` |
+ | 413 | Body over 16 KB | `Request body is too large` |
+ | 401 | Provider rejected the API key (HTTP 401) | `The model provider rejected the API key, check the key on the server` |
+-| 402 | Provider reports no credits for a paid model (HTTP 402) | `The model provider reports no credits for this paid model: add credits or switch GREENSEARCH_MODEL to a free model` |
+-| 404 | Model not found or deprecated (HTTP 404) | `The model was not found or is deprecated at the provider: check the GREENSEARCH_MODEL id` |
++| 402 | Provider reports no credits for a paid model (HTTP 402) | `The model provider reports no credits for this paid model: add credits or switch ARBORIS_MODEL to a free model` |
++| 404 | Model not found or deprecated (HTTP 404) | `The model was not found or is deprecated at the provider: check the ARBORIS_MODEL id` |
+ | 429 | Over the per-IP limit, or the provider rate-limited us | `Too many requests, try again later` |
+ | 502 | Provider unreachable, or any other provider error (incl. HTTP 502/503/500) | `The model provider could not be reached, try again` |
+ | 502 | Escalation call failed (optional cascade only) | `The escalation model could not be reached, so no answer was returned (...)` |
+@@ -324,7 +324,7 @@ Never includes the key.
+ 
+ ## Security and limits
+ 
+-- **CORS**: only the exact origins in `GREENSEARCH_BACKEND_ORIGIN` get
++- **CORS**: only the exact origins in `ARBORIS_BACKEND_ORIGIN` get
+   `Access-Control-Allow-Origin`, echoed back, never `*`. Requests with a
+   disallowed `Origin` get 403 before any model call. Requests without an
+   `Origin` header (curl, server-to-server) are allowed. CORS protects
+@@ -338,7 +338,7 @@ Never includes the key.
+   day's allowance, not the credit balance. Behind a proxy every client
+   would share the proxy's IP. `X-Forwarded-For` is deliberately **not**
+   trusted, because clients can forge it. A deployment would need a trusted-proxy setting.
+-- **Paid models blocked by default**: with `GREENSEARCH_ALLOW_PAID_MODELS`
++- **Paid models blocked by default**: with `ARBORIS_ALLOW_PAID_MODELS`
+   off, the server refuses to start if the primary, any fallback, or the
+   escalation model is not a `:free` model. Paid use must be enabled
+   deliberately, and the daily caps still apply then. The default model
+@@ -347,11 +347,11 @@ Never includes the key.
+   insufficient-credits error for paid models if they are later enabled.
+ - **Usage logging**: each chat logs one line to stderr (Cloud Run logs)
+   with model, input/output tokens, cache hit, escalation, and latency.
+-  No prompt text unless `GREENSEARCH_DEBUG_LOG` is on.
++  No prompt text unless `ARBORIS_DEBUG_LOG` is on.
+ - **Session cache**: in memory, per process, up to 1000 sessions × 200
+   entries, least recently used evicted. Cached answers are reused verbatim and may be stale.
+ - **Logging**: by default only method, path and status go to stderr. No
+-  prompts, no bodies. `GREENSEARCH_DEBUG_LOG` adds prompts to local stderr only.
++  prompts, no bodies. `ARBORIS_DEBUG_LOG` adds prompts to local stderr only.
+ 
+ ## Privacy notes
+ 
+@@ -376,7 +376,7 @@ Never includes the key.
+   container would run `python server/app.py --host 0.0.0.0` with `PORT`
+   from Cloud Run, and the key in Secret Manager. Needs: a GCP account and
+   billing, a trusted-proxy rate-limit design (see above), and a production
+-  origin in `GREENSEARCH_BACKEND_ORIGIN`. *Requires an account the user has
++  origin in `ARBORIS_BACKEND_ORIGIN`. *Requires an account the user has
+   not set up yet; do not deploy from this repo.*
+ - **Vercel serverless.** It would need a thin adapter that calls
+   `Backend.chat()` from a Python function handler. In-memory rate limits
+diff --git a/server/__init__.py b/server/__init__.py
+index 5505b75..7ad0d84 100644
+--- a/server/__init__.py
++++ b/server/__init__.py
+@@ -1 +1 @@
+-"""GreenSearch live backend (Phase 2, local only). See server/README.md."""
++"""Arboris live backend (Phase 2, local only). See server/README.md."""
+diff --git a/server/app.py b/server/app.py
+index d9a2eed..80532f1 100644
+--- a/server/app.py
++++ b/server/app.py
+@@ -1,32 +1,32 @@
+ #!/usr/bin/env python3
+-"""GreenSearch live backend: POST /api/chat and GET /api/health.
++"""Arboris live backend: POST /api/chat and GET /api/health.
+ 
+ Standard library only. All secrets and model choices come from the
+ environment; nothing secret is ever accepted from, or returned to, the
+ client. See server/README.md for the full env var table and run steps.
+ 
+ Pipeline per chat request, in order:
+-  1. PromptShrink the prompt (greensearch.shrink).
+-  2. Session cache check (greensearch.cache), per client session id,
++  1. PromptShrink the prompt (arboris.shrink).
++  2. Session cache check (arboris.cache), per client session id,
+      mode-aware. A hit makes no model call: 0 new output tokens.
+-  3. Auto routing (greensearch.router), unless the client sent a mode.
+-  4. One call to the primary model (GREENSEARCH_MODEL, default
++  3. Auto routing (arboris.router), unless the client sent a mode.
++  4. One call to the primary model (ARBORIS_MODEL, default
+      google/gemma-4-31b-it:free, a named general chat model) with the
+      brevity system prompt and token cap, logprobs
+      requested. By default that is the only model call: escalated=false,
+      reason "single model: no separate escalation model configured".
+      If that call fails with HTTP 429/404/502/503 (or 402 when the next
+-     model is free), each GREENSEARCH_MODEL_FALLBACKS model is tried in
++     model is free), each ARBORIS_MODEL_FALLBACKS model is tried in
+      order until one answers; 401 fails at once. If a provider rejects
+      logprobs, the same model is retried once without them first.
+-     Optional cascade: only if GREENSEARCH_ESCALATION_MODEL is set to a
++     Optional cascade: only if ARBORIS_ESCALATION_MODEL is set to a
+      DIFFERENT model does the logprob-gated cascade run
+-     (greensearch.cascade): if avg_logprob is present and below the
++     (arboris.cascade): if avg_logprob is present and below the
+      threshold, the escalation model is called with the SAME system
+      prompt and cap. Missing logprobs never escalate. An escalation
+      failure is an error to the client, never a silent fallback to the
+      primary answer.
+-  5. apply_brevity as a safety-net trim (greensearch.brevity). A
++  5. apply_brevity as a safety-net trim (arboris.brevity). A
+      cut-off final sentence is dropped (or marked with an ellipsis), and
+      meta "truncated" says so.
+ 
+@@ -58,22 +58,22 @@ ROOT = Path(__file__).resolve().parents[1]
+ if str(ROOT) not in sys.path:
+     sys.path.insert(0, str(ROOT))
+ 
+-from greensearch.brevity import apply_brevity_with_flag  # noqa: E402
+-from greensearch.cache import SessionCache, cache_key  # noqa: E402
+-from greensearch.cascade import CascadeResult, run_cascade  # noqa: E402
+-from greensearch.providers import (  # noqa: E402
++from arboris.brevity import apply_brevity_with_flag  # noqa: E402
++from arboris.cache import SessionCache, cache_key  # noqa: E402
++from arboris.cascade import CascadeResult, run_cascade  # noqa: E402
++from arboris.providers import (  # noqa: E402
+     BREVITY_SYSTEM,
+     MAX_TOKENS,
+     OpenAICompatibleProvider,
+     ProviderError,
+ )
+-from greensearch.router import route_mode  # noqa: E402
+-from greensearch.task_router import QUALITY_THRESHOLDS, TASK_TEMPERATURES, difficulty_score, route_task  # noqa: E402
+-from greensearch.long_input import prune_long_prompt  # noqa: E402
+-from greensearch.local_calc import try_local_calc  # noqa: E402
+-from greensearch.scorer import score_answer  # noqa: E402
+-from greensearch.footprint import energy_receipt  # noqa: E402
+-from greensearch.shrink import shrink, shrink_v2  # noqa: E402
++from arboris.router import route_mode  # noqa: E402
++from arboris.task_router import QUALITY_THRESHOLDS, TASK_TEMPERATURES, difficulty_score, route_task  # noqa: E402
++from arboris.long_input import prune_long_prompt  # noqa: E402
++from arboris.local_calc import try_local_calc  # noqa: E402
++from arboris.scorer import score_answer  # noqa: E402
++from arboris.footprint import energy_receipt  # noqa: E402
++from arboris.shrink import shrink, shrink_v2  # noqa: E402
+ 
+ # ---------------------------------------------------------------------------
+ # Plain-language client messages. These are the ONLY error texts a client
+@@ -87,11 +87,11 @@ MSG_RATE_LIMITED = "Too many requests, try again later"
+ MSG_KEY_REJECTED = "The model provider rejected the API key, check the key on the server"
+ MSG_NO_CREDITS = (
+     "The model provider reports no credits for this paid model: add credits "
+-    "or switch GREENSEARCH_MODEL to a free model"
++    "or switch ARBORIS_MODEL to a free model"
+ )
+ MSG_MODEL_NOT_FOUND = (
+     "The model was not found or is deprecated at the provider: check the "
+-    "GREENSEARCH_MODEL id"
++    "ARBORIS_MODEL id"
+ )
+ MSG_ESCALATION_FAILED = (
+     "The escalation model could not be reached, so no answer was returned "
+@@ -135,64 +135,65 @@ _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+ # model choice is server configuration.
+ _FORBIDDEN_FIELDS = {
+     "api_key", "apikey", "key", "token", "authorization", "secret",
+-    "openai_api_key", "greensearch_api_key", "model", "base_url",
++    "openai_api_key", "arboris_api_key", "greensearch_api_key",
++    "model", "base_url",
+ }
+ 
+ # (name, default shown in --help and README, description)
+ ENV_VARS = [
+-    ("GREENSEARCH_API_KEY", "(unset)",
++    ("ARBORIS_API_KEY", "(unset)",
+      "Provider API key. Server-side only. Unset = /api/chat returns 503."),
+-    ("GREENSEARCH_BASE_URL", DEFAULT_BASE_URL,
++    ("ARBORIS_BASE_URL", DEFAULT_BASE_URL,
+      "OpenAI-compatible base URL (https; http only for localhost)."),
+-    ("GREENSEARCH_MODEL", DEFAULT_MODEL, "Primary model; answers every request."),
+-    ("GREENSEARCH_MODEL_FALLBACKS", ",".join(DEFAULT_FALLBACKS),
++    ("ARBORIS_MODEL", DEFAULT_MODEL, "Primary model; answers every request."),
++    ("ARBORIS_MODEL_FALLBACKS", ",".join(DEFAULT_FALLBACKS),
+      "Comma-separated models tried in order when the primary call fails "
+      "(429/404/502/503, or 402 towards a free model). 'none' disables."),
+-    ("GREENSEARCH_ESCALATION_MODEL", "(= GREENSEARCH_MODEL: no escalation)",
++    ("ARBORIS_ESCALATION_MODEL", "(= ARBORIS_MODEL: no escalation)",
+      "Optional. Set to a DIFFERENT model to enable the logprob cascade."),
+-    ("GREENSEARCH_CASCADE_THRESHOLD", "-1.0",
++    ("ARBORIS_CASCADE_THRESHOLD", "-1.0",
+      "Mean-logprob escalation threshold, must be <= 0. Cascade only."),
+-    ("GREENSEARCH_BACKEND_ORIGIN", ",".join(DEFAULT_ORIGINS),
++    ("ARBORIS_BACKEND_ORIGIN", ",".join(DEFAULT_ORIGINS),
+      "CORS allowlist of exact origins, separated by commas and/or spaces; "
+      "trailing slashes are stripped. '*' is refused."),
+-    ("GREENSEARCH_RATE_LIMIT_PER_HOUR", "30",
++    ("ARBORIS_RATE_LIMIT_PER_HOUR", "30",
+      "Chat requests per client IP per rolling hour. 0 disables the limit."),
+-    ("GREENSEARCH_RATE_LIMIT_PER_DAY", "100",
++    ("ARBORIS_RATE_LIMIT_PER_DAY", "100",
+      "Chat requests per client IP per rolling day (86400s). 0 disables."),
+-    ("GREENSEARCH_GLOBAL_LIMIT_PER_DAY", "800",
++    ("ARBORIS_GLOBAL_LIMIT_PER_DAY", "800",
+      "Chat requests in total per rolling day, all IPs combined. 0 disables. "
+      "POC guard: keeps one abusive IP, or many IPs, from burning the "
+      "OpenRouter free quota (1000/day after a $10 credit) or paid credits."),
+-    ("GREENSEARCH_ALLOW_PAID_MODELS", "off",
++    ("ARBORIS_ALLOW_PAID_MODELS", "off",
+      "1/true/yes/on allows a non-free primary, fallback, or escalation model. "
+      "Off by default: a paid model must be enabled deliberately, so a config "
+      "mistake cannot drain credits."),
+-    ("GREENSEARCH_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free",
++    ("ARBORIS_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free",
+      "Small model tried first for sprout prompts when small-model routing "
+      "is on. 2.6B vs the 31B primary: the efficiency lever, not a quality "
+-     "claim. Must be free unless GREENSEARCH_ALLOW_PAID_MODELS is on."),
+-    ("GREENSEARCH_SMALL_MODEL_ROUTING", "off",
++     "claim. Must be free unless ARBORIS_ALLOW_PAID_MODELS is on."),
++    ("ARBORIS_SMALL_MODEL_ROUTING", "off",
+      "1/true/yes/on routes sprout prompts (short, simple, per route_mode) "
+-     "to GREENSEARCH_SMALL_MODEL first, with the primary chain as fallback. "
++     "to ARBORIS_SMALL_MODEL first, with the primary chain as fallback. "
+      "Off by default: enable live, judge small-model answers, then decide."),
+-    ("GREENSEARCH_SHRINK_VERSION", "v1",
++    ("ARBORIS_SHRINK_VERSION", "v1",
+      "PromptShrink version for live requests: v1 (default) or v2 "
+      "(redundancy + gated telegraphic, 39% vs 32% saved on the corpus). "
+      "v2 is opt-in only: flip it live, judge v1-vs-v2 answers, then decide. "
+      "Any other value refuses to start."),
+-    ("GREENSEARCH_GRID_G_PER_KWH", "400",
++    ("ARBORIS_GRID_G_PER_KWH", "400",
+      "Grid carbon intensity for the per-answer energy receipt, in "
+      "gCO2e/kWh. Default 400 is illustrative, not measured: OpenRouter "
+      "does not disclose where inference ran, so no region is claimed. "
+      "A non-positive value refuses to start."),
+-    ("GREENSEARCH_TASK_ROUTING", "off",
++    ("ARBORIS_TASK_ROUTING", "off",
+      "1/true/yes/on routes by task type (fact, definition, steps, "
+      "reasoning, math, code, creative, other) instead of word count, "
+      "when the client did not choose a mode explicitly. Unknown "
+      "prompts fall back to word-count routing. Off by default: "
+      "enable live, judge routed answers, then decide. Meta reports "
+      "task_type, task_tier, and routed_by on every answer."),
+-    ("GREENSEARCH_DIFFICULTY_ROUTING", "off",
++    ("ARBORIS_DIFFICULTY_ROUTING", "off",
+      "1/true/yes/on lets a 0-1 difficulty score override the task "
+      "tier when task routing is on: score below the threshold goes "
+      "small, at or above goes primary. The score is a transparent "
+@@ -200,61 +201,61 @@ ENV_VARS = [
+      "0.5 threshold it reproduces the task tiers exactly, so "
+      "turning it on alone changes nothing. Moving the threshold is "
+      "what moves traffic. Meta reports difficulty_score."),
+-    ("GREENSEARCH_ROUTER_THRESHOLD", "0.5",
++    ("ARBORIS_ROUTER_THRESHOLD", "0.5",
+      "Difficulty-score threshold for small vs primary, 0-1. "
+-     "Overridden by GREENSEARCH_QUALITY_TARGET=eco (0.7) or "
++     "Overridden by ARBORIS_QUALITY_TARGET=eco (0.7) or "
+      "=quality (0.3) when that target is set."),
+-    ("GREENSEARCH_QUALITY_TARGET", "balanced",
++    ("ARBORIS_QUALITY_TARGET", "balanced",
+      "Routing preset: eco (threshold 0.7, more small-model answers), "
+-     "balanced (uses GREENSEARCH_ROUTER_THRESHOLD), quality (0.3, "
++     "balanced (uses ARBORIS_ROUTER_THRESHOLD), quality (0.3, "
+      "more primary answers). Only affects routing when difficulty "
+      "routing is on. Any other value refuses to start."),
+-    ("GREENSEARCH_SCORER_ESCALATION", "off",
++    ("ARBORIS_SCORER_ESCALATION", "off",
+      "1/true/yes/on lets the transparent answer scorer trigger "
+-     "escalation when its score is below GREENSEARCH_SCORE_THRESHOLD. "
++     "escalation when its score is below ARBORIS_SCORE_THRESHOLD. "
+      "Off by default: the score is still reported in meta, but only "
+      "the logprob cascade can escalate. Unlike logprobs, the scorer "
+      "works when logprobs are unavailable."),
+-    ("GREENSEARCH_SCORE_THRESHOLD", "0.5",
++    ("ARBORIS_SCORE_THRESHOLD", "0.5",
+      "Answer-score escalation threshold, 0-1. Only used when "
+-     "GREENSEARCH_SCORER_ESCALATION is on."),
+-    ("GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS", "0",
++     "ARBORIS_SCORER_ESCALATION is on."),
++    ("ARBORIS_MAX_CASCADE_OUTPUT_TOKENS", "0",
+      "Budget gate: if the primary answer already used more than "
+      "this many output tokens, no escalation happens, even on a "
+      "low-confidence trigger. 0 disables. Provider-reported tokens "
+      "only; unreported tokens never block escalation."),
+-    ("GREENSEARCH_MAX_TOKENS_MULTIPLIER", "1.0",
++    ("ARBORIS_MAX_TOKENS_MULTIPLIER", "1.0",
+      "Multiplier on the per-mode max_tokens cap (120/240/400 for "
+      "sprout/canopy/full). 1.0 is the current behaviour. Above 1.0, "
+      "max_tokens becomes a safety net well above the expected budget, "
+      "with format suffixes and (optionally) stop sequences doing the "
+      "length control instead of the cap. Must be > 0 and at most 4; "
+      "anything else refuses to start. Meta reports max_tokens_used."),
+-    ("GREENSEARCH_TASK_TEMPERATURE", "off",
++    ("ARBORIS_TASK_TEMPERATURE", "off",
+      "1/true/yes/on sends a temperature by task type (fact, "
+      "definition, math, code 0.2; steps, reasoning 0.5; creative "
+      "0.8; other: provider default) when task routing is on. Off "
+      "by default: no temperature is sent, so the provider default "
+      "applies. Meta reports temperature."),
+-    ("GREENSEARCH_TASK_STOP_SEQUENCES", "off",
++    ("ARBORIS_TASK_STOP_SEQUENCES", "off",
+      "1/true/yes/on sends stop=[\"\\n\\n\"] for fact and definition "
+      "prompts when task routing is on, so the model ends at a "
+      "paragraph boundary instead of running on. Off by default: "
+      "no stop sequence is sent. Meta reports stop_sequences."),
+-    ("GREENSEARCH_LONG_INPUT_PRUNING", "off",
++    ("ARBORIS_LONG_INPUT_PRUNING", "off",
+      "1/true/yes/on enables conservative extractive pruning for "
+-     "prompts longer than GREENSEARCH_LONG_INPUT_MAX_CHARS: first "
++     "prompts longer than ARBORIS_LONG_INPUT_MAX_CHARS: first "
+      "and last sentences, plus sentences with digits, questions, "
+      "quoted strings, proper nouns, or code, are kept; other "
+      "sentences are dropped, and a pruning note is appended so "
+      "the model knows input was pruned. Off by default: normal "
+      "chat prompts are untouched. Meta reports long_input_pruned, "
+      "pruned_sentences, and pruned_chars."),
+-    ("GREENSEARCH_LONG_INPUT_MAX_CHARS", "1500",
++    ("ARBORIS_LONG_INPUT_MAX_CHARS", "1500",
+      "Prompt length above which long-input pruning runs, when "
+      "pruning is on. Must be at least 500; anything else refuses "
+      "to start."),
+-    ("GREENSEARCH_SEMANTIC_CACHE", "off",
++    ("ARBORIS_SEMANTIC_CACHE", "off",
+      "1/true/yes/on enables a conservative lexical semantic cache: "
+      "a fact/definition prompt with a difflib ratio at least 0.90 "
+      "and token overlap at least 0.80 against a cached prompt in "
+@@ -263,7 +264,7 @@ ENV_VARS = [
+      "so it misses true paraphrases rather than risking a wrong "
+      "answer. Meta reports semantic_cache_hit and "
+      "semantic_similarity when it fires."),
+-    ("GREENSEARCH_DEBUG_LOG", "off",
++    ("ARBORIS_DEBUG_LOG", "off",
+      "1/true/yes/on logs prompts to local stderr only, never to responses."),
+     ("PORT", str(DEFAULT_PORT), "Listen port (also --port)."),
+ ]
+@@ -283,22 +284,22 @@ class ClientError(Exception):
+ # ---------------------------------------------------------------------------
+ 
+ def _shrink_version(env):
+-    """Validate GREENSEARCH_SHRINK_VERSION: v1 or v2 only."""
+-    version = (env.get("GREENSEARCH_SHRINK_VERSION", "") or "").strip().lower() or "v1"
++    """Validate ARBORIS_SHRINK_VERSION: v1 or v2 only."""
++    version = (env.get("ARBORIS_SHRINK_VERSION", "") or "").strip().lower() or "v1"
+     if version not in ("v1", "v2"):
+-        raise ValueError("GREENSEARCH_SHRINK_VERSION must be v1 or v2")
++        raise ValueError("ARBORIS_SHRINK_VERSION must be v1 or v2")
+     return version
+ 
+ 
+ def _grid_factor(env):
+-    """Validate GREENSEARCH_GRID_G_PER_KWH: a positive number, or 400."""
+-    raw = (env.get("GREENSEARCH_GRID_G_PER_KWH", "") or "").strip() or "400"
++    """Validate ARBORIS_GRID_G_PER_KWH: a positive number, or 400."""
++    raw = (env.get("ARBORIS_GRID_G_PER_KWH", "") or "").strip() or "400"
+     try:
+         value = float(raw)
+     except ValueError:
+-        raise ValueError("GREENSEARCH_GRID_G_PER_KWH must be a number") from None
++        raise ValueError("ARBORIS_GRID_G_PER_KWH must be a number") from None
+     if value <= 0:
+-        raise ValueError("GREENSEARCH_GRID_G_PER_KWH must be positive")
++        raise ValueError("ARBORIS_GRID_G_PER_KWH must be positive")
+     return value
+ 
+ 
+@@ -315,34 +316,58 @@ def _unit_threshold(env, name, default):
+ 
+ 
+ def _quality_target(env):
+-    target = (env.get("GREENSEARCH_QUALITY_TARGET", "") or "").strip().lower() or "balanced"
++    target = (env.get("ARBORIS_QUALITY_TARGET", "") or "").strip().lower() or "balanced"
+     if target not in QUALITY_THRESHOLDS:
+-        raise ValueError("GREENSEARCH_QUALITY_TARGET must be eco, balanced, or quality")
++        raise ValueError("ARBORIS_QUALITY_TARGET must be eco, balanced, or quality")
+     return target
+ 
+ 
+ def _long_input_max_chars(env):
+-    raw = (env.get("GREENSEARCH_LONG_INPUT_MAX_CHARS", "") or "").strip() or "1500"
++    raw = (env.get("ARBORIS_LONG_INPUT_MAX_CHARS", "") or "").strip() or "1500"
+     try:
+         value = int(raw)
+     except ValueError:
+-        raise ValueError("GREENSEARCH_LONG_INPUT_MAX_CHARS must be a whole number") from None
++        raise ValueError("ARBORIS_LONG_INPUT_MAX_CHARS must be a whole number") from None
+     if value < 500:
+-        raise ValueError("GREENSEARCH_LONG_INPUT_MAX_CHARS must be at least 500")
++        raise ValueError("ARBORIS_LONG_INPUT_MAX_CHARS must be at least 500")
+     return value
+ 
+ 
+ def _max_tokens_multiplier(env):
+-    raw = (env.get("GREENSEARCH_MAX_TOKENS_MULTIPLIER", "") or "").strip() or "1.0"
++    raw = (env.get("ARBORIS_MAX_TOKENS_MULTIPLIER", "") or "").strip() or "1.0"
+     try:
+         value = float(raw)
+     except ValueError:
+-        raise ValueError("GREENSEARCH_MAX_TOKENS_MULTIPLIER must be a number") from None
++        raise ValueError("ARBORIS_MAX_TOKENS_MULTIPLIER must be a number") from None
+     if value != value or value <= 0 or value > 4:
+-        raise ValueError("GREENSEARCH_MAX_TOKENS_MULTIPLIER must be > 0 and at most 4")
++        raise ValueError("ARBORIS_MAX_TOKENS_MULTIPLIER must be > 0 and at most 4")
+     return value
+ 
+ 
++_LEGACY_ENV_PREFIX = "GREENSEARCH_"
++_ENV_PREFIX = "ARBORIS_"
++
++
++def _with_legacy_env(env):
++    """Return (env copy, legacy names used) with GREENSEARCH_* mapped to ARBORIS_*.
++
++    The project was renamed from GreenSearch in 0.9.0. For one release a
++    deployment that still sets GREENSEARCH_X keeps working: the value is
++    used for ARBORIS_X when ARBORIS_X is unset or blank. An ARBORIS_X
++    value always wins. The names used are returned so startup can log them.
++    """
++    merged = dict(env)
++    used = []
++    for name, value in env.items():
++        if not name.startswith(_LEGACY_ENV_PREFIX):
++            continue
++        new_name = _ENV_PREFIX + name[len(_LEGACY_ENV_PREFIX):]
++        if not str(merged.get(new_name, "")).strip():
++            merged[new_name] = value
++            used.append(name)
++    return merged, tuple(sorted(used))
++
++
+ @dataclass
+ class Config:
+     api_key: str = ""
+@@ -376,6 +401,8 @@ class Config:
+     long_input_max_chars: int = 1500
+     semantic_cache: bool = False
+     debug_log: bool = False
++    # GREENSEARCH_* names read because their ARBORIS_* twin was unset.
++    legacy_env_names: tuple = ()
+ 
+     @property
+     def router_threshold_effective(self):
+@@ -405,14 +432,15 @@ class Config:
+         Raises ValueError with a plain message on an invalid value, so
+         the server refuses to start instead of running misconfigured.
+         """
+-        env = os.environ if env is None else env
++        env, legacy_names = _with_legacy_env(
++            os.environ if env is None else env)
+ 
+         def get(name, default):
+             value = env.get(name, "").strip()
+             return value or default
+ 
+-        model = get("GREENSEARCH_MODEL", DEFAULT_MODEL)
+-        raw_fallbacks = env.get("GREENSEARCH_MODEL_FALLBACKS", "").strip()
++        model = get("ARBORIS_MODEL", DEFAULT_MODEL)
++        raw_fallbacks = env.get("ARBORIS_MODEL_FALLBACKS", "").strip()
+         if not raw_fallbacks:
+             fallbacks = DEFAULT_FALLBACKS
+         elif raw_fallbacks.lower() == "none":
+@@ -420,11 +448,11 @@ class Config:
+         else:
+             fallbacks = raw_fallbacks.split(",")
+         try:
+-            threshold = float(get("GREENSEARCH_CASCADE_THRESHOLD", "-1.0"))
++            threshold = float(get("ARBORIS_CASCADE_THRESHOLD", "-1.0"))
+         except ValueError:
+-            raise ValueError("GREENSEARCH_CASCADE_THRESHOLD must be a number, e.g. -1.0")
++            raise ValueError("ARBORIS_CASCADE_THRESHOLD must be a number, e.g. -1.0")
+         if threshold != threshold or threshold > 0:  # NaN or positive
+-            raise ValueError("GREENSEARCH_CASCADE_THRESHOLD must be <= 0 (logprobs are <= 0)")
++            raise ValueError("ARBORIS_CASCADE_THRESHOLD must be <= 0 (logprobs are <= 0)")
+         def _int(name, default):
+             try:
+                 value = int(get(name, str(default)))
+@@ -433,52 +461,53 @@ class Config:
+             if value < 0:
+                 raise ValueError(f"{name} must be 0 or more")
+             return value
+-        rate = _int("GREENSEARCH_RATE_LIMIT_PER_HOUR", 30)
+-        rate_day = _int("GREENSEARCH_RATE_LIMIT_PER_DAY", 100)
+-        global_day = _int("GREENSEARCH_GLOBAL_LIMIT_PER_DAY", 800)
+-        origins = parse_origins(env.get("GREENSEARCH_BACKEND_ORIGIN", "")) or DEFAULT_ORIGINS
++        rate = _int("ARBORIS_RATE_LIMIT_PER_HOUR", 30)
++        rate_day = _int("ARBORIS_RATE_LIMIT_PER_DAY", 100)
++        global_day = _int("ARBORIS_GLOBAL_LIMIT_PER_DAY", 800)
++        origins = parse_origins(env.get("ARBORIS_BACKEND_ORIGIN", "")) or DEFAULT_ORIGINS
+         if any(o == "*" or "*" in o for o in origins):
+-            raise ValueError("GREENSEARCH_BACKEND_ORIGIN must list exact origins; '*' is not allowed")
++            raise ValueError("ARBORIS_BACKEND_ORIGIN must list exact origins; '*' is not allowed")
+         config = cls(
+-            api_key=env.get("GREENSEARCH_API_KEY", "").strip(),
+-            base_url=get("GREENSEARCH_BASE_URL", DEFAULT_BASE_URL),
++            api_key=env.get("ARBORIS_API_KEY", "").strip(),
++            base_url=get("ARBORIS_BASE_URL", DEFAULT_BASE_URL),
+             model=model,
+             fallback_models=fallbacks,
+-            escalation_model=get("GREENSEARCH_ESCALATION_MODEL", model),
++            escalation_model=get("ARBORIS_ESCALATION_MODEL", model),
+             cascade_threshold=threshold,
+             allowed_origins=origins,
+             rate_limit_per_hour=rate,
+             rate_limit_per_day=rate_day,
+             global_limit_per_day=global_day,
+-            allow_paid_models=env.get("GREENSEARCH_ALLOW_PAID_MODELS", "").strip().lower()
++            allow_paid_models=env.get("ARBORIS_ALLOW_PAID_MODELS", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+-            small_model=get("GREENSEARCH_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free"),
+-            small_model_routing=env.get("GREENSEARCH_SMALL_MODEL_ROUTING", "").strip().lower()
++            small_model=get("ARBORIS_SMALL_MODEL", "liquid/lfm-2.5-2.6b:free"),
++            small_model_routing=env.get("ARBORIS_SMALL_MODEL_ROUTING", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+             shrink_version=_shrink_version(env),
+             grid_g_per_kwh=_grid_factor(env),
+-            task_routing=env.get("GREENSEARCH_TASK_ROUTING", "").strip().lower()
++            task_routing=env.get("ARBORIS_TASK_ROUTING", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+-            difficulty_routing=env.get("GREENSEARCH_DIFFICULTY_ROUTING", "").strip().lower()
++            difficulty_routing=env.get("ARBORIS_DIFFICULTY_ROUTING", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+-            router_threshold=_unit_threshold(env, "GREENSEARCH_ROUTER_THRESHOLD", 0.5),
++            router_threshold=_unit_threshold(env, "ARBORIS_ROUTER_THRESHOLD", 0.5),
+             quality_target=_quality_target(env),
+-            scorer_escalation=env.get("GREENSEARCH_SCORER_ESCALATION", "").strip().lower()
++            scorer_escalation=env.get("ARBORIS_SCORER_ESCALATION", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+-            score_threshold=_unit_threshold(env, "GREENSEARCH_SCORE_THRESHOLD", 0.5),
+-            max_cascade_output_tokens=_int("GREENSEARCH_MAX_CASCADE_OUTPUT_TOKENS", 0),
++            score_threshold=_unit_threshold(env, "ARBORIS_SCORE_THRESHOLD", 0.5),
++            max_cascade_output_tokens=_int("ARBORIS_MAX_CASCADE_OUTPUT_TOKENS", 0),
+             max_tokens_multiplier=_max_tokens_multiplier(env),
+-            task_temperature=env.get("GREENSEARCH_TASK_TEMPERATURE", "").strip().lower()
++            task_temperature=env.get("ARBORIS_TASK_TEMPERATURE", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+-            task_stop_sequences=env.get("GREENSEARCH_TASK_STOP_SEQUENCES", "").strip().lower()
++            task_stop_sequences=env.get("ARBORIS_TASK_STOP_SEQUENCES", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+-            long_input_pruning=env.get("GREENSEARCH_LONG_INPUT_PRUNING", "").strip().lower()
++            long_input_pruning=env.get("ARBORIS_LONG_INPUT_PRUNING", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+             long_input_max_chars=_long_input_max_chars(env),
+-            semantic_cache=env.get("GREENSEARCH_SEMANTIC_CACHE", "").strip().lower()
++            semantic_cache=env.get("ARBORIS_SEMANTIC_CACHE", "").strip().lower()
+             in ("1", "true", "yes", "on"),
+-            debug_log=env.get("GREENSEARCH_DEBUG_LOG", "").strip().lower()
++            debug_log=env.get("ARBORIS_DEBUG_LOG", "").strip().lower()
+             in ("1", "true", "yes", "on"),
++            legacy_env_names=legacy_names,
+         )
+         # Paid guard lives here, not in __post_init__: direct Config() is
+         # the test harness (fake model names are not real paid models), while
+@@ -492,9 +521,9 @@ class Config:
+                     seen.append(m)
+             if seen:
+                 raise ValueError(
+-                    "Paid model(s) configured without GREENSEARCH_ALLOW_PAID_MODELS: "
++                    "Paid model(s) configured without ARBORIS_ALLOW_PAID_MODELS: "
+                     + ", ".join(seen)
+-                    + ". Set GREENSEARCH_ALLOW_PAID_MODELS=1 to allow paid models deliberately.")
++                    + ". Set ARBORIS_ALLOW_PAID_MODELS=1 to allow paid models deliberately.")
+         return config
+ 
+ 
+@@ -884,19 +913,19 @@ class Backend:
+ 
+     def log(self, message):
+         if not self.quiet:
+-            print(f"[greensearch-server] {message}", file=self.log_stream, flush=True)
++            print(f"[arboris-server] {message}", file=self.log_stream, flush=True)
+ 
+     def debug(self, message):
+-        """Prompt-bearing log lines: only with GREENSEARCH_DEBUG_LOG, stderr only."""
++        """Prompt-bearing log lines: only with ARBORIS_DEBUG_LOG, stderr only."""
+         if self.config.debug_log:
+-            print(f"[greensearch-server debug] {message}", file=self.log_stream, flush=True)
++            print(f"[arboris-server debug] {message}", file=self.log_stream, flush=True)
+ 
+     def _make(self, model):
+         try:
+             return self.provider_factory(model)
+         except ValueError:
+             # e.g. a non-https base URL. The detail stays on the server.
+-            self.log("provider setup failed: check GREENSEARCH_BASE_URL")
++            self.log("provider setup failed: check ARBORIS_BASE_URL")
+             raise ClientError(503, MSG_MISCONFIGURED)
+ 
+     def health(self):
+@@ -943,7 +972,7 @@ class Backend:
+         if not cfg.configured:
+             raise ClientError(503, MSG_NOT_CONFIGURED)
+ 
+-        # 1. PromptShrink: v1 by default, v2 only when GREENSEARCH_SHRINK_VERSION=v2.
++        # 1. PromptShrink: v1 by default, v2 only when ARBORIS_SHRINK_VERSION=v2.
+         sr = shrink_v2(req.prompt) if cfg.shrink_version == "v2" else shrink(req.prompt)
+         prompt = sr.text
+         if not prompt.strip():
+@@ -1395,7 +1424,7 @@ class Backend:
+             "output_tokens": base.completion_tokens,
+             "saved_output_tokens": None,
+             "saved_total_tokens": None,
+-            "note": "measured: unconstrained call vs GreenSearch call, provider-reported tokens",
++            "note": "measured: unconstrained call vs Arboris call, provider-reported tokens",
+         }
+         if base.completion_tokens is not None and output_tokens is not None:
+             out["saved_output_tokens"] = base.completion_tokens - output_tokens
+@@ -1455,7 +1484,7 @@ def make_handler(backend):
+     site_index = ROOT / "website" / "index.html"
+ 
+     class Handler(BaseHTTPRequestHandler):
+-        server_version = "GreenSearch"
++        server_version = "Arboris"
+         sys_version = ""
+ 
+         # -- helpers --------------------------------------------------------
+@@ -1602,7 +1631,7 @@ def _help_epilog():
+ def main(argv=None):
+     parser = argparse.ArgumentParser(
+         prog="python server/app.py",
+-        description="GreenSearch live backend (local; stdlib only).",
++        description="Arboris live backend (local; stdlib only).",
+         epilog=_help_epilog(),
+         formatter_class=argparse.RawDescriptionHelpFormatter,
+     )
+@@ -1621,6 +1650,10 @@ def main(argv=None):
+ 
+     backend = Backend(config)
+     server = make_server(backend, args.host, port)
++    if config.legacy_env_names:
++        backend.log(
++            "legacy environment names in use (rename to ARBORIS_*; support "
++            "ends after 0.9.0): " + ", ".join(config.legacy_env_names))
+     backend.log(
+         f"listening on http://{args.host}:{server.server_address[1]} | "
+         f"live: {'configured' if config.configured else 'NOT configured (no API key)'} | "
+diff --git a/spec/templates.json b/spec/templates.json
+index ba6aee9..9647949 100644
+--- a/spec/templates.json
++++ b/spec/templates.json
+@@ -1,5 +1,5 @@
+ {
+-  "note": "Expanded canned-answer library for the GreenSearch demo. Each topic has an id, keyword patterns (regex, word-boundary), and a full answer (up to 6 sentences). Sprout (2 sentences) and canopy (4 sentences) are derived by sentence splitting. The original 6 topics (email, api, workout, backup, firewall, dns) keep hand-authored mode variants in the website and Python provider; this file adds everything else. All answers are factual and general-purpose. No live model, no hallucination.",
++  "note": "Expanded canned-answer library for the Arboris demo. Each topic has an id, keyword patterns (regex, word-boundary), and a full answer (up to 6 sentences). Sprout (2 sentences) and canopy (4 sentences) are derived by sentence splitting. The original 6 topics (email, api, workout, backup, firewall, dns) keep hand-authored mode variants in the website and Python provider; this file adds everything else. All answers are factual and general-purpose. No live model, no hallucination.",
+   "topics": [
+     {
+       "id": "password",
+diff --git a/tests/test_greensearch.py b/tests/test_arboris.py
+similarity index 93%
+rename from tests/test_greensearch.py
+rename to tests/test_arboris.py
+index 40f500f..620ba16 100644
+--- a/tests/test_greensearch.py
++++ b/tests/test_arboris.py
+@@ -1,4 +1,4 @@
+-"""Tests for the GreenSearch harness (stdlib unittest only).
++"""Tests for the Arboris harness (stdlib unittest only).
+ 
+ Run from the repository root:
+     python -m unittest discover -s tests -v
+@@ -16,10 +16,10 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.brevity import apply_brevity, split_sentences
+-from greensearch.footprint import footprint
+-from greensearch.providers import DemoProvider
+-from greensearch.tokens import est_tokens
++from arboris.brevity import apply_brevity, split_sentences
++from arboris.footprint import footprint
++from arboris.providers import DemoProvider
++from arboris.tokens import est_tokens
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ 
+@@ -128,7 +128,7 @@ class TestEnergyReceipt(unittest.TestCase):
+     def test_receipt_arithmetic_and_water_range(self):
+         # Output-weighted: 50 out x 0.0006 Wh + 10 in x 0.0006 / 800 Wh
+         # = 0.0300075 Wh; at 400 g/kWh = 0.012003 g; water = Wh x WUE.
+-        from greensearch.footprint import energy_receipt
++        from arboris.footprint import energy_receipt
+         receipt = energy_receipt(10, 50, model="m", model_tier="primary")
+         self.assertEqual(receipt["status"], "estimate")
+         self.assertEqual(receipt["total_tokens"], 60)
+@@ -139,7 +139,7 @@ class TestEnergyReceipt(unittest.TestCase):
+         self.assertEqual(receipt["factors"]["grid_g_per_kwh"], 400.0)
+ 
+     def test_output_tokens_dominate_the_estimate(self):
+-        from greensearch.footprint import energy_receipt
++        from arboris.footprint import energy_receipt
+         long_question = energy_receipt(800, 0)["energy_wh"]
+         one_output_token = energy_receipt(0, 1)["energy_wh"]
+         # 800 input tokens cost the same as 1 output token.
+@@ -147,18 +147,18 @@ class TestEnergyReceipt(unittest.TestCase):
+         self.assertEqual(one_output_token, 0.0006)
+ 
+     def test_receipt_rejects_non_positive_ratio(self):
+-        from greensearch.footprint import energy_receipt
++        from arboris.footprint import energy_receipt
+         with self.assertRaises(ValueError):
+             energy_receipt(10, 50, input_output_ratio=0)
+ 
+     def test_receipt_cache_hit_is_zero(self):
+-        from greensearch.footprint import energy_receipt
++        from arboris.footprint import energy_receipt
+         receipt = energy_receipt(0, 0, cache_hit=True)
+         self.assertEqual((receipt["energy_wh"], receipt["co2e_g"]), (0.0, 0.0))
+         self.assertIn("Cache hit", receipt["note"])
+ 
+     def test_receipt_states_unknown_region_and_anchor_range(self):
+-        from greensearch.footprint import (WH_PER_TOKEN, WH_PER_TOKEN_RANGE,
++        from arboris.footprint import (WH_PER_TOKEN, WH_PER_TOKEN_RANGE,
+                                            energy_receipt)
+         receipt = energy_receipt(10, 50, model="google/gemma-4-31b-it:free")
+         factors = receipt["factors"]
+@@ -173,7 +173,7 @@ class TestEnergyReceipt(unittest.TestCase):
+         self.assertEqual(receipt["model_size_tier"], "medium")
+ 
+     def test_model_size_tier_reads_parameter_counts(self):
+-        from greensearch.footprint import model_size_tier
++        from arboris.footprint import model_size_tier
+         cases = {
+             "google/gemma-4-31b-it:free": "medium",
+             "meta-llama/llama-3.1-8b-instruct": "small",
+@@ -198,7 +198,7 @@ class TestEnergyReceipt(unittest.TestCase):
+                 self.assertEqual(model_size_tier(name), tier)
+ 
+     def test_receipt_unavailable_invents_nothing(self):
+-        from greensearch.footprint import energy_receipt
++        from arboris.footprint import energy_receipt
+         receipt = energy_receipt(None, 50)
+         self.assertEqual(receipt["status"], "unavailable")
+         self.assertIsNone(receipt["energy_wh"])
+diff --git a/tests/test_baseline_retry.py b/tests/test_baseline_retry.py
+index 6b1e4d4..0edf87e 100644
+--- a/tests/test_baseline_retry.py
++++ b/tests/test_baseline_retry.py
+@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+ 
+ from baseline_study import _complete_with_retry
+-from greensearch.providers import Completion, ProviderError
++from arboris.providers import Completion, ProviderError
+ 
+ 
+ class Flaky:
+diff --git a/tests/test_corpus.py b/tests/test_corpus.py
+index 053f4b8..74f8f70 100644
+--- a/tests/test_corpus.py
++++ b/tests/test_corpus.py
+@@ -3,12 +3,12 @@
+ Two modes:
+   1. Offline (default): runs the demo provider, verifies shrunk forms match
+      spec/corpus.json, and prints a saving summary. Always runs in CI.
+-  2. Live (GREENSEARCH_CORPUS_LIVE=1): uses the real model with
++  2. Live (ARBORIS_CORPUS_LIVE=1): uses the real model with
+      --measure-baseline logic and writes results/corpus_results.json.
+      Skip this in CI unless you want to spend API tokens.
+ 
+ Run: python -m unittest tests.test_corpus -v
+-     GREENSEARCH_CORPUS_LIVE=1 python -m unittest tests.test_corpus -v
++     ARBORIS_CORPUS_LIVE=1 python -m unittest tests.test_corpus -v
+ """
+ 
+ import io
+@@ -21,10 +21,10 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.providers import DemoProvider
+-from greensearch.router import route_mode
+-from greensearch.shrink import shrink
+-from greensearch.tokens import est_tokens
++from arboris.providers import DemoProvider
++from arboris.router import route_mode
++from arboris.shrink import shrink
++from arboris.tokens import est_tokens
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ CORPUS = json.loads((ROOT / "spec" / "corpus.json").read_text())
+@@ -82,8 +82,8 @@ class TestCorpusSavings(unittest.TestCase):
+ 
+     def test_corpus_saving_summary(self):
+         """Print a saving summary table and assert overall saving is positive."""
+-        from greensearch.brevity import apply_brevity
+-        from greensearch.footprint import footprint
++        from arboris.brevity import apply_brevity
++        from arboris.footprint import footprint
+ 
+         provider = DemoProvider()
+         results = []
+diff --git a/tests/test_expanded.py b/tests/test_expanded.py
+index 0c1a6a1..fea9f9d 100644
+--- a/tests/test_expanded.py
++++ b/tests/test_expanded.py
+@@ -19,8 +19,8 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.brevity import apply_brevity, split_sentences
+-from greensearch.providers import DemoProvider
++from arboris.brevity import apply_brevity, split_sentences
++from arboris.providers import DemoProvider
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ SPEC = json.loads((ROOT / "spec" / "templates.json").read_text())
+diff --git a/tests/test_improvements.py b/tests/test_improvements.py
+index fba0d80..014b93e 100644
+--- a/tests/test_improvements.py
++++ b/tests/test_improvements.py
+@@ -17,14 +17,14 @@ from unittest import mock
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.brevity import apply_brevity, split_sentences, strip_filler_clauses
+-from greensearch.cli import main
+-from greensearch.footprint import CO2_PER_TOKEN_G, footprint
+-from greensearch.providers import (
++from arboris.brevity import apply_brevity, split_sentences, strip_filler_clauses
++from arboris.cli import main
++from arboris.footprint import CO2_PER_TOKEN_G, footprint
++from arboris.providers import (
+     DemoProvider, OpenAICompatibleProvider, ProviderError,
+ )
+-from greensearch.router import route_mode
+-from greensearch.session import Session
++from arboris.router import route_mode
++from arboris.session import Session
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ SPEC = json.loads((ROOT / "spec" / "routing_cases.json").read_text())
+@@ -240,7 +240,7 @@ class TestCliHonesty(unittest.TestCase):
+         with mock.patch("urllib.request.urlopen", side_effect=replies) as urlopen:
+             code, out, _ = self.run_cli(
+                 ["explain it", "--provider", "live", "--mode", "sprout", "--measure-baseline"],
+-                env={"GREENSEARCH_API_KEY": "k"},
++                env={"ARBORIS_API_KEY": "k"},
+             )
+         self.assertEqual(code, 0)
+         self.assertEqual(urlopen.call_count, 2)
+@@ -249,7 +249,7 @@ class TestCliHonesty(unittest.TestCase):
+     def test_live_no_constrain_sends_no_system_prompt(self):
+         with mock.patch("urllib.request.urlopen", return_value=reply("Hi.")) as urlopen:
+             self.run_cli(["hello", "--provider", "live", "--no-constrain"],
+-                         env={"GREENSEARCH_API_KEY": "k"})
++                         env={"ARBORIS_API_KEY": "k"})
+         body = json.loads(urlopen.call_args[0][0].data)
+         self.assertEqual(len(body["messages"]), 1)
+         self.assertNotIn("max_tokens", body)
+@@ -257,7 +257,7 @@ class TestCliHonesty(unittest.TestCase):
+     def test_live_default_constrains_generation(self):
+         with mock.patch("urllib.request.urlopen", return_value=reply("Hi.")) as urlopen:
+             self.run_cli(["hello", "--provider", "live", "--mode", "sprout"],
+-                         env={"GREENSEARCH_API_KEY": "k"})
++                         env={"ARBORIS_API_KEY": "k"})
+         body = json.loads(urlopen.call_args[0][0].data)
+         self.assertEqual(body["messages"][0]["role"], "system")
+         self.assertEqual(body["max_tokens"], 120)
+@@ -266,7 +266,7 @@ class TestCliHonesty(unittest.TestCase):
+         fake = FakeResponse(b'{"choices":[{"message":{"content":null}}]}')
+         with mock.patch("urllib.request.urlopen", return_value=fake):
+             code, _out, err = self.run_cli(
+-                ["hello", "--provider", "live"], env={"GREENSEARCH_API_KEY": "k"}
++                ["hello", "--provider", "live"], env={"ARBORIS_API_KEY": "k"}
+             )
+         self.assertEqual(code, 2)
+         self.assertIn("Error:", err)
+diff --git a/tests/test_live_backend.py b/tests/test_live_backend.py
+index 5d1e659..ceba9c5 100644
+--- a/tests/test_live_backend.py
++++ b/tests/test_live_backend.py
+@@ -19,10 +19,10 @@ from pathlib import Path
+ ROOT = Path(__file__).resolve().parents[1]
+ sys.path.insert(0, str(ROOT))
+ 
+-from greensearch.brevity import ELLIPSIS, apply_brevity, apply_brevity_with_flag  # noqa: E402
+-from greensearch.providers import BREVITY_SYSTEM, MAX_TOKENS, Completion, ProviderError  # noqa: E402
+-from greensearch.router import route_mode  # noqa: E402
+-from greensearch.shrink import shrink  # noqa: E402
++from arboris.brevity import ELLIPSIS, apply_brevity, apply_brevity_with_flag  # noqa: E402
++from arboris.providers import BREVITY_SYSTEM, MAX_TOKENS, Completion, ProviderError  # noqa: E402
++from arboris.router import route_mode  # noqa: E402
++from arboris.shrink import shrink  # noqa: E402
+ from server.app import (  # noqa: E402
+     DEFAULT_FALLBACKS,
+     DEFAULT_MODEL,
+@@ -212,8 +212,8 @@ class SingleModelTests(unittest.TestCase):
+         self.assertEqual((meta["input_tokens"], meta["output_tokens"]), (10, 50))
+ 
+     def test_escalation_model_equal_to_primary_is_single_model(self):
+-        cfg = Config.from_env({"GREENSEARCH_API_KEY": "placeholder",
+-                               "GREENSEARCH_ESCALATION_MODEL": PRIMARY})
++        cfg = Config.from_env({"ARBORIS_API_KEY": "placeholder",
++                               "ARBORIS_ESCALATION_MODEL": PRIMARY})
+         self.assertFalse(cfg.cascade_enabled)
+         small = FakeProvider(PRIMARY, avg_logprob=-5.0)
+         backend, _, _ = make_backend(primary=small, escalation_model=PRIMARY)
+@@ -271,7 +271,7 @@ class CacheTests(unittest.TestCase):
+ 
+ 
+ class OptionalCascadeTests(unittest.TestCase):
+-    """Only when GREENSEARCH_ESCALATION_MODEL is a DIFFERENT model."""
++    """Only when ARBORIS_ESCALATION_MODEL is a DIFFERENT model."""
+ 
+     def test_escalates_when_logprob_below_threshold(self):
+         small = FakeProvider(PRIMARY, avg_logprob=-2.0)
+@@ -423,11 +423,11 @@ class ErrorMappingTests(unittest.TestCase):
+         self.assertFalse(req.measure_baseline)
+ 
+     def test_config_rejects_wildcard_origin_and_bad_values(self):
+-        for env in ({"GREENSEARCH_BACKEND_ORIGIN": "*"},
+-                    {"GREENSEARCH_BACKEND_ORIGIN": "http://localhost:8000,*"},
+-                    {"GREENSEARCH_CASCADE_THRESHOLD": "0.5"},
+-                    {"GREENSEARCH_CASCADE_THRESHOLD": "abc"},
+-                    {"GREENSEARCH_RATE_LIMIT_PER_HOUR": "-1"}):
++        for env in ({"ARBORIS_BACKEND_ORIGIN": "*"},
++                    {"ARBORIS_BACKEND_ORIGIN": "http://localhost:8000,*"},
++                    {"ARBORIS_CASCADE_THRESHOLD": "0.5"},
++                    {"ARBORIS_CASCADE_THRESHOLD": "abc"},
++                    {"ARBORIS_RATE_LIMIT_PER_HOUR": "-1"}):
+             with self.subTest(env=env):
+                 with self.assertRaises(ValueError):
+                     Config.from_env(env)
+@@ -444,18 +444,18 @@ class ErrorMappingTests(unittest.TestCase):
+         for label, raw in cases.items():
+             with self.subTest(label):
+                 self.assertEqual(parse_origins(raw), want)
+-                cfg = Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
++                cfg = Config.from_env({"ARBORIS_BACKEND_ORIGIN": raw})
+                 self.assertEqual(cfg.allowed_origins, want)
+         # Separators only = unset = the localhost defaults.
+         for raw in ("", " , ,", " / "):
+             with self.subTest(raw=raw):
+-                self.assertEqual(Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
++                self.assertEqual(Config.from_env({"ARBORIS_BACKEND_ORIGIN": raw})
+                                  .allowed_origins, ("http://localhost:8000", "http://127.0.0.1:8000"))
+         # A wildcard is still refused, whatever the separator.
+         for raw in ("https://a.example *", "https://a.example,\t*"):
+             with self.subTest(raw=raw):
+                 with self.assertRaises(ValueError):
+-                    Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
++                    Config.from_env({"ARBORIS_BACKEND_ORIGIN": raw})
+ 
+     def test_config_defaults(self):
+         cfg = Config.from_env({})
+@@ -478,15 +478,15 @@ class ErrorMappingTests(unittest.TestCase):
+         self.assertFalse(cfg.allow_paid_models)
+         self.assertEqual(cfg.allowed_origins, ("http://localhost:8000", "http://127.0.0.1:8000"))
+         self.assertFalse(cfg.debug_log)
+-        cfg = Config.from_env({"GREENSEARCH_MODEL": "other/model:free"})
++        cfg = Config.from_env({"ARBORIS_MODEL": "other/model:free"})
+         self.assertEqual((cfg.model, cfg.escalation_model), ("other/model:free", "other/model:free"))
+         self.assertFalse(cfg.cascade_enabled)
+-        cfg = Config.from_env({"GREENSEARCH_ESCALATION_MODEL": "big/model:free"})
++        cfg = Config.from_env({"ARBORIS_ESCALATION_MODEL": "big/model:free"})
+         self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, "big/model:free"))
+         self.assertTrue(cfg.cascade_enabled)
+         # The old 4B/8B variables are no longer read.
+-        cfg = Config.from_env({"GREENSEARCH_MODEL_4B": "qwen/qwen3-4b",
+-                               "GREENSEARCH_MODEL_8B": "x/y"})
++        cfg = Config.from_env({"ARBORIS_MODEL_4B": "qwen/qwen3-4b",
++                               "ARBORIS_MODEL_8B": "x/y"})
+         self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, DEFAULT_MODEL))
+ 
+     def test_prompts_not_logged_by_default(self):
+@@ -619,8 +619,8 @@ class HTTPTests(unittest.TestCase):
+         self.assertEqual(resp.status, 403)
+ 
+     def test_cors_space_separated_env_list_matches_exactly(self):
+-        cfg = Config.from_env({"GREENSEARCH_API_KEY": SENTINEL_KEY,
+-                               "GREENSEARCH_BACKEND_ORIGIN": "https://a.example/ https://b.example"})
++        cfg = Config.from_env({"ARBORIS_API_KEY": SENTINEL_KEY,
++                               "ARBORIS_BACKEND_ORIGIN": "https://a.example/ https://b.example"})
+         backend, _, _ = make_backend(allowed_origins=cfg.allowed_origins)
+         port = self.start(backend)
+         for origin in ("https://a.example", "https://b.example"):
+@@ -650,11 +650,11 @@ class HTTPTests(unittest.TestCase):
+ 
+     def test_paid_model_blocked_without_explicit_allow(self):
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_MODEL": "other/model"})
++            Config.from_env({"ARBORIS_MODEL": "other/model"})
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "other/model"})
+-        cfg = Config.from_env({"GREENSEARCH_MODEL": "other/model",
+-                               "GREENSEARCH_ALLOW_PAID_MODELS": "1"})
++            Config.from_env({"ARBORIS_MODEL_FALLBACKS": "other/model"})
++        cfg = Config.from_env({"ARBORIS_MODEL": "other/model",
++                               "ARBORIS_ALLOW_PAID_MODELS": "1"})
+         self.assertTrue(cfg.allow_paid_models)
+         self.assertEqual(cfg.model, "other/model")
+ 
+@@ -738,10 +738,10 @@ class EntryPointAndSiteTests(unittest.TestCase):
+         out = subprocess.run([sys.executable, str(ROOT / "server" / "app.py"), "--help"],
+                              capture_output=True, text=True, timeout=30)
+         self.assertEqual(out.returncode, 0)
+-        for name in ("GREENSEARCH_API_KEY", "GREENSEARCH_BASE_URL", "GREENSEARCH_MODEL",
+-                     "GREENSEARCH_ESCALATION_MODEL", "GREENSEARCH_MODEL_FALLBACKS",
+-                     "GREENSEARCH_CASCADE_THRESHOLD", "GREENSEARCH_BACKEND_ORIGIN",
+-                     "GREENSEARCH_RATE_LIMIT_PER_HOUR", "GREENSEARCH_DEBUG_LOG", "PORT"):
++        for name in ("ARBORIS_API_KEY", "ARBORIS_BASE_URL", "ARBORIS_MODEL",
++                     "ARBORIS_ESCALATION_MODEL", "ARBORIS_MODEL_FALLBACKS",
++                     "ARBORIS_CASCADE_THRESHOLD", "ARBORIS_BACKEND_ORIGIN",
++                     "ARBORIS_RATE_LIMIT_PER_HOUR", "ARBORIS_DEBUG_LOG", "PORT"):
+             self.assertIn(name, out.stdout)
+         self.assertIn("google/gemma-4-31b-it:free", out.stdout)
+         self.assertIn(DEFAULT_FALLBACKS[0], out.stdout)
+@@ -756,23 +756,23 @@ class EntryPointAndSiteTests(unittest.TestCase):
+         self.assertIsNotNone(baseline)
+         self.assertNotIn("checked", toggle.group(0))
+         self.assertNotIn("checked", baseline.group(0))
+-        self.assertIn("greensearch-live-backend-url", html)
++        self.assertIn("arboris-live-backend-url", html)
+         self.assertIn("http://localhost:8000/api/chat", html)
+         self.assertIn("Live mode sends prompts to this backend", html)
+-        self.assertIn("STORE_KEY='greensearch-demo-v1'", html)
++        self.assertIn("STORE_KEY='arboris-demo-v1'", html)
+         # The page must never handle a provider key.
+         self.assertNotIn("Authorization", html)
+-        self.assertNotRegex(html, r"api_key|apiKey|GREENSEARCH_API_KEY")
++        self.assertNotRegex(html, r"api_key|apiKey|ARBORIS_API_KEY")
+ 
+ 
+     def test_env_example_has_no_real_key(self):
+         text = (ROOT / ".env.example").read_text(encoding="utf-8")
+-        match = re.search(r"^GREENSEARCH_API_KEY=(.*)$", text, re.MULTILINE)
++        match = re.search(r"^ARBORIS_API_KEY=(.*)$", text, re.MULTILINE)
+         self.assertIsNotNone(match)
+         self.assertNotRegex(match.group(1), r"sk-[A-Za-z0-9]{10,}")
+         self.assertIn(match.group(1).strip(), ("", "replace-me"))
+-        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL=google/gemma-4-31b-it:free$")
+-        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL_FALLBACKS=" + re.escape(
++        self.assertRegex(text, r"(?m)^ARBORIS_MODEL=google/gemma-4-31b-it:free$")
++        self.assertRegex(text, r"(?m)^ARBORIS_MODEL_FALLBACKS=" + re.escape(
+             ",".join(DEFAULT_FALLBACKS)) + "$")
+         self.assertNotIn("MODEL_4B", text)
+ 
+@@ -916,14 +916,14 @@ class FallbackTests(unittest.TestCase):
+                 self.assertEqual(built, [PRIMARY, FREE_A])
+ 
+     def test_fallback_list_parsing(self):
+-        cfg = Config.from_env({"GREENSEARCH_MODEL": "a/b:free",
+-                               "GREENSEARCH_MODEL_FALLBACKS": " x/y:free , ,a/b:free, z/w:free ,x/y:free"})
++        cfg = Config.from_env({"ARBORIS_MODEL": "a/b:free",
++                               "ARBORIS_MODEL_FALLBACKS": " x/y:free , ,a/b:free, z/w:free ,x/y:free"})
+         self.assertEqual(cfg.fallback_models, ("x/y:free", "z/w:free"))
+-        cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "none"})
++        cfg = Config.from_env({"ARBORIS_MODEL_FALLBACKS": "none"})
+         self.assertEqual(cfg.fallback_models, ())
+-        cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "   "})
++        cfg = Config.from_env({"ARBORIS_MODEL_FALLBACKS": "   "})
+         self.assertEqual(cfg.fallback_models, DEFAULT_FALLBACKS)
+-        cfg = Config.from_env({"GREENSEARCH_MODEL": DEFAULT_FALLBACKS[1]})
++        cfg = Config.from_env({"ARBORIS_MODEL": DEFAULT_FALLBACKS[1]})
+         self.assertNotIn(DEFAULT_FALLBACKS[1], cfg.fallback_models)
+         self.assertEqual(len(cfg.fallback_models), len(DEFAULT_FALLBACKS) - 1)
+ 
+@@ -962,12 +962,12 @@ class SmallModelRoutingTests(unittest.TestCase):
+         cfg = Config.from_env({})
+         self.assertFalse(cfg.small_model_routing)
+         self.assertEqual(cfg.small_model, FREE_A)
+-        cfg = Config.from_env({"GREENSEARCH_SMALL_MODEL_ROUTING": "1"})
++        cfg = Config.from_env({"ARBORIS_SMALL_MODEL_ROUTING": "1"})
+         self.assertTrue(cfg.small_model_routing)
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_SMALL_MODEL": "other/model"})
+-        cfg = Config.from_env({"GREENSEARCH_SMALL_MODEL": "other/model",
+-                               "GREENSEARCH_ALLOW_PAID_MODELS": "1"})
++            Config.from_env({"ARBORIS_SMALL_MODEL": "other/model"})
++        cfg = Config.from_env({"ARBORIS_SMALL_MODEL": "other/model",
++                               "ARBORIS_ALLOW_PAID_MODELS": "1"})
+         self.assertEqual(cfg.small_model, "other/model")
+ 
+     def test_sprout_prompt_uses_small_model_first(self):
+@@ -1075,10 +1075,10 @@ class ShrinkVersionTests(unittest.TestCase):
+     def test_config_defaults_and_invalid(self):
+         cfg = Config.from_env({})
+         self.assertEqual(cfg.shrink_version, "v1")
+-        cfg = Config.from_env({"GREENSEARCH_SHRINK_VERSION": "v2"})
++        cfg = Config.from_env({"ARBORIS_SHRINK_VERSION": "v2"})
+         self.assertEqual(cfg.shrink_version, "v2")
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_SHRINK_VERSION": "v3"})
++            Config.from_env({"ARBORIS_SHRINK_VERSION": "v3"})
+ 
+     def test_v2_shrinks_live_prompt(self):
+         # v1 leaves the article in; v2 (gated telegraphic) drops it.
+@@ -1134,12 +1134,12 @@ class EnergyReceiptTests(unittest.TestCase):
+     def test_grid_factor_config(self):
+         cfg = Config.from_env({})
+         self.assertEqual(cfg.grid_g_per_kwh, 400.0)
+-        cfg = Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "30"})
++        cfg = Config.from_env({"ARBORIS_GRID_G_PER_KWH": "30"})
+         self.assertEqual(cfg.grid_g_per_kwh, 30.0)
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "0"})
++            Config.from_env({"ARBORIS_GRID_G_PER_KWH": "0"})
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "abc"})
++            Config.from_env({"ARBORIS_GRID_G_PER_KWH": "abc"})
+ 
+ 
+ class TaskRoutingTests(unittest.TestCase):
+@@ -1148,7 +1148,7 @@ class TaskRoutingTests(unittest.TestCase):
+     def test_config_defaults_and_flag(self):
+         self.assertFalse(Config.from_env({}).task_routing)
+         self.assertTrue(Config.from_env(
+-            {"GREENSEARCH_TASK_ROUTING": "1"}).task_routing)
++            {"ARBORIS_TASK_ROUTING": "1"}).task_routing)
+ 
+     def test_long_fact_goes_small_despite_word_count(self):
+         # Word-count routing would call this canopy (20+ words); task
+@@ -1307,7 +1307,7 @@ class ProviderParsingTests(unittest.TestCase):
+     def call(self, body=None, http_code=None):
+         import urllib.error
+         from unittest import mock
+-        from greensearch.providers import OpenAICompatibleProvider
++        from arboris.providers import OpenAICompatibleProvider
+ 
+         provider = OpenAICompatibleProvider("https://example.invalid/v1",
+                                             api_key=SENTINEL_KEY, model="m")
+@@ -1353,14 +1353,14 @@ class ProvenRoutingServerTests(unittest.TestCase):
+         self.assertEqual(cfg.score_threshold, 0.5)
+         self.assertEqual(cfg.max_cascade_output_tokens, 0)
+         self.assertFalse(cfg.semantic_cache)
+-        eco = Config.from_env({"GREENSEARCH_QUALITY_TARGET": "eco"})
++        eco = Config.from_env({"ARBORIS_QUALITY_TARGET": "eco"})
+         self.assertEqual(eco.router_threshold_effective, 0.7)
+-        quality = Config.from_env({"GREENSEARCH_QUALITY_TARGET": "quality"})
++        quality = Config.from_env({"ARBORIS_QUALITY_TARGET": "quality"})
+         self.assertEqual(quality.router_threshold_effective, 0.3)
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_ROUTER_THRESHOLD": "1.5"})
++            Config.from_env({"ARBORIS_ROUTER_THRESHOLD": "1.5"})
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_QUALITY_TARGET": "fast"})
++            Config.from_env({"ARBORIS_QUALITY_TARGET": "fast"})
+ 
+     def test_local_calc_bypasses_model(self):
+         primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
+@@ -1521,9 +1521,9 @@ class ProvenRoutingServerTests(unittest.TestCase):
+         self.assertFalse(cfg.task_temperature)
+         self.assertFalse(cfg.task_stop_sequences)
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_MAX_TOKENS_MULTIPLIER": "0"})
++            Config.from_env({"ARBORIS_MAX_TOKENS_MULTIPLIER": "0"})
+         with self.assertRaises(ValueError):
+-            Config.from_env({"GREENSEARCH_MAX_TOKENS_MULTIPLIER": "5"})
++            Config.from_env({"ARBORIS_MAX_TOKENS_MULTIPLIER": "5"})
+         primary = FakeProvider(PRIMARY, text="Paris.", avg_logprob=-0.2)
+         backend, _, _ = make_backend(primary=primary, task_routing=True,
+                                      max_tokens_multiplier=2.0)
+diff --git a/tests/test_long_input.py b/tests/test_long_input.py
+index 474fe67..f6919d7 100644
+--- a/tests/test_long_input.py
++++ b/tests/test_long_input.py
+@@ -1,4 +1,4 @@
+-"""Tests for greensearch/long_input.py: conservative extractive pruning.
++"""Tests for arboris/long_input.py: conservative extractive pruning.
+ 
+ Run from the repository root: python -m unittest tests.test_long_input
+ """
+@@ -9,7 +9,7 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.long_input import prune_long_prompt
++from arboris.long_input import prune_long_prompt
+ 
+ PLAIN = ("The weather was pleasant and the road was long and winding "
+          "through the hills and valleys of the countryside. ")
+diff --git a/tests/test_new_features.py b/tests/test_new_features.py
+index c492cb0..dc6d968 100644
+--- a/tests/test_new_features.py
++++ b/tests/test_new_features.py
+@@ -12,12 +12,12 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.cache import SessionCache, cache_key
+-from greensearch.cascade import run_cascade
+-from greensearch.cli import main
+-from greensearch.providers import Completion
+-from greensearch.session import Session
+-from greensearch.tokenizer import TokenizerError, count_tokens
++from arboris.cache import SessionCache, cache_key
++from arboris.cascade import run_cascade
++from arboris.cli import main
++from arboris.providers import Completion
++from arboris.session import Session
++from arboris.tokenizer import TokenizerError, count_tokens
+ 
+ 
+ class FakeProvider:
+diff --git a/tests/test_proven_routing.py b/tests/test_proven_routing.py
+index b9a0558..d24c424 100644
+--- a/tests/test_proven_routing.py
++++ b/tests/test_proven_routing.py
+@@ -12,11 +12,11 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.cascade import run_cascade
+-from greensearch.local_calc import try_local_calc
+-from greensearch.providers import Completion
+-from greensearch.scorer import score_answer
+-from greensearch.task_router import difficulty_score, route_task
++from arboris.cascade import run_cascade
++from arboris.local_calc import try_local_calc
++from arboris.providers import Completion
++from arboris.scorer import score_answer
++from arboris.task_router import difficulty_score, route_task
+ 
+ 
+ class _Fake:
+diff --git a/tests/test_rename.py b/tests/test_rename.py
+new file mode 100644
+index 0000000..8a885ed
+--- /dev/null
++++ b/tests/test_rename.py
+@@ -0,0 +1,102 @@
++"""Tests for the GreenSearch -> Arboris rename (0.9.0) and its one-release
++compatibility layer: the greensearch shim package, GREENSEARCH_* env
++fallbacks, and the site's localStorage key migration.
++"""
++
++import importlib
++import os
++import subprocess
++import sys
++import unittest
++import warnings
++from pathlib import Path
++from unittest import mock
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT))
++
++import arboris  # noqa: E402
++from arboris.providers import OpenAICompatibleProvider  # noqa: E402
++from server.app import Config, _with_legacy_env  # noqa: E402
++
++
++class TestShimPackage(unittest.TestCase):
++    def _import_shim(self):
++        sys.modules.pop("greensearch", None)
++        with warnings.catch_warnings(record=True) as caught:
++            warnings.simplefilter("always")
++            shim = importlib.import_module("greensearch")
++        return shim, caught
++
++    def test_shim_warns_and_shares_module_objects(self):
++        shim, caught = self._import_shim()
++        self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
++        self.assertEqual(shim.__version__, arboris.__version__)
++        from greensearch import footprint as legacy_footprint
++        self.assertIs(legacy_footprint, importlib.import_module("arboris.footprint"))
++        self.assertIs(sys.modules["greensearch.providers"],
++                      importlib.import_module("arboris.providers"))
++
++    def test_legacy_module_entry_point_runs_the_cli(self):
++        result = subprocess.run(
++            [sys.executable, "-m", "greensearch", "Explain DNS simply", "--mode", "sprout"],
++            cwd=ROOT, capture_output=True, text=True, timeout=60,
++        )
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertIn("DNS", result.stdout)
++
++
++class TestLegacyEnv(unittest.TestCase):
++    def test_legacy_name_fills_an_unset_new_name(self):
++        merged, used = _with_legacy_env({"GREENSEARCH_MODEL": "m-old"})
++        self.assertEqual(merged["ARBORIS_MODEL"], "m-old")
++        self.assertEqual(used, ("GREENSEARCH_MODEL",))
++
++    def test_new_name_always_wins(self):
++        merged, used = _with_legacy_env(
++            {"GREENSEARCH_MODEL": "m-old", "ARBORIS_MODEL": "m-new"})
++        self.assertEqual(merged["ARBORIS_MODEL"], "m-new")
++        self.assertEqual(used, ())
++
++    def test_blank_new_name_falls_back(self):
++        merged, used = _with_legacy_env(
++            {"GREENSEARCH_MODEL": "m-old", "ARBORIS_MODEL": "  "})
++        self.assertEqual(merged["ARBORIS_MODEL"], "m-old")
++        self.assertEqual(used, ("GREENSEARCH_MODEL",))
++
++    def test_config_reads_legacy_deployments(self):
++        cfg = Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "30"})
++        self.assertEqual(cfg.grid_g_per_kwh, 30.0)
++        self.assertEqual(cfg.legacy_env_names, ("GREENSEARCH_GRID_G_PER_KWH",))
++
++    def test_input_env_is_not_mutated(self):
++        env = {"GREENSEARCH_MODEL": "m-old"}
++        _with_legacy_env(env)
++        self.assertEqual(env, {"GREENSEARCH_MODEL": "m-old"})
++
++    def test_provider_accepts_legacy_api_key(self):
++        with mock.patch.dict(os.environ, {"GREENSEARCH_API_KEY": "k-old"}, clear=True):
++            provider = OpenAICompatibleProvider("https://example.org/v1")
++        self.assertEqual(provider.api_key, "k-old")
++
++    def test_provider_prefers_new_api_key(self):
++        with mock.patch.dict(os.environ, {"GREENSEARCH_API_KEY": "k-old",
++                                          "ARBORIS_API_KEY": "k-new"}, clear=True):
++            provider = OpenAICompatibleProvider("https://example.org/v1")
++        self.assertEqual(provider.api_key, "k-new")
++
++
++class TestSiteStorageMigration(unittest.TestCase):
++    def test_site_uses_new_keys_and_migrates_old_ones(self):
++        html = (ROOT / "website" / "index.html").read_text(encoding="utf-8")
++        self.assertIn("var STORE_KEY='arboris-demo-v1';", html)
++        self.assertIn("var LIVE_STATE_KEY='arboris-live-v1';", html)
++        self.assertIn("var LIVE_URL_KEY='arboris-live-backend-url';", html)
++        for old, new in (("greensearch-demo-v1", "arboris-demo-v1"),
++                         ("greensearch-live-v1", "arboris-live-v1"),
++                         ("greensearch-live-backend-url", "arboris-live-backend-url")):
++            self.assertIn(f"['{old}','{new}']", html)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_session_live.py b/tests/test_session_live.py
+index b271646..6a0d41b 100644
+--- a/tests/test_session_live.py
++++ b/tests/test_session_live.py
+@@ -17,8 +17,8 @@ from unittest import mock
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-from greensearch.providers import OpenAICompatibleProvider, ProviderError
+-from greensearch.session import Session
++from arboris.providers import OpenAICompatibleProvider, ProviderError
++from arboris.session import Session
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ SAMPLE_FP = {
+@@ -77,7 +77,7 @@ class TestLiveProviderErrors(unittest.TestCase):
+             url="https://example.invalid/v1/chat/completions",
+             code=401, msg="Unauthorized", hdrs=None, fp=io.BytesIO(b'{"error": {"message": "bad key"}}'),
+         )
+-        with mock.patch("greensearch.providers.urllib.request.urlopen", side_effect=error):
++        with mock.patch("arboris.providers.urllib.request.urlopen", side_effect=error):
+             with self.assertRaises(ProviderError) as ctx:
+                 self.provider.complete("hello")
+             self.assertIn("401", str(ctx.exception))
+@@ -85,7 +85,7 @@ class TestLiveProviderErrors(unittest.TestCase):
+ 
+     def test_connection_failure_becomes_provider_error(self):
+         with mock.patch(
+-            "greensearch.providers.urllib.request.urlopen",
++            "arboris.providers.urllib.request.urlopen",
+             side_effect=urllib.error.URLError("connection refused"),
+         ):
+             with self.assertRaises(ProviderError) as ctx:
+@@ -95,7 +95,7 @@ class TestLiveProviderErrors(unittest.TestCase):
+     def test_malformed_response_shape_becomes_provider_error(self):
+         response = mock.MagicMock()
+         response.__enter__.return_value = io.BytesIO(b'{"no_choices": true}')
+-        with mock.patch("greensearch.providers.urllib.request.urlopen", return_value=response):
++        with mock.patch("arboris.providers.urllib.request.urlopen", return_value=response):
+             with self.assertRaises(ProviderError):
+                 self.provider.complete("hello")
+ 
+@@ -133,7 +133,7 @@ class TestCliSessionAndLiveErrors(unittest.TestCase):
+             self.assertNotIn("Traceback", result.stderr)
+ 
+     def test_cli_live_connection_failure_exits_2_without_traceback(self):
+-        env = dict(os.environ, GREENSEARCH_API_KEY="test-key")
++        env = dict(os.environ, ARBORIS_API_KEY="test-key")
+         result = subprocess.run(
+             [sys.executable, str(ROOT / "cli.py"), "hello",
+              "--provider", "live", "--base-url", "http://127.0.0.1:1"],
+diff --git a/tests/test_shrink_v2.py b/tests/test_shrink_v2.py
+index 76280ed..b5f8c09 100644
+--- a/tests/test_shrink_v2.py
++++ b/tests/test_shrink_v2.py
+@@ -1,7 +1,7 @@
+ """PromptShrink v2: redundancy, gated telegraphic, v1 unchanged."""
+ import unittest
+ 
+-from greensearch.shrink import shrink, shrink_v2
++from arboris.shrink import shrink, shrink_v2
+ 
+ 
+ class TestShrinkV2(unittest.TestCase):
+diff --git a/tests/test_standalone.py b/tests/test_standalone.py
+index 7334b6f..1689d90 100644
+--- a/tests/test_standalone.py
++++ b/tests/test_standalone.py
+@@ -1,6 +1,6 @@
+ """Standalone-program tests: entry points and --demo mode.
+ 
+-Run from the greensearch directory:
++Run from the arboris directory:
+     python -m unittest discover -s tests -v
+ """
+ 
+@@ -15,15 +15,15 @@ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ 
+-import greensearch
+-from greensearch.cli import DEMO_PROMPTS, main
++import arboris
++from arboris.cli import DEMO_PROMPTS, main
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+ class TestEntryPoints(unittest.TestCase):
+     def test_version_matches_pyproject(self):
+-        self.assertEqual(greensearch.__version__, "0.8.0")
++        self.assertEqual(arboris.__version__, "0.9.0")
+ 
+     def test_demo_prompts_cover_all_six_topics_plus_generic(self):
+         topics = [topic for topic, _prompt in DEMO_PROMPTS]
+@@ -37,7 +37,7 @@ class TestEntryPoints(unittest.TestCase):
+ 
+     def test_python_m_entry_point_exists(self):
+         result = subprocess.run(
+-            [sys.executable, "-m", "greensearch", "Explain DNS simply", "--mode", "sprout"],
++            [sys.executable, "-m", "arboris", "Explain DNS simply", "--mode", "sprout"],
+             capture_output=True, text=True, cwd=ROOT,
+         )
+         self.assertEqual(result.returncode, 0, result.stderr)
+@@ -59,7 +59,7 @@ class TestDemoMode(unittest.TestCase):
+             code = main(["--demo", "--mode", "canopy"])
+         output = buffer.getvalue()
+         self.assertEqual(code, 0)
+-        self.assertIn("GreenSearch demo", output)
++        self.assertIn("Arboris demo", output)
+         self.assertIn("internet phone book", output)
+         self.assertIn("Demo totals: 7 calls", output)
+         self.assertIn("not in the demo library yet", output)
+diff --git a/tests/test_task_routing.py b/tests/test_task_routing.py
+index 0e07bcd..12f54fe 100644
+--- a/tests/test_task_routing.py
++++ b/tests/test_task_routing.py
+@@ -11,7 +11,7 @@ from pathlib import Path
+ ROOT = Path(__file__).resolve().parents[1]
+ sys.path.insert(0, str(ROOT))
+ 
+-from greensearch.task_router import classify_task, route_task
++from arboris.task_router import classify_task, route_task
+ 
+ 
+ class TestGoldenCases(unittest.TestCase):
+diff --git a/website/README.md b/website/README.md
+index a310a74..cb316a9 100644
+--- a/website/README.md
++++ b/website/README.md
+@@ -1,6 +1,6 @@
+ # Arboris chat website demo
+ 
+-The demo site is named **Arboris**. The Python package, CLI and repo are still `greensearch` for now (so are the localStorage keys and API paths below).
++The demo site, Python package and CLI are all named **Arboris** (renamed from GreenSearch in 0.9.0). Chats saved under the old `greensearch-*` localStorage keys are moved to the `arboris-*` keys on first load.
+ 
+ A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no backend, no API call, no external fonts, images or scripts, and nothing leaves the page. See [SELFHOST.md](SELFHOST.md) for hosting it.
+ 
+@@ -15,14 +15,14 @@ A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no b
+ 
+ ### Saved in your browser (localStorage)
+ 
+-- The conversation is saved to `localStorage` under the key **`greensearch-demo-v1`** after every send, edit, regenerate and clear. It holds each question, its answer, mode, savings and token figures, plus the session totals and history.
++- The conversation is saved to `localStorage` under the key **`arboris-demo-v1`** after every send, edit, regenerate and clear. It holds each question, its answer, mode, savings and token figures, plus the session totals and history.
+ - On reload the transcript is restored as it was: no typing animation, no re-counting of totals. A small "Restored from your last session" note marks it. The session cache is rebuilt from the saved turns, so a repeated question is still a cache hit.
+ - Corrupt or unreadable saved data is ignored. If storage is disabled (some private modes), the chat still works but won't persist.
+-- **Clear** (the ✕ next to Send) empties the chat, totals, history and cache, and deletes the `greensearch-demo-v1` key. You can also delete it in your browser's dev tools (Application → Local Storage).
++- **Clear** (the ✕ next to Send) empties the chat, totals, history and cache, and deletes the `arboris-demo-v1` key. You can also delete it in your browser's dev tools (Application → Local Storage).
+ 
+ ### Export
+ 
+-**Export** in the header downloads the transcript as a readable Markdown file named `arboris-chat-YYYY-MM-DD-HHMMSS.md`. It lists each question and answer with its mode (including cache hits and regenerated answers), baseline vs GreenSearch tokens, tokens saved and estimated CO2e saved, followed by the session totals and a note on what the numbers are. The file is built in the browser as a local Blob, with no server involved.
++**Export** in the header downloads the transcript as a readable Markdown file named `arboris-chat-YYYY-MM-DD-HHMMSS.md`. It lists each question and answer with its mode (including cache hits and regenerated answers), baseline vs Arboris tokens, tokens saved and estimated CO2e saved, followed by the session totals and a note on what the numbers are. The file is built in the browser as a local Blob, with no server involved.
+ 
+ ### Per-message actions
+ 
+diff --git a/website/SELFHOST.md b/website/SELFHOST.md
+index 42f3621..af9d4f3 100644
+--- a/website/SELFHOST.md
++++ b/website/SELFHOST.md
+@@ -1,6 +1,6 @@
+ # Self-hosting the Arboris demo
+ 
+-The site is named Arboris; the package and repo are still `greensearch` for now.
++The site and package are named Arboris (renamed from GreenSearch in 0.9.0).
+ 
+ The demo is a single file, `website/index.html`. There is no build step, no dependencies, and no backend. It uses system fonts only and makes no network requests.
+ 
+diff --git a/website/index.html b/website/index.html
+index ee43127..c73dac2 100644
+--- a/website/index.html
++++ b/website/index.html
+@@ -1262,9 +1262,9 @@ a:hover { text-decoration-color: var(--teal) }
+       <li>All the savings still need to be measured again against the live model. The demo percentages shown here do not carry over automatically.</li>
+     </ul>
+     <h3>Live mode (on by default on the hosted site)</h3>
+-    <p>The <b>Live mode</b> switch sends each question to an Arboris backend. On the hosted site the default is the same-origin backend (<code>/api/chat</code> on this site); on your own machine the default is <code>http://localhost:8000/api/chat</code>, i.e. <code>python server/app.py</code>. You can enter a different backend URL in the Live row at the top. The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a <b>truncated</b> marker when the answer hit the token cap. Live totals sit in their own LIVE row and are never added to the demo estimates. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers aren't saved in localStorage; only the backend URL is, under <code>greensearch-live-backend-url</code>.</p>
++    <p>The <b>Live mode</b> switch sends each question to an Arboris backend. On the hosted site the default is the same-origin backend (<code>/api/chat</code> on this site); on your own machine the default is <code>http://localhost:8000/api/chat</code>, i.e. <code>python server/app.py</code>. You can enter a different backend URL in the Live row at the top. The backend holds the API key; this page never sees or sends one. It shrinks the question, checks its session cache, routes it, asks a small model first, escalates to a larger model only on low logprob confidence, trims the answer, and streams it back. Each live answer shows the model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a <b>truncated</b> marker when the answer hit the token cap. Live totals sit in their own LIVE row and are never added to the demo estimates. <b>Measure baseline</b> (off by default) makes a second, unconstrained call per message to measure real savings, which doubles API cost. Live answers aren't saved in localStorage; only the backend URL is, under <code>arboris-live-backend-url</code>.</p>
+     <h3>Privacy</h3>
+-    <p>In demo mode the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>greensearch-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
++    <p>In demo mode the whole demo runs in your browser from this one file. It makes no network requests, uses no analytics, and loads no outside fonts or images. Your chat is saved only in this browser's localStorage, under the key <code>arboris-demo-v1</code>. The ✕ Clear button deletes it. The two external links on the page open only if you click them. <b>Live mode is not browser-only:</b> your questions go to the backend you configured, and from there to its model provider, whose data-retention policy applies.</p>
+   </div>
+ </dialog>
+ 
+@@ -1638,7 +1638,7 @@ function greenAnswer(topic,topicText,mode){
+   var name=cleaned.length>80?cleaned.slice(0,80).trim()+'...':cleaned;
+   return 'That topic is not in the demo library yet. You asked about: \''+name+'\'. Try rephrasing with a clearer keyword, or switch to live mode for a real model response. The demo covers 95 topics including technology, science, math, history, business, health, cooking, home maintenance, and programming.';
+ }
+-/* Output-weighted CO2e, matching greensearch/footprint.py: an output token
++/* Output-weighted CO2e, matching arboris/footprint.py: an output token
+    is 0.0006 Wh (Epoch AI 2025), an input token 1/800 of that (Ruf and
+    Detyniecki, HotCarbon '26), at an assumed 400 g CO2e/kWh. Estimates only. */
+ var WH_OUT=0.0006,IN_OUT_RATIO=800,GRID_G_KWH=400;
+@@ -1703,7 +1703,22 @@ themeBtn.addEventListener('click',function(){
+ 
+ /* State. turns[] is the source of truth: each turn is {raw, bypass, r} where r is the
+    integrateChat result. totals and history are adjusted per turn (never re-added). */
+-var STORE_KEY='greensearch-demo-v1';
++var STORE_KEY='arboris-demo-v1';
++/* Renamed from GreenSearch in 0.9.0: move anything saved under the old keys
++   to the new ones once, then delete the old keys. A new key that already
++   holds data is never overwritten. */
++(function migrateLegacyKeys(){
++  try{
++    [['greensearch-demo-v1','arboris-demo-v1'],
++     ['greensearch-live-v1','arboris-live-v1'],
++     ['greensearch-live-backend-url','arboris-live-backend-url']].forEach(function(pair){
++      var old=localStorage.getItem(pair[0]);
++      if(old===null)return;
++      if(localStorage.getItem(pair[1])===null)localStorage.setItem(pair[1],old);
++      localStorage.removeItem(pair[0]);
++    });
++  }catch(e){/* storage disabled: nothing to migrate */}
++})();
+ function zeroTotals(){return{calls:0,base:0,green:0,saved:0,co2:0};}
+ var cache={},totals=zeroTotals(),history=[],turns=[];
+ var epoch=0;          /* bumped on clear/edit so in-flight animations stop */
+@@ -2333,8 +2348,8 @@ SAMPLES.forEach(function(s){
+    lives in this page. Live answers and totals are kept apart from the demo
+    ones. The backend URL and live conversation history are saved to
+    localStorage so the session survives a page reload. */
+-var LIVE_URL_KEY='greensearch-live-backend-url';
+-var LIVE_STATE_KEY='greensearch-live-v1';
++var LIVE_URL_KEY='arboris-live-backend-url';
++var LIVE_STATE_KEY='arboris-live-v1';
+ /* On a Cloud Run host (*.run.app) the backend serves this page, so the
+    live URL defaults to the same origin. Everywhere else (including the
+    GitHub Pages demo, which has no backend) it defaults to localhost,
+-- 
+2.43.0
+

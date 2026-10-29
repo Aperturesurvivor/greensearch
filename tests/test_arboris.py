@@ -1,4 +1,4 @@
-"""Tests for the GreenSearch harness (stdlib unittest only).
+"""Tests for the Arboris harness (stdlib unittest only).
 
 Run from the repository root:
     python -m unittest discover -s tests -v
@@ -16,10 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.brevity import apply_brevity, split_sentences
-from greensearch.footprint import footprint
-from greensearch.providers import DemoProvider
-from greensearch.tokens import est_tokens
+from arboris.brevity import apply_brevity, split_sentences
+from arboris.footprint import footprint
+from arboris.providers import DemoProvider
+from arboris.tokens import est_tokens
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -128,7 +128,7 @@ class TestEnergyReceipt(unittest.TestCase):
     def test_receipt_arithmetic_and_water_range(self):
         # Output-weighted: 50 out x 0.0006 Wh + 10 in x 0.0006 / 800 Wh
         # = 0.0300075 Wh; at 400 g/kWh = 0.012003 g; water = Wh x WUE.
-        from greensearch.footprint import energy_receipt
+        from arboris.footprint import energy_receipt
         receipt = energy_receipt(10, 50, model="m", model_tier="primary")
         self.assertEqual(receipt["status"], "estimate")
         self.assertEqual(receipt["total_tokens"], 60)
@@ -139,7 +139,7 @@ class TestEnergyReceipt(unittest.TestCase):
         self.assertEqual(receipt["factors"]["grid_g_per_kwh"], 400.0)
 
     def test_output_tokens_dominate_the_estimate(self):
-        from greensearch.footprint import energy_receipt
+        from arboris.footprint import energy_receipt
         long_question = energy_receipt(800, 0)["energy_wh"]
         one_output_token = energy_receipt(0, 1)["energy_wh"]
         # 800 input tokens cost the same as 1 output token.
@@ -147,18 +147,18 @@ class TestEnergyReceipt(unittest.TestCase):
         self.assertEqual(one_output_token, 0.0006)
 
     def test_receipt_rejects_non_positive_ratio(self):
-        from greensearch.footprint import energy_receipt
+        from arboris.footprint import energy_receipt
         with self.assertRaises(ValueError):
             energy_receipt(10, 50, input_output_ratio=0)
 
     def test_receipt_cache_hit_is_zero(self):
-        from greensearch.footprint import energy_receipt
+        from arboris.footprint import energy_receipt
         receipt = energy_receipt(0, 0, cache_hit=True)
         self.assertEqual((receipt["energy_wh"], receipt["co2e_g"]), (0.0, 0.0))
         self.assertIn("Cache hit", receipt["note"])
 
     def test_receipt_states_unknown_region_and_anchor_range(self):
-        from greensearch.footprint import (WH_PER_TOKEN, WH_PER_TOKEN_RANGE,
+        from arboris.footprint import (WH_PER_TOKEN, WH_PER_TOKEN_RANGE,
                                            energy_receipt)
         receipt = energy_receipt(10, 50, model="google/gemma-4-31b-it:free")
         factors = receipt["factors"]
@@ -173,7 +173,7 @@ class TestEnergyReceipt(unittest.TestCase):
         self.assertEqual(receipt["model_size_tier"], "medium")
 
     def test_model_size_tier_reads_parameter_counts(self):
-        from greensearch.footprint import model_size_tier
+        from arboris.footprint import model_size_tier
         cases = {
             "google/gemma-4-31b-it:free": "medium",
             "meta-llama/llama-3.1-8b-instruct": "small",
@@ -198,7 +198,7 @@ class TestEnergyReceipt(unittest.TestCase):
                 self.assertEqual(model_size_tier(name), tier)
 
     def test_receipt_unavailable_invents_nothing(self):
-        from greensearch.footprint import energy_receipt
+        from arboris.footprint import energy_receipt
         receipt = energy_receipt(None, 50)
         self.assertEqual(receipt["status"], "unavailable")
         self.assertIsNone(receipt["energy_wh"])

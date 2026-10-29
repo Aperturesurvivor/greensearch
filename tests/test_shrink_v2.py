@@ -1,7 +1,7 @@
 """PromptShrink v2: redundancy, gated telegraphic, v1 unchanged."""
 import unittest
 
-from greensearch.shrink import shrink, shrink_v2
+from arboris.shrink import shrink, shrink_v2
 
 
 class TestShrinkV2(unittest.TestCase):

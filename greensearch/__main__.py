@@ -1,8 +1,6 @@
-"""Allow `python -m greensearch ...` as an entry point."""
+"""Legacy ``python -m greensearch``: runs the Arboris CLI unchanged."""
 
-import sys
-
-from greensearch.cli import main
+from arboris.cli import main
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

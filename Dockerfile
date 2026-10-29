@@ -1,13 +1,13 @@
-# GreenSearch live backend for Cloud Run (and any container host).
+# Arboris live backend for Cloud Run (and any container host).
 # Python standard library only, no dependencies to install.
 # The server serves the website at / and the API at /api/chat, so one
 # container is the whole demo: no separate frontend host, no CORS split
-# once GREENSEARCH_BACKEND_ORIGIN includes the Cloud Run URL.
+# once ARBORIS_BACKEND_ORIGIN includes the Cloud Run URL.
 FROM python:3.12-slim
 WORKDIR /app
 # Copy only what the server needs to run. Tests, scripts, results and
 # docs are not needed at runtime and are left out to keep the image small.
-COPY greensearch/ ./greensearch/
+COPY arboris/ ./arboris/
 COPY server/ ./server/
 COPY website/ ./website/
 ENV PYTHONUNBUFFERED=1

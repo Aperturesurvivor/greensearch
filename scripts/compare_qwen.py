@@ -1,4 +1,4 @@
-"""Compare Qwen3-4B vs Qwen3-8B on the fixed corpus, GreenSearch-style.
+"""Compare Qwen3-4B vs Qwen3-8B on the fixed corpus, Arboris-style.
 
 Method: for each prompt in spec/corpus.json, for each model:
   1. Shrink the prompt with PromptShrink (input side, same as production).
@@ -22,9 +22,9 @@ Usage:
   #   --input-price 0.06 --output-price 0.20
   # Without prices, no cost is reported -- it is never guessed.
 
-Live mode requires GREENSEARCH_API_KEY. Without it, this script
+Live mode requires ARBORIS_API_KEY. Without it, this script
 exits 2 and writes nothing -- it never fabricates a live result.
-For OpenRouter, set GREENSEARCH_API_KEY to your OpenRouter key.
+For OpenRouter, set ARBORIS_API_KEY to your OpenRouter key.
 """
 
 import argparse
@@ -36,14 +36,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.providers import (
+from arboris.providers import (
     BREVITY_SYSTEM,
     MAX_TOKENS,
     OpenAICompatibleProvider,
     ProviderError,
 )
-from greensearch.shrink import shrink
-from greensearch.tokens import est_tokens
+from arboris.shrink import shrink
+from arboris.tokens import est_tokens
 
 ROOT = Path(__file__).resolve().parents[1]
 

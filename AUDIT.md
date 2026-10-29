@@ -4,7 +4,7 @@ Scope: the v0.6.0 working tree in this folder, plus the website demo.
 Method: full test run, grep for authorship references and secrets,
 manual read of providers / CLI / session / shrink / footprint, and
 re-running the corpus numbers. No live model was available (no
-GREENSEARCH_API_KEY in the environment), so live-provider code paths
+ARBORIS_API_KEY in the environment), so live-provider code paths
 were reviewed and unit-tested with fakes, not exercised against a
 real endpoint.
 

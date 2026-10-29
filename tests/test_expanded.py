@@ -19,8 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.brevity import apply_brevity, split_sentences
-from greensearch.providers import DemoProvider
+from arboris.brevity import apply_brevity, split_sentences
+from arboris.providers import DemoProvider
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = json.loads((ROOT / "spec" / "templates.json").read_text())

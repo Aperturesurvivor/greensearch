@@ -10,7 +10,7 @@ instead of reporting 1 token for a whole sentence.
 Supported backend, for now: tiktoken's cl100k_base encoding (the
 GPT-4o family encoding). Install it with:
 
-    pip install 'greensearch[tokenizer]'
+    pip install 'arboris[tokenizer]'
 
 If tiktoken is not installed and a caller asks for it, count_tokens
 raises TokenizerError instead of silently falling back to the
@@ -18,7 +18,7 @@ estimate -- a silent fallback would make a "real tokenizer" number
 indistinguishable from an estimate.
 """
 
-from greensearch.tokens import est_tokens
+from arboris.tokens import est_tokens
 
 
 class TokenizerError(Exception):
@@ -39,7 +39,7 @@ def count_tokens(text, backend="estimate", encoding="cl100k_base"):
             import tiktoken
         except ImportError as exc:
             raise TokenizerError(
-                "tiktoken is not installed: pip install 'greensearch[tokenizer]'"
+                "tiktoken is not installed: pip install 'arboris[tokenizer]'"
             ) from exc
         try:
             enc = tiktoken.get_encoding(encoding)

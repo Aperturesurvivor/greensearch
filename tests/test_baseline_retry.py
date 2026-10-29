@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from baseline_study import _complete_with_retry
-from greensearch.providers import Completion, ProviderError
+from arboris.providers import Completion, ProviderError
 
 
 class Flaky:

@@ -12,11 +12,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.cascade import run_cascade
-from greensearch.local_calc import try_local_calc
-from greensearch.providers import Completion
-from greensearch.scorer import score_answer
-from greensearch.task_router import difficulty_score, route_task
+from arboris.cascade import run_cascade
+from arboris.local_calc import try_local_calc
+from arboris.providers import Completion
+from arboris.scorer import score_answer
+from arboris.task_router import difficulty_score, route_task
 
 
 class _Fake:

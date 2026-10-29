@@ -1,4 +1,4 @@
-"""Tests for greensearch/long_input.py: conservative extractive pruning.
+"""Tests for arboris/long_input.py: conservative extractive pruning.
 
 Run from the repository root: python -m unittest tests.test_long_input
 """
@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.long_input import prune_long_prompt
+from arboris.long_input import prune_long_prompt
 
 PLAIN = ("The weather was pleasant and the road was long and winding "
          "through the hills and valleys of the countryside. ")

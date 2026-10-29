@@ -12,12 +12,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.cache import SessionCache, cache_key
-from greensearch.cascade import run_cascade
-from greensearch.cli import main
-from greensearch.providers import Completion
-from greensearch.session import Session
-from greensearch.tokenizer import TokenizerError, count_tokens
+from arboris.cache import SessionCache, cache_key
+from arboris.cascade import run_cascade
+from arboris.cli import main
+from arboris.providers import Completion
+from arboris.session import Session
+from arboris.tokenizer import TokenizerError, count_tokens
 
 
 class FakeProvider:

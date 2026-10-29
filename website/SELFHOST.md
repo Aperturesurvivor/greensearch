@@ -1,6 +1,6 @@
 # Self-hosting the Arboris demo
 
-The site is named Arboris; the package and repo are still `greensearch` for now.
+The site and package are named Arboris (renamed from GreenSearch in 0.9.0).
 
 The demo is a single file, `website/index.html`. There is no build step, no dependencies, and no backend. It uses system fonts only and makes no network requests.
 

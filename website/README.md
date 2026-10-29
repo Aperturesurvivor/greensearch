@@ -1,6 +1,6 @@
 # Arboris chat website demo
 
-The demo site is named **Arboris**. The Python package, CLI and repo are still `greensearch` for now (so are the localStorage keys and API paths below).
+The demo site, Python package and CLI are all named **Arboris** (renamed from GreenSearch in 0.9.0). Chats saved under the old `greensearch-*` localStorage keys are moved to the `arboris-*` keys on first load.
 
 A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no backend, no API call, no external fonts, images or scripts, and nothing leaves the page. See [SELFHOST.md](SELFHOST.md) for hosting it.
 
@@ -15,14 +15,14 @@ A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no b
 
 ### Saved in your browser (localStorage)
 
-- The conversation is saved to `localStorage` under the key **`greensearch-demo-v1`** after every send, edit, regenerate and clear. It holds each question, its answer, mode, savings and token figures, plus the session totals and history.
+- The conversation is saved to `localStorage` under the key **`arboris-demo-v1`** after every send, edit, regenerate and clear. It holds each question, its answer, mode, savings and token figures, plus the session totals and history.
 - On reload the transcript is restored as it was: no typing animation, no re-counting of totals. A small "Restored from your last session" note marks it. The session cache is rebuilt from the saved turns, so a repeated question is still a cache hit.
 - Corrupt or unreadable saved data is ignored. If storage is disabled (some private modes), the chat still works but won't persist.
-- **Clear** (the ✕ next to Send) empties the chat, totals, history and cache, and deletes the `greensearch-demo-v1` key. You can also delete it in your browser's dev tools (Application → Local Storage).
+- **Clear** (the ✕ next to Send) empties the chat, totals, history and cache, and deletes the `arboris-demo-v1` key. You can also delete it in your browser's dev tools (Application → Local Storage).
 
 ### Export
 
-**Export** in the header downloads the transcript as a readable Markdown file named `arboris-chat-YYYY-MM-DD-HHMMSS.md`. It lists each question and answer with its mode (including cache hits and regenerated answers), baseline vs GreenSearch tokens, tokens saved and estimated CO2e saved, followed by the session totals and a note on what the numbers are. The file is built in the browser as a local Blob, with no server involved.
+**Export** in the header downloads the transcript as a readable Markdown file named `arboris-chat-YYYY-MM-DD-HHMMSS.md`. It lists each question and answer with its mode (including cache hits and regenerated answers), baseline vs Arboris tokens, tokens saved and estimated CO2e saved, followed by the session totals and a note on what the numbers are. The file is built in the browser as a local Blob, with no server involved.
 
 ### Per-message actions
 

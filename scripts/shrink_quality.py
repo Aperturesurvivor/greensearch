@@ -19,9 +19,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.providers import DemoProvider
-from greensearch.shrink import shrink, shrink_v2
-from greensearch.tokenizer import count_tokens
+from arboris.providers import DemoProvider
+from arboris.shrink import shrink, shrink_v2
+from arboris.tokenizer import count_tokens
 
 ROOT = Path(__file__).resolve().parents[1]
 

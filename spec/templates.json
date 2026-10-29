@@ -1,5 +1,5 @@
 {
-  "note": "Expanded canned-answer library for the GreenSearch demo. Each topic has an id, keyword patterns (regex, word-boundary), and a full answer (up to 6 sentences). Sprout (2 sentences) and canopy (4 sentences) are derived by sentence splitting. The original 6 topics (email, api, workout, backup, firewall, dns) keep hand-authored mode variants in the website and Python provider; this file adds everything else. All answers are factual and general-purpose. No live model, no hallucination.",
+  "note": "Expanded canned-answer library for the Arboris demo. Each topic has an id, keyword patterns (regex, word-boundary), and a full answer (up to 6 sentences). Sprout (2 sentences) and canopy (4 sentences) are derived by sentence splitting. The original 6 topics (email, api, workout, backup, firewall, dns) keep hand-authored mode variants in the website and Python provider; this file adds everything else. All answers are factual and general-purpose. No live model, no hallucination.",
   "topics": [
     {
       "id": "password",

@@ -19,10 +19,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from greensearch.brevity import ELLIPSIS, apply_brevity, apply_brevity_with_flag  # noqa: E402
-from greensearch.providers import BREVITY_SYSTEM, MAX_TOKENS, Completion, ProviderError  # noqa: E402
-from greensearch.router import route_mode  # noqa: E402
-from greensearch.shrink import shrink  # noqa: E402
+from arboris.brevity import ELLIPSIS, apply_brevity, apply_brevity_with_flag  # noqa: E402
+from arboris.providers import BREVITY_SYSTEM, MAX_TOKENS, Completion, ProviderError  # noqa: E402
+from arboris.router import route_mode  # noqa: E402
+from arboris.shrink import shrink  # noqa: E402
 from server.app import (  # noqa: E402
     DEFAULT_FALLBACKS,
     DEFAULT_MODEL,
@@ -212,8 +212,8 @@ class SingleModelTests(unittest.TestCase):
         self.assertEqual((meta["input_tokens"], meta["output_tokens"]), (10, 50))
 
     def test_escalation_model_equal_to_primary_is_single_model(self):
-        cfg = Config.from_env({"GREENSEARCH_API_KEY": "placeholder",
-                               "GREENSEARCH_ESCALATION_MODEL": PRIMARY})
+        cfg = Config.from_env({"ARBORIS_API_KEY": "placeholder",
+                               "ARBORIS_ESCALATION_MODEL": PRIMARY})
         self.assertFalse(cfg.cascade_enabled)
         small = FakeProvider(PRIMARY, avg_logprob=-5.0)
         backend, _, _ = make_backend(primary=small, escalation_model=PRIMARY)
@@ -271,7 +271,7 @@ class CacheTests(unittest.TestCase):
 
 
 class OptionalCascadeTests(unittest.TestCase):
-    """Only when GREENSEARCH_ESCALATION_MODEL is a DIFFERENT model."""
+    """Only when ARBORIS_ESCALATION_MODEL is a DIFFERENT model."""
 
     def test_escalates_when_logprob_below_threshold(self):
         small = FakeProvider(PRIMARY, avg_logprob=-2.0)
@@ -423,11 +423,11 @@ class ErrorMappingTests(unittest.TestCase):
         self.assertFalse(req.measure_baseline)
 
     def test_config_rejects_wildcard_origin_and_bad_values(self):
-        for env in ({"GREENSEARCH_BACKEND_ORIGIN": "*"},
-                    {"GREENSEARCH_BACKEND_ORIGIN": "http://localhost:8000,*"},
-                    {"GREENSEARCH_CASCADE_THRESHOLD": "0.5"},
-                    {"GREENSEARCH_CASCADE_THRESHOLD": "abc"},
-                    {"GREENSEARCH_RATE_LIMIT_PER_HOUR": "-1"}):
+        for env in ({"ARBORIS_BACKEND_ORIGIN": "*"},
+                    {"ARBORIS_BACKEND_ORIGIN": "http://localhost:8000,*"},
+                    {"ARBORIS_CASCADE_THRESHOLD": "0.5"},
+                    {"ARBORIS_CASCADE_THRESHOLD": "abc"},
+                    {"ARBORIS_RATE_LIMIT_PER_HOUR": "-1"}):
             with self.subTest(env=env):
                 with self.assertRaises(ValueError):
                     Config.from_env(env)
@@ -444,18 +444,18 @@ class ErrorMappingTests(unittest.TestCase):
         for label, raw in cases.items():
             with self.subTest(label):
                 self.assertEqual(parse_origins(raw), want)
-                cfg = Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
+                cfg = Config.from_env({"ARBORIS_BACKEND_ORIGIN": raw})
                 self.assertEqual(cfg.allowed_origins, want)
         # Separators only = unset = the localhost defaults.
         for raw in ("", " , ,", " / "):
             with self.subTest(raw=raw):
-                self.assertEqual(Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
+                self.assertEqual(Config.from_env({"ARBORIS_BACKEND_ORIGIN": raw})
                                  .allowed_origins, ("http://localhost:8000", "http://127.0.0.1:8000"))
         # A wildcard is still refused, whatever the separator.
         for raw in ("https://a.example *", "https://a.example,\t*"):
             with self.subTest(raw=raw):
                 with self.assertRaises(ValueError):
-                    Config.from_env({"GREENSEARCH_BACKEND_ORIGIN": raw})
+                    Config.from_env({"ARBORIS_BACKEND_ORIGIN": raw})
 
     def test_config_defaults(self):
         cfg = Config.from_env({})
@@ -478,15 +478,15 @@ class ErrorMappingTests(unittest.TestCase):
         self.assertFalse(cfg.allow_paid_models)
         self.assertEqual(cfg.allowed_origins, ("http://localhost:8000", "http://127.0.0.1:8000"))
         self.assertFalse(cfg.debug_log)
-        cfg = Config.from_env({"GREENSEARCH_MODEL": "other/model:free"})
+        cfg = Config.from_env({"ARBORIS_MODEL": "other/model:free"})
         self.assertEqual((cfg.model, cfg.escalation_model), ("other/model:free", "other/model:free"))
         self.assertFalse(cfg.cascade_enabled)
-        cfg = Config.from_env({"GREENSEARCH_ESCALATION_MODEL": "big/model:free"})
+        cfg = Config.from_env({"ARBORIS_ESCALATION_MODEL": "big/model:free"})
         self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, "big/model:free"))
         self.assertTrue(cfg.cascade_enabled)
         # The old 4B/8B variables are no longer read.
-        cfg = Config.from_env({"GREENSEARCH_MODEL_4B": "qwen/qwen3-4b",
-                               "GREENSEARCH_MODEL_8B": "x/y"})
+        cfg = Config.from_env({"ARBORIS_MODEL_4B": "qwen/qwen3-4b",
+                               "ARBORIS_MODEL_8B": "x/y"})
         self.assertEqual((cfg.model, cfg.escalation_model), (DEFAULT_MODEL, DEFAULT_MODEL))
 
     def test_prompts_not_logged_by_default(self):
@@ -619,8 +619,8 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(resp.status, 403)
 
     def test_cors_space_separated_env_list_matches_exactly(self):
-        cfg = Config.from_env({"GREENSEARCH_API_KEY": SENTINEL_KEY,
-                               "GREENSEARCH_BACKEND_ORIGIN": "https://a.example/ https://b.example"})
+        cfg = Config.from_env({"ARBORIS_API_KEY": SENTINEL_KEY,
+                               "ARBORIS_BACKEND_ORIGIN": "https://a.example/ https://b.example"})
         backend, _, _ = make_backend(allowed_origins=cfg.allowed_origins)
         port = self.start(backend)
         for origin in ("https://a.example", "https://b.example"):
@@ -650,11 +650,11 @@ class HTTPTests(unittest.TestCase):
 
     def test_paid_model_blocked_without_explicit_allow(self):
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_MODEL": "other/model"})
+            Config.from_env({"ARBORIS_MODEL": "other/model"})
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "other/model"})
-        cfg = Config.from_env({"GREENSEARCH_MODEL": "other/model",
-                               "GREENSEARCH_ALLOW_PAID_MODELS": "1"})
+            Config.from_env({"ARBORIS_MODEL_FALLBACKS": "other/model"})
+        cfg = Config.from_env({"ARBORIS_MODEL": "other/model",
+                               "ARBORIS_ALLOW_PAID_MODELS": "1"})
         self.assertTrue(cfg.allow_paid_models)
         self.assertEqual(cfg.model, "other/model")
 
@@ -738,10 +738,10 @@ class EntryPointAndSiteTests(unittest.TestCase):
         out = subprocess.run([sys.executable, str(ROOT / "server" / "app.py"), "--help"],
                              capture_output=True, text=True, timeout=30)
         self.assertEqual(out.returncode, 0)
-        for name in ("GREENSEARCH_API_KEY", "GREENSEARCH_BASE_URL", "GREENSEARCH_MODEL",
-                     "GREENSEARCH_ESCALATION_MODEL", "GREENSEARCH_MODEL_FALLBACKS",
-                     "GREENSEARCH_CASCADE_THRESHOLD", "GREENSEARCH_BACKEND_ORIGIN",
-                     "GREENSEARCH_RATE_LIMIT_PER_HOUR", "GREENSEARCH_DEBUG_LOG", "PORT"):
+        for name in ("ARBORIS_API_KEY", "ARBORIS_BASE_URL", "ARBORIS_MODEL",
+                     "ARBORIS_ESCALATION_MODEL", "ARBORIS_MODEL_FALLBACKS",
+                     "ARBORIS_CASCADE_THRESHOLD", "ARBORIS_BACKEND_ORIGIN",
+                     "ARBORIS_RATE_LIMIT_PER_HOUR", "ARBORIS_DEBUG_LOG", "PORT"):
             self.assertIn(name, out.stdout)
         self.assertIn("google/gemma-4-31b-it:free", out.stdout)
         self.assertIn(DEFAULT_FALLBACKS[0], out.stdout)
@@ -756,23 +756,23 @@ class EntryPointAndSiteTests(unittest.TestCase):
         self.assertIsNotNone(baseline)
         self.assertNotIn("checked", toggle.group(0))
         self.assertNotIn("checked", baseline.group(0))
-        self.assertIn("greensearch-live-backend-url", html)
+        self.assertIn("arboris-live-backend-url", html)
         self.assertIn("http://localhost:8000/api/chat", html)
         self.assertIn("Live mode sends prompts to this backend", html)
-        self.assertIn("STORE_KEY='greensearch-demo-v1'", html)
+        self.assertIn("STORE_KEY='arboris-demo-v1'", html)
         # The page must never handle a provider key.
         self.assertNotIn("Authorization", html)
-        self.assertNotRegex(html, r"api_key|apiKey|GREENSEARCH_API_KEY")
+        self.assertNotRegex(html, r"api_key|apiKey|ARBORIS_API_KEY")
 
 
     def test_env_example_has_no_real_key(self):
         text = (ROOT / ".env.example").read_text(encoding="utf-8")
-        match = re.search(r"^GREENSEARCH_API_KEY=(.*)$", text, re.MULTILINE)
+        match = re.search(r"^ARBORIS_API_KEY=(.*)$", text, re.MULTILINE)
         self.assertIsNotNone(match)
         self.assertNotRegex(match.group(1), r"sk-[A-Za-z0-9]{10,}")
         self.assertIn(match.group(1).strip(), ("", "replace-me"))
-        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL=google/gemma-4-31b-it:free$")
-        self.assertRegex(text, r"(?m)^GREENSEARCH_MODEL_FALLBACKS=" + re.escape(
+        self.assertRegex(text, r"(?m)^ARBORIS_MODEL=google/gemma-4-31b-it:free$")
+        self.assertRegex(text, r"(?m)^ARBORIS_MODEL_FALLBACKS=" + re.escape(
             ",".join(DEFAULT_FALLBACKS)) + "$")
         self.assertNotIn("MODEL_4B", text)
 
@@ -916,14 +916,14 @@ class FallbackTests(unittest.TestCase):
                 self.assertEqual(built, [PRIMARY, FREE_A])
 
     def test_fallback_list_parsing(self):
-        cfg = Config.from_env({"GREENSEARCH_MODEL": "a/b:free",
-                               "GREENSEARCH_MODEL_FALLBACKS": " x/y:free , ,a/b:free, z/w:free ,x/y:free"})
+        cfg = Config.from_env({"ARBORIS_MODEL": "a/b:free",
+                               "ARBORIS_MODEL_FALLBACKS": " x/y:free , ,a/b:free, z/w:free ,x/y:free"})
         self.assertEqual(cfg.fallback_models, ("x/y:free", "z/w:free"))
-        cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "none"})
+        cfg = Config.from_env({"ARBORIS_MODEL_FALLBACKS": "none"})
         self.assertEqual(cfg.fallback_models, ())
-        cfg = Config.from_env({"GREENSEARCH_MODEL_FALLBACKS": "   "})
+        cfg = Config.from_env({"ARBORIS_MODEL_FALLBACKS": "   "})
         self.assertEqual(cfg.fallback_models, DEFAULT_FALLBACKS)
-        cfg = Config.from_env({"GREENSEARCH_MODEL": DEFAULT_FALLBACKS[1]})
+        cfg = Config.from_env({"ARBORIS_MODEL": DEFAULT_FALLBACKS[1]})
         self.assertNotIn(DEFAULT_FALLBACKS[1], cfg.fallback_models)
         self.assertEqual(len(cfg.fallback_models), len(DEFAULT_FALLBACKS) - 1)
 
@@ -962,12 +962,12 @@ class SmallModelRoutingTests(unittest.TestCase):
         cfg = Config.from_env({})
         self.assertFalse(cfg.small_model_routing)
         self.assertEqual(cfg.small_model, FREE_A)
-        cfg = Config.from_env({"GREENSEARCH_SMALL_MODEL_ROUTING": "1"})
+        cfg = Config.from_env({"ARBORIS_SMALL_MODEL_ROUTING": "1"})
         self.assertTrue(cfg.small_model_routing)
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_SMALL_MODEL": "other/model"})
-        cfg = Config.from_env({"GREENSEARCH_SMALL_MODEL": "other/model",
-                               "GREENSEARCH_ALLOW_PAID_MODELS": "1"})
+            Config.from_env({"ARBORIS_SMALL_MODEL": "other/model"})
+        cfg = Config.from_env({"ARBORIS_SMALL_MODEL": "other/model",
+                               "ARBORIS_ALLOW_PAID_MODELS": "1"})
         self.assertEqual(cfg.small_model, "other/model")
 
     def test_sprout_prompt_uses_small_model_first(self):
@@ -1075,10 +1075,10 @@ class ShrinkVersionTests(unittest.TestCase):
     def test_config_defaults_and_invalid(self):
         cfg = Config.from_env({})
         self.assertEqual(cfg.shrink_version, "v1")
-        cfg = Config.from_env({"GREENSEARCH_SHRINK_VERSION": "v2"})
+        cfg = Config.from_env({"ARBORIS_SHRINK_VERSION": "v2"})
         self.assertEqual(cfg.shrink_version, "v2")
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_SHRINK_VERSION": "v3"})
+            Config.from_env({"ARBORIS_SHRINK_VERSION": "v3"})
 
     def test_v2_shrinks_live_prompt(self):
         # v1 leaves the article in; v2 (gated telegraphic) drops it.
@@ -1134,12 +1134,12 @@ class EnergyReceiptTests(unittest.TestCase):
     def test_grid_factor_config(self):
         cfg = Config.from_env({})
         self.assertEqual(cfg.grid_g_per_kwh, 400.0)
-        cfg = Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "30"})
+        cfg = Config.from_env({"ARBORIS_GRID_G_PER_KWH": "30"})
         self.assertEqual(cfg.grid_g_per_kwh, 30.0)
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "0"})
+            Config.from_env({"ARBORIS_GRID_G_PER_KWH": "0"})
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_GRID_G_PER_KWH": "abc"})
+            Config.from_env({"ARBORIS_GRID_G_PER_KWH": "abc"})
 
 
 class TaskRoutingTests(unittest.TestCase):
@@ -1148,7 +1148,7 @@ class TaskRoutingTests(unittest.TestCase):
     def test_config_defaults_and_flag(self):
         self.assertFalse(Config.from_env({}).task_routing)
         self.assertTrue(Config.from_env(
-            {"GREENSEARCH_TASK_ROUTING": "1"}).task_routing)
+            {"ARBORIS_TASK_ROUTING": "1"}).task_routing)
 
     def test_long_fact_goes_small_despite_word_count(self):
         # Word-count routing would call this canopy (20+ words); task
@@ -1307,7 +1307,7 @@ class ProviderParsingTests(unittest.TestCase):
     def call(self, body=None, http_code=None):
         import urllib.error
         from unittest import mock
-        from greensearch.providers import OpenAICompatibleProvider
+        from arboris.providers import OpenAICompatibleProvider
 
         provider = OpenAICompatibleProvider("https://example.invalid/v1",
                                             api_key=SENTINEL_KEY, model="m")
@@ -1353,14 +1353,14 @@ class ProvenRoutingServerTests(unittest.TestCase):
         self.assertEqual(cfg.score_threshold, 0.5)
         self.assertEqual(cfg.max_cascade_output_tokens, 0)
         self.assertFalse(cfg.semantic_cache)
-        eco = Config.from_env({"GREENSEARCH_QUALITY_TARGET": "eco"})
+        eco = Config.from_env({"ARBORIS_QUALITY_TARGET": "eco"})
         self.assertEqual(eco.router_threshold_effective, 0.7)
-        quality = Config.from_env({"GREENSEARCH_QUALITY_TARGET": "quality"})
+        quality = Config.from_env({"ARBORIS_QUALITY_TARGET": "quality"})
         self.assertEqual(quality.router_threshold_effective, 0.3)
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_ROUTER_THRESHOLD": "1.5"})
+            Config.from_env({"ARBORIS_ROUTER_THRESHOLD": "1.5"})
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_QUALITY_TARGET": "fast"})
+            Config.from_env({"ARBORIS_QUALITY_TARGET": "fast"})
 
     def test_local_calc_bypasses_model(self):
         primary = FakeProvider(PRIMARY, avg_logprob=-0.2)
@@ -1521,9 +1521,9 @@ class ProvenRoutingServerTests(unittest.TestCase):
         self.assertFalse(cfg.task_temperature)
         self.assertFalse(cfg.task_stop_sequences)
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_MAX_TOKENS_MULTIPLIER": "0"})
+            Config.from_env({"ARBORIS_MAX_TOKENS_MULTIPLIER": "0"})
         with self.assertRaises(ValueError):
-            Config.from_env({"GREENSEARCH_MAX_TOKENS_MULTIPLIER": "5"})
+            Config.from_env({"ARBORIS_MAX_TOKENS_MULTIPLIER": "5"})
         primary = FakeProvider(PRIMARY, text="Paris.", avg_logprob=-0.2)
         backend, _, _ = make_backend(primary=primary, task_routing=True,
                                      max_tokens_multiplier=2.0)

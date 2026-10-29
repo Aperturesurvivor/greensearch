@@ -1,16 +1,16 @@
-"""GreenSearch CLI: concise answers with a footprint comparison.
+"""Arboris CLI: concise answers with a footprint comparison.
 
 Installed entry points (see pyproject.toml):
-  greensearch "explain DNS simply" --mode sprout
-  python -m greensearch "explain DNS simply" --mode sprout
+  arboris "explain DNS simply" --mode sprout
+  python -m arboris "explain DNS simply" --mode sprout
   python cli.py "explain DNS simply" --mode sprout   (legacy, same code)
 
 Demo mode (offline, no key, no network):
-  greensearch --demo
-  greensearch --demo --mode canopy --report-out demo-report.md
+  arboris --demo
+  arboris --demo --mode canopy --report-out demo-report.md
 
 Without --provider live, runs the offline demo provider: no key, no
-network, no model. Live mode needs GREENSEARCH_API_KEY in the
+network, no model. Live mode needs ARBORIS_API_KEY in the
 environment. With --session-file, calls persist to a JSON file across
 runs and the printed session totals accumulate; without it, each run
 is a single-call session. All user-facing failures exit 2 with a
@@ -20,21 +20,21 @@ readable "Error:" line, never a traceback.
 import argparse
 import sys
 
-from greensearch.brevity import apply_brevity
-from greensearch.cache import cache_key
-from greensearch.shrink import shrink
-from greensearch.tokenizer import TokenizerError, count_tokens
-from greensearch.tokens import est_tokens
-from greensearch.footprint import GRID_G_PER_KWH, WH_PER_TOKEN, footprint
-from greensearch.router import route_mode
-from greensearch.providers import (
+from arboris.brevity import apply_brevity
+from arboris.cache import cache_key
+from arboris.shrink import shrink
+from arboris.tokenizer import TokenizerError, count_tokens
+from arboris.tokens import est_tokens
+from arboris.footprint import GRID_G_PER_KWH, WH_PER_TOKEN, footprint
+from arboris.router import route_mode
+from arboris.providers import (
     BREVITY_SYSTEM,
     MAX_TOKENS,
     DemoProvider,
     OpenAICompatibleProvider,
     ProviderError,
 )
-from greensearch.session import Session
+from arboris.session import Session
 
 # The demo runs the same six topics the site demo covers, plus one
 # uncovered topic to show the honest generic fallback. It always uses
@@ -158,7 +158,7 @@ def _run_one(provider, session, prompt, mode_arg, opts=None):
         if opts.get("cascade"):
             if not live:
                 return "Cascade requires a live provider with logprobs; the demo provider has no confidence signal."
-            from greensearch.cascade import run_cascade
+            from arboris.cascade import run_cascade
             escalation = OpenAICompatibleProvider(
                 provider.base_url, api_key=provider.api_key,
                 model=opts.get("escalation_model", "gpt-4o"),
@@ -242,7 +242,7 @@ def _run_one(provider, session, prompt, mode_arg, opts=None):
 def _run_demo(session, mode, opts=None):
     """Run the offline demo: all six topics plus a generic fallback."""
     provider = DemoProvider()
-    print("[demo (offline) | GreenSearch demo]\n")
+    print("[demo (offline) | Arboris demo]\n")
     print(
         "Six templated topics, plus one uncovered topic to show the "
         "honest fallback. No key, no network, no model.\n"
@@ -264,7 +264,7 @@ def _run_demo(session, mode, opts=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="GreenSearch: concise answers, estimated footprint.")
+    parser = argparse.ArgumentParser(description="Arboris: concise answers, estimated footprint.")
     parser.add_argument("prompt", nargs="?", default=None,
                         help="Prompt to answer (omit with --demo)")
     parser.add_argument("--mode", choices=["sprout", "canopy", "full", "auto"], default="full",
@@ -291,7 +291,7 @@ def main(argv=None):
     parser.add_argument("--cascade-threshold", type=float, default=-1.0,
                         help="Mean logprob below which --cascade escalates (default %(default)s; must be <= 0)")
     parser.add_argument("--tokenizer", choices=["estimate", "tiktoken"], default="estimate",
-                        help="Token counter: word estimate (default) or real tiktoken count (requires pip install 'greensearch[tokenizer]')")
+                        help="Token counter: word estimate (default) or real tiktoken count (requires pip install 'arboris[tokenizer]')")
     parser.add_argument("--no-cache", action="store_true",
                         help="Bypass the session cache (cached answers are reused verbatim and may be stale)")
     parser.add_argument("--demo", action="store_true",

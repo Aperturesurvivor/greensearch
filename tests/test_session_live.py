@@ -17,8 +17,8 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from greensearch.providers import OpenAICompatibleProvider, ProviderError
-from greensearch.session import Session
+from arboris.providers import OpenAICompatibleProvider, ProviderError
+from arboris.session import Session
 
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLE_FP = {
@@ -77,7 +77,7 @@ class TestLiveProviderErrors(unittest.TestCase):
             url="https://example.invalid/v1/chat/completions",
             code=401, msg="Unauthorized", hdrs=None, fp=io.BytesIO(b'{"error": {"message": "bad key"}}'),
         )
-        with mock.patch("greensearch.providers.urllib.request.urlopen", side_effect=error):
+        with mock.patch("arboris.providers.urllib.request.urlopen", side_effect=error):
             with self.assertRaises(ProviderError) as ctx:
                 self.provider.complete("hello")
             self.assertIn("401", str(ctx.exception))
@@ -85,7 +85,7 @@ class TestLiveProviderErrors(unittest.TestCase):
 
     def test_connection_failure_becomes_provider_error(self):
         with mock.patch(
-            "greensearch.providers.urllib.request.urlopen",
+            "arboris.providers.urllib.request.urlopen",
             side_effect=urllib.error.URLError("connection refused"),
         ):
             with self.assertRaises(ProviderError) as ctx:
@@ -95,7 +95,7 @@ class TestLiveProviderErrors(unittest.TestCase):
     def test_malformed_response_shape_becomes_provider_error(self):
         response = mock.MagicMock()
         response.__enter__.return_value = io.BytesIO(b'{"no_choices": true}')
-        with mock.patch("greensearch.providers.urllib.request.urlopen", return_value=response):
+        with mock.patch("arboris.providers.urllib.request.urlopen", return_value=response):
             with self.assertRaises(ProviderError):
                 self.provider.complete("hello")
 
@@ -133,7 +133,7 @@ class TestCliSessionAndLiveErrors(unittest.TestCase):
             self.assertNotIn("Traceback", result.stderr)
 
     def test_cli_live_connection_failure_exits_2_without_traceback(self):
-        env = dict(os.environ, GREENSEARCH_API_KEY="test-key")
+        env = dict(os.environ, ARBORIS_API_KEY="test-key")
         result = subprocess.run(
             [sys.executable, str(ROOT / "cli.py"), "hello",
              "--provider", "live", "--base-url", "http://127.0.0.1:1"],

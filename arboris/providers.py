@@ -13,7 +13,7 @@ mistaken for a live model response:
   returns one full draft and the brevity layer trims it to the mode
   budget.
 - OpenAICompatibleProvider: POSTs to a /chat/completions endpoint with a
-  bearer key from the environment (GREENSEARCH_API_KEY). Only used when
+  bearer key from the environment (ARBORIS_API_KEY). Only used when
   the user explicitly asks for live mode and supplies a key and base URL.
   Standard library only (urllib).
 """
@@ -242,16 +242,17 @@ class OpenAICompatibleProvider:
                 "base URL must use https (plain http is only allowed for "
                 "localhost), because the API key is sent in a header."
             )
-        # GREENSEARCH_API_KEY is canonical since the 0.3.0 rename.
-        # ECOWRAPPER_API_KEY is accepted as a one-version fallback.
+        # ARBORIS_API_KEY is canonical since the 0.3.0 rename.
+        # ARBORIS_API_KEY is canonical since the 0.9.0 rename.
+        # GREENSEARCH_API_KEY is accepted as a one-version fallback.
         self.api_key = (
             api_key
+            or os.environ.get("ARBORIS_API_KEY", "")
             or os.environ.get("GREENSEARCH_API_KEY", "")
-            or os.environ.get("ECOWRAPPER_API_KEY", "")
         )
         if not self.api_key:
             raise ValueError(
-                "No API key: set GREENSEARCH_API_KEY or pass api_key explicitly."
+                "No API key: set ARBORIS_API_KEY or pass api_key explicitly."
             )
         self.model = model
 
