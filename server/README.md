@@ -59,7 +59,10 @@ model pipeline. Meta reports `local_answer: true` and
 Every answer carries `meta.energy`, a per-answer receipt the site can
 render, built from provider-reported tokens only:
 
-- `energy_wh` = total tokens (input + output) x 0.0045 Wh/token.
+- `energy_wh` = output tokens x 0.0006 Wh + input tokens x 0.0006 / 800 Wh.
+  Output tokens are the provider's completion count, which includes
+  reasoning tokens. Sources and the published range (0.0006-0.005 Wh
+  per output token) are in `greensearch/footprint.py`.
 - `co2e_g` = `energy_wh` / 1000 x `GREENSEARCH_GRID_G_PER_KWH`.
 - `water_ml_low` / `water_ml_high` = `energy_wh` x WUE, with WUE
   0.1-0.3 L/kWh (modern closed-loop cooling only; electricity-

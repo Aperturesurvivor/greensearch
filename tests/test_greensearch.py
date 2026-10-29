@@ -126,16 +126,30 @@ class TestTokensAndFootprint(unittest.TestCase):
 
 class TestEnergyReceipt(unittest.TestCase):
     def test_receipt_arithmetic_and_water_range(self):
-        # 10 in + 50 out = 60 tokens at 0.0045 Wh/token = 0.27 Wh;
-        # 0.27 Wh at 400 g/kWh = 0.108 g; water = Wh x WUE (0.1-0.3).
+        # Output-weighted: 50 out x 0.0006 Wh + 10 in x 0.0006 / 800 Wh
+        # = 0.0300075 Wh; at 400 g/kWh = 0.012003 g; water = Wh x WUE.
         from greensearch.footprint import energy_receipt
         receipt = energy_receipt(10, 50, model="m", model_tier="primary")
         self.assertEqual(receipt["status"], "estimate")
         self.assertEqual(receipt["total_tokens"], 60)
-        self.assertEqual(receipt["energy_wh"], 0.27)
-        self.assertEqual(receipt["co2e_g"], 0.108)
-        self.assertEqual((receipt["water_ml_low"], receipt["water_ml_high"]), (0.027, 0.081))
+        self.assertEqual(receipt["energy_wh"], 0.030007)
+        self.assertEqual(receipt["co2e_g"], 0.012003)
+        self.assertEqual((receipt["water_ml_low"], receipt["water_ml_high"]), (0.003001, 0.009002))
+        self.assertEqual(receipt["factors"]["input_output_energy_ratio"], 800)
         self.assertEqual(receipt["factors"]["grid_g_per_kwh"], 400.0)
+
+    def test_output_tokens_dominate_the_estimate(self):
+        from greensearch.footprint import energy_receipt
+        long_question = energy_receipt(800, 0)["energy_wh"]
+        one_output_token = energy_receipt(0, 1)["energy_wh"]
+        # 800 input tokens cost the same as 1 output token.
+        self.assertEqual(long_question, one_output_token)
+        self.assertEqual(one_output_token, 0.0006)
+
+    def test_receipt_rejects_non_positive_ratio(self):
+        from greensearch.footprint import energy_receipt
+        with self.assertRaises(ValueError):
+            energy_receipt(10, 50, input_output_ratio=0)
 
     def test_receipt_cache_hit_is_zero(self):
         from greensearch.footprint import energy_receipt

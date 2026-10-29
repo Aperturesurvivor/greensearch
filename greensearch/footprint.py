@@ -1,14 +1,18 @@
-"""CO2e estimation from token counts.
+"""CO2e estimation from token counts, weighted toward output tokens.
 
 Every figure is an ARITHMETIC ESTIMATE, not a measurement:
 
-    grams CO2e = tokens x wh_per_token / 1000 x grid_g_per_kwh
+    Wh         = output_tokens x wh_per_token
+                 + input_tokens x wh_per_token / INPUT_OUTPUT_ENERGY_RATIO
+    grams CO2e = Wh / 1000 x grid_g_per_kwh
 
-Both factors are assumptions you can override on the command line. The
-defaults (0.0045 Wh/token, 400 g CO2e/kWh) multiply to the 0.0018 g/token
-this project has always used. They are illustrative, not sourced: published
-per-prompt figures differ by more than 10x between studies, so treat
-output as a way to compare reply lengths, never as carbon accounting.
+Generating a token costs far more than reading one, so output tokens
+(which include any hidden reasoning tokens the provider reports) carry the
+factor and input tokens carry 1/800 of it. Both factors and the grid
+intensity are assumptions you can override; the defaults are derived from
+published figures (sources below), not measured for the model Arboris
+calls. Treat output as a way to compare answer lengths, never as carbon
+accounting.
 
 The "standard" (verbose) baseline is either:
   - assumed: concise tokens x a per-mode multiplier (3.4 / 2.6 / 1.9). With
@@ -19,9 +23,24 @@ The "standard" (verbose) baseline is either:
 
 import re
 
-WH_PER_TOKEN = 0.0045
+# Default energy per GENERATED token: 0.0006 Wh. Derived from Epoch AI,
+# "How much energy does ChatGPT use?" (Josh You, Feb 2025): about 0.3 Wh
+# for a GPT-4o query with 500 output tokens, so 0.3 / 500 = 0.0006. It is
+# the low end of the published range below. Until 2026-10-29 the default
+# was 0.0045 Wh for every token, input and output alike, which priced a
+# 500-token answer near the 2023 estimates (about 3 Wh per query) rather
+# than the 2025 ones (0.24 to 0.34 Wh).
+WH_PER_TOKEN = 0.0006
 GRID_G_PER_KWH = 400.0
-CO2_PER_TOKEN_G = round(WH_PER_TOKEN / 1000 * GRID_G_PER_KWH, 10)  # 0.0018
+CO2_PER_TOKEN_G = round(WH_PER_TOKEN / 1000 * GRID_G_PER_KWH, 10)  # 0.00024
+
+# One input token costs a small fraction of one output token. Ruf and
+# Detyniecki, "The Cost of Context" (HotCarbon '26), measured an output
+# token at about 850x the energy of an input token at 1k context on vLLM,
+# narrowing to about 750x at 112k context (7-8B models, one A100). 800 is
+# the midpoint, applied as a constant; for very long inputs on less
+# optimised stacks the true input share is higher.
+INPUT_OUTPUT_ENERGY_RATIO = 800
 
 # Published anchors for energy per generated token, shown as a range.
 # Neither end is a measurement of the model Arboris calls; both are
@@ -35,7 +54,7 @@ CO2_PER_TOKEN_G = round(WH_PER_TOKEN / 1000 * GRID_G_PER_KWH, 10)  # 0.0018
 #     "Power Hungry Processing" (ACM FAccT 2024) report text generation
 #     at about 0.05 kWh per 1,000 inferences of 10 new tokens, on models
 #     up to 11B parameters in a research setup. 0.05 Wh / 10 = 0.005.
-# The default WH_PER_TOKEN (0.0045) sits near the high end. Google's
+# The default WH_PER_TOKEN (0.0006) is the low end. Google's
 # Aug 2025 figure (0.24 Wh per median Gemini text prompt) is not used as
 # an anchor because it states no token count. The range is the same for
 # every model: no source gives per-size figures Arboris could cite, and
@@ -97,8 +116,13 @@ def model_size_tier(model_name):
 def energy_receipt(input_tokens, output_tokens, *, model=None,
                    model_tier=None, escalated=False, cache_hit=False,
                    wh_per_token=WH_PER_TOKEN, grid_g_per_kwh=GRID_G_PER_KWH,
-                   wue_low=WUE_L_PER_KWH_LOW, wue_high=WUE_L_PER_KWH_HIGH):
+                   wue_low=WUE_L_PER_KWH_LOW, wue_high=WUE_L_PER_KWH_HIGH,
+                   input_output_ratio=INPUT_OUTPUT_ENERGY_RATIO):
     """Per-answer energy receipt: an arithmetic estimate, never accounting.
+
+    Energy is output-weighted: output tokens x wh_per_token, plus input
+    tokens x wh_per_token / input_output_ratio. Output tokens are the
+    provider's completion count, which includes reasoning tokens.
 
     Returns a dict the server puts in meta["energy"] and the site can
     render as a receipt. When the provider did not report token usage,
@@ -113,6 +137,8 @@ def energy_receipt(input_tokens, output_tokens, *, model=None,
     OpenRouter does not disclose where inference ran, so no region
     (Finland or otherwise) is claimed for the receipt.
     """
+    if input_output_ratio <= 0:
+        raise ValueError("input_output_ratio must be positive")
     size_tier = model_size_tier(model)
     base = {
         "basis": "estimate",
@@ -122,7 +148,10 @@ def energy_receipt(input_tokens, output_tokens, *, model=None,
         "escalated": escalated,
         "cache_hit": cache_hit,
         "factors": {
+            "weighting": "output",
             "wh_per_token": wh_per_token,
+            "wh_per_input_token": wh_per_token / input_output_ratio,
+            "input_output_energy_ratio": input_output_ratio,
             "wh_per_token_range": list(WH_PER_TOKEN_RANGE),
             "wh_per_token_range_label": WH_PER_TOKEN_RANGE_LABEL,
             "grid_g_per_kwh": grid_g_per_kwh,
@@ -146,12 +175,16 @@ def energy_receipt(input_tokens, output_tokens, *, model=None,
             "water_ml_high": None,
             "note": None,
         }
-    if wh_per_token <= 0 or grid_g_per_kwh <= 0 or wue_low <= 0 or wue_high <= 0:
+    if (wh_per_token <= 0 or grid_g_per_kwh <= 0 or wue_low <= 0
+            or wue_high <= 0 or input_output_ratio <= 0):
         raise ValueError("energy factors must be positive")
     total = int(input_tokens) + int(output_tokens)
-    wh = total * wh_per_token
+    wh = (int(output_tokens) * wh_per_token
+          + int(input_tokens) * wh_per_token / input_output_ratio)
     note = ("Arithmetic estimate from provider-reported tokens, not a "
-            "measurement and not carbon accounting. Inference region "
+            "measurement and not carbon accounting. Output tokens carry "
+            "the energy factor; input tokens count at 1/"
+            f"{input_output_ratio:g} of it. Inference region "
             "unknown (provider does not disclose it), so the grid "
             "factor is illustrative. Water is cooling water only; "
             "electricity-generation water is excluded.")
@@ -167,18 +200,24 @@ def energy_receipt(input_tokens, output_tokens, *, model=None,
         "input_tokens": int(input_tokens),
         "output_tokens": int(output_tokens),
         "total_tokens": total,
-        "energy_wh": round(wh, 4),
-        "co2e_g": round(wh / 1000 * grid_g_per_kwh, 4),
-        "water_ml_low": round(wh * wue_low, 4),
-        "water_ml_high": round(wh * wue_high, 4),
+        "energy_wh": round(wh, 6),
+        "co2e_g": round(wh / 1000 * grid_g_per_kwh, 6),
+        "water_ml_low": round(wh * wue_low, 6),
+        "water_ml_high": round(wh * wue_high, 6),
         "note": note,
     }
+
+
 VERBOSE_MULTIPLIER = {"sprout": 3.4, "canopy": 2.6, "full": 1.9}
 
 
 def footprint(out_tokens, mode, *, baseline_tokens=None,
               wh_per_token=WH_PER_TOKEN, grid_g_per_kwh=GRID_G_PER_KWH):
-    """Compare a concise reply against a verbose baseline."""
+    """Compare a concise reply against a verbose baseline.
+
+    Both sides are output tokens, so the full per-output-token factor
+    applies to each.
+    """
     if mode not in VERBOSE_MULTIPLIER:
         raise ValueError(
             f"unknown mode {mode!r}; expected one of {sorted(VERBOSE_MULTIPLIER)}"
@@ -198,10 +237,10 @@ def footprint(out_tokens, mode, *, baseline_tokens=None,
     return {
         "eco_tokens": out_tokens,
         "standard_tokens": std_tokens,
-        "eco_co2_g": round(eco_co2, 4),
-        "standard_co2_g": round(std_co2, 4),
+        "eco_co2_g": round(eco_co2, 6),
+        "standard_co2_g": round(std_co2, 6),
         "saved_pct": saved_pct,
-        "saved_co2_g": round(max(0.0, std_co2 - eco_co2), 4),
+        "saved_co2_g": round(max(0.0, std_co2 - eco_co2), 6),
         "baseline_kind": baseline_kind,
         "wh_per_token": wh_per_token,
         "grid_g_per_kwh": grid_g_per_kwh,

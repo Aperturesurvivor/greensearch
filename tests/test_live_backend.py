@@ -1106,8 +1106,10 @@ class EnergyReceiptTests(unittest.TestCase):
         energy = result["meta"]["energy"]
         self.assertEqual(energy["status"], "estimate")
         self.assertEqual((energy["input_tokens"], energy["output_tokens"]), (10, 50))
-        self.assertEqual((energy["energy_wh"], energy["co2e_g"]), (0.27, 0.108))
-        self.assertEqual((energy["water_ml_low"], energy["water_ml_high"]), (0.027, 0.081))
+        # Output-weighted: 50 x 0.0006 + 10 x 0.0006 / 800 = 0.0300075 Wh.
+        self.assertEqual((energy["energy_wh"], energy["co2e_g"]), (0.030007, 0.012003))
+        self.assertEqual((energy["water_ml_low"], energy["water_ml_high"]), (0.003001, 0.009002))
+        self.assertEqual(energy["factors"]["weighting"], "output")
         self.assertEqual(energy["model"], PRIMARY)
 
     def test_cache_hit_receipt_is_zero(self):

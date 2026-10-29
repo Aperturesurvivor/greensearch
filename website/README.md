@@ -54,7 +54,7 @@ The **How this demo works** button in the header opens an in-page dialog, with n
 
 Baseline per message: original question tokens + Forest (full) answer tokens for the same topic, with no trimming, no routing, no reuse.
 Arboris per message: trimmed question tokens + routed answer tokens, or trimmed question only on a cache hit.
-Tokens: words x 1.33, minimum 1. CO2e: tokens x 0.0018 g. Both are estimates, not measurements.
+Tokens: words x 1.33, minimum 1. CO2e is output-weighted: output tokens x 0.0006 Wh x 400 g/kWh (0.00024 g each), input tokens at 1/800 of that. All are estimates, not measurements.
 
 ## What it does not do
 

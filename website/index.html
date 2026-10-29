@@ -1145,7 +1145,7 @@ a:hover { text-decoration-color: var(--teal) }
   <div class="ti"><span class="tn" id="t-base">0</span><span class="tl">baseline tokens</span></div>
   <div class="ti"><span class="tn" id="t-green">0</span><span class="tl">Arboris tokens</span></div>
   <div class="ti"><span class="tn" id="t-saved">0</span><span class="tl">tokens saved</span></div>
-  <div class="ti"><span class="tn" id="t-co2">0.00g</span><span class="tl">CO₂e saved (est.)</span><span class="te" id="t-eq"></span></div>
+  <div class="ti"><span class="tn" id="t-co2">0 g</span><span class="tl">CO₂e saved (est.)</span><span class="te" id="t-eq"></span></div>
 </div>
 <div class="totals totals-live" id="totals-live" aria-label="Live totals (provider-reported, kept separate from demo totals)" hidden>
   <div class="ti-lbl">LIVE<br>provider-reported</div>
@@ -1190,7 +1190,7 @@ a:hover { text-decoration-color: var(--teal) }
       <p style="font-size:11px"><a href="https://cloud.google.com/sustainability/region-carbon" target="_blank" rel="noopener">Google Cloud region carbon data</a></p>
       <details>
         <summary>How numbers are calculated</summary>
-        <p><b>Tokens:</b> words × 1.33, min 1.<br><b>CO₂e:</b> tokens × 0.0018 g.<br>
+        <p><b>Tokens:</b> words × 1.33, min 1.<br><b>CO₂e:</b> output tokens × 0.00024 g (0.0006 Wh at 400 g/kWh); input tokens count 1/800 as much.<br>
         <b>Baseline:</b> original question + Forest answer, no trimming or routing.<br>
         <b>Arboris:</b> shrunk question + routed answer (0 on cache hit).<br>
         Published per-prompt figures for real models differ by 10× or more.</p>
@@ -1248,7 +1248,7 @@ a:hover { text-decoration-color: var(--teal) }
     <h3>The numbers are estimates</h3>
     <ul>
       <li><b>Tokens</b> are estimated as words × 1.33 (minimum 1). There is no real tokenizer.</li>
-      <li><b>CO₂e</b> is tokens × 0.0018 g. That factor is an assumption, not a measurement of any data centre.</li>
+      <li><b>CO₂e</b> is output tokens × 0.0006 Wh × 400 g CO₂e/kWh, with input tokens at 1/800 of an output token, because generating text costs far more energy than reading it. The 0.0006 Wh comes from Epoch AI's 2025 estimate for a GPT-4o-class model and the 1/800 from a 2026 measurement on smaller models. Both are assumptions here, not measurements of any data centre.</li>
       <li><b>The baseline is assumed, not measured.</b> It counts your original question plus the Forest (longest) answer, with no trimming, routing or reuse. It is not a measured ChatGPT or Gemini comparison. Published per-prompt figures for real models vary by 10× or more.</li>
     </ul>
     <h3>The live backend is running; the measured baseline is not</h3>
@@ -1638,7 +1638,12 @@ function greenAnswer(topic,topicText,mode){
   var name=cleaned.length>80?cleaned.slice(0,80).trim()+'...':cleaned;
   return 'That topic is not in the demo library yet. You asked about: \''+name+'\'. Try rephrasing with a clearer keyword, or switch to live mode for a real model response. The demo covers 95 topics including technology, science, math, history, business, health, cooking, home maintenance, and programming.';
 }
-var CO2G=0.0018;
+/* Output-weighted CO2e, matching greensearch/footprint.py: an output token
+   is 0.0006 Wh (Epoch AI 2025), an input token 1/800 of that (Ruf and
+   Detyniecki, HotCarbon '26), at an assumed 400 g CO2e/kWh. Estimates only. */
+var WH_OUT=0.0006,IN_OUT_RATIO=800,GRID_G_KWH=400;
+var CO2G=WH_OUT/1000*GRID_G_KWH;
+function co2For(inTok,outTok){return (outTok+inTok/IN_OUT_RATIO)*CO2G;}
 function estTokens(text){return Math.max(1,Math.round(text.trim().split(/\s+/).length*1.33));}
 function integrateChat(raw,cache){
   var shrunk=shrinkPrompt(raw);
@@ -1665,9 +1670,9 @@ function integrateChat(raw,cache){
     origIn:origIn,shrunkIn:shrunkIn,forestOut:forestOut,outTokens:outTokens,
     baselineTotal:baselineTotal,integratedTotal:integratedTotal,
     tokensSaved:baselineTotal-integratedTotal,savingPct:savingPct,
-    baseCO2:+(baselineTotal*CO2G).toFixed(4),
-    intCO2:+(integratedTotal*CO2G).toFixed(4),
-    savedCO2:+((baselineTotal-integratedTotal)*CO2G).toFixed(4)};
+    baseCO2:+co2For(origIn,forestOut).toFixed(8),
+    intCO2:+co2For(shrunkIn,outTokens).toFixed(8),
+    savedCO2:+Math.max(0,co2For(origIn,forestOut)-co2For(shrunkIn,outTokens)).toFixed(8)};
 }
 if(typeof module!=='undefined'&&module.exports){
   module.exports={shrinkPrompt,routeMode,detectTopic,greenAnswer,estTokens,integrateChat};
@@ -1772,15 +1777,19 @@ function animNum(id,target,fmt,instant){
   _ctimers[id]=requestAnimationFrame(step);
 }
 function fmtInt(v){return Math.round(v).toString();}
-function fmtCO2(v){return v.toFixed(2)+'g';}
+function fmtCO2(v){
+  if(v>=1)return v.toFixed(2)+' g';
+  if(v>=0.001)return (v*1000).toFixed(v>=0.01?1:2)+' mg';
+  return v>0?(v*1e6).toFixed(0)+' µg':'0 g';
+}
+function fmtWh(v){return v>=0.01?v.toFixed(3)+' Wh':v>0?(v*1000).toFixed(3)+' mWh':'0 Wh';}
 
 /* ── CO₂ equivalence ── */
 function co2eq(g){
-  if(g<0.001)return'';
-  var ph=g/0.005;
-  if(ph>=0.1)return'≈'+(ph<1?ph.toFixed(1):Math.round(ph))+' phone charge'+(ph>=2?'s':'');
-  var led=g/((9/1000)*400/3600);
-  return led>=1?'≈'+Math.round(led)+'s LED':'<1s LED';
+  /* Seconds of a 9 W LED bulb at the same assumed 400 g CO2e/kWh. */
+  var led=g/(9/3600/1000*GRID_G_KWH);
+  if(led<0.1)return'';
+  return'≈'+(led<10?led.toFixed(1):Math.round(led))+' s of a 9 W LED';
 }
 
 /* ── Render totals ── */
@@ -1951,7 +1960,7 @@ function makeRouteReason(shrunk,mode){
 function savePill(pct,co2){
   var el=document.createElement('span');
   el.className='spill'+(pct<40?' mid':'');
-  el.textContent='−'+pct+'% · '+(co2*1000).toFixed(1)+'mg CO₂e';
+  el.textContent='−'+pct+'% tokens · '+fmtCO2(co2)+' CO₂e saved';
   return el;
 }
 function tokTag(orig,shrunk){
@@ -2187,7 +2196,7 @@ document.getElementById('cb').addEventListener('click',function(){
   ['t-calls','t-base','t-green','t-saved'].forEach(function(id){
     var el=document.getElementById(id);if(el){el.textContent='0';el.dataset.v='0';}
   });
-  var c2=document.getElementById('t-co2');if(c2){c2.textContent='0.00g';c2.dataset.v='0';}
+  var c2=document.getElementById('t-co2');if(c2){c2.textContent='0 g';c2.dataset.v='0';}
   var eq=document.getElementById('t-eq');if(eq)eq.textContent='';
   document.getElementById('stats-panel').style.display='none';
   document.getElementById('hist-panel').style.display='none';
@@ -2205,7 +2214,7 @@ document.getElementById('export-btn').addEventListener('click',function(){
   var stamp=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'-'+pad2(d.getHours())+pad2(d.getMinutes())+pad2(d.getSeconds());
   var lbl={sprout:'Sprout',canopy:'Canopy',forest:'Forest'};
   var L=['# Arboris demo chat','','Exported '+d.toLocaleString()+'.','',
-    '> Canned demo answers from a 95-topic library, not a live model. Tokens are estimates (words × 1.33); CO₂e is tokens × 0.0018 g; the baseline is assumed (original question + Forest answer, no trimming or routing), not measured.',''];
+    '> Canned demo answers from a 95-topic library, not a live model. Tokens are estimates (words × 1.33); CO₂e is output-weighted (output tokens × 0.00024 g, input tokens at 1/800); the baseline is assumed (original question + Forest answer, no trimming or routing), not measured.',''];
   turns.forEach(function(t,i){
     var r=t.r;
     L.push('## '+(i+1)+'. '+short(t.raw).replace(/[#\n]/g,' '),'');
@@ -2439,7 +2448,7 @@ function liveMetaLine(m){
   if(m.expansion)p.push('expanded (more detail on an earlier question)');
   if(m.semantic_cache_hit)p.push('semantic cache hit'+(isNum(m.semantic_similarity)?' (similarity '+m.semantic_similarity+')':''));
   if(m.task_type&&m.routed_by==='task'){var tt2=m.difficulty_tier||m.task_tier;p.push('task: '+m.task_type+(tt2?' · '+tt2+' tier':''));}
-  if(m.energy&&m.energy.status==='estimate'&&isNum(m.energy.energy_wh)){var e2=m.energy,et2='energy (est.): '+e2.energy_wh+' Wh, '+e2.co2e_g+' g CO₂e';if(isNum(e2.water_ml_low)&&isNum(e2.water_ml_high))et2+=', '+e2.water_ml_low+'–'+e2.water_ml_high+' mL water';p.push(et2);}
+  if(m.energy&&m.energy.status==='estimate'&&isNum(m.energy.energy_wh)){var e2=m.energy,et2='energy (est.): '+fmtWh(e2.energy_wh)+', '+fmtCO2(e2.co2e_g)+' CO₂e';if(isNum(e2.water_ml_low)&&isNum(e2.water_ml_high))et2+=', '+e2.water_ml_low+'–'+e2.water_ml_high+' mL water';p.push(et2);}
   if(isNum(m.latency_ms))p.push(m.latency_ms+' ms');
   if(m.baseline){
     if(m.baseline.error)p.push('baseline: '+m.baseline.error);
@@ -2467,7 +2476,7 @@ function liveMetaRow(t){
   if(m.local_answer)mm.appendChild(infoTag('answered locally','No model was called: pure arithmetic answered on the backend, 0 tokens'));
   if(m.semantic_cache_hit)mm.appendChild(infoTag('semantic cache hit'+(isNum(m.semantic_similarity)?' ('+m.semantic_similarity+')':''),'Cached answer reused: a similar prompt in this session, with identical numbers'));
   if(m.task_type&&m.routed_by==='task'){var tt=m.difficulty_tier||m.task_tier;mm.appendChild(infoTag('task: '+m.task_type+(tt?' · '+tt+' tier':''),'Task routing: model tier picked by task type'+(m.difficulty_score!==undefined?' (difficulty '+m.difficulty_score+')':'')));}
-  if(m.energy&&m.energy.status==='estimate'&&isNum(m.energy.energy_wh)){var e=m.energy,etxt=e.energy_wh+' Wh · '+e.co2e_g+' g CO₂e';if(isNum(e.water_ml_low)&&isNum(e.water_ml_high))etxt+=' · '+e.water_ml_low+'–'+e.water_ml_high+' mL water';mm.appendChild(infoTag(etxt+' (est.)',e.note||'Estimated from provider-reported tokens, not carbon accounting'));}
+  if(m.energy&&m.energy.status==='estimate'&&isNum(m.energy.energy_wh)){var e=m.energy,etxt=fmtWh(e.energy_wh)+' · '+fmtCO2(e.co2e_g)+' CO₂e';if(isNum(e.water_ml_low)&&isNum(e.water_ml_high))etxt+=' · '+e.water_ml_low+'–'+e.water_ml_high+' mL water';mm.appendChild(infoTag(etxt+' (est.)',e.note||'Estimated from provider-reported tokens, not carbon accounting'));}
   if(isNum(m.latency_ms))mm.appendChild(infoTag(m.latency_ms+' ms','Backend latency'));
   if(m.truncated)mm.appendChild(infoTag('truncated','The answer hit the token cap: a cut-off last sentence was dropped or marked with …','tg-warn'));
   if(m.baseline){

@@ -37,15 +37,21 @@ Arboris; the package, CLI and repo are still `greensearch` for now.)
 
 ```
 tokens   = words x 1.33                       (an estimate, not a tokenizer)
-CO2e (g) = tokens x wh_per_token / 1000 x grid_g_per_kwh
+Wh       = output_tokens x wh_per_token + input_tokens x wh_per_token / 800
+CO2e (g) = Wh / 1000 x grid_g_per_kwh
 ```
 
-Defaults are 0.0045 Wh/token and 400 g CO2e/kWh, which multiply to the
-0.0018 g/token this project has always used. They are illustrative, not
-sourced. For scale, Google reports about 0.24 Wh and 0.03 g CO2e for a median
-Gemini text prompt (its 2025 methodology paper), and earlier public estimates
-ranged far higher, so published figures differ by more than 10x. Override
-both factors to run your own scenario:
+Generating a token costs far more energy than reading one, so the estimate
+is output-weighted. Defaults are 0.0006 Wh per output token (Epoch AI's
+2025 estimate of about 0.3 Wh for a GPT-4o query with 500 output tokens)
+and 400 g CO2e/kWh, which multiply to 0.00024 g per output token. Input
+tokens count at 1/800 of an output token, the midpoint of the 750-850x
+ratio Ruf and Detyniecki measured on vLLM (HotCarbon '26). These are
+derived from published figures, not measured for any model this project
+calls. For scale, Google reports about 0.24 Wh for a median Gemini text
+prompt (2025). Until 2026-10-29 the default was 0.0045 Wh for every token,
+input and output alike, which priced answers 7 to 9 times above the 2025
+estimates. Override the factors to run your own scenario:
 
 ```bash
 greensearch "explain DNS simply" --grid-g-per-kwh 30   # a low-carbon grid

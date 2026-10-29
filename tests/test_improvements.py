@@ -130,9 +130,10 @@ class TestProviderHardening(unittest.TestCase):
 
 
 class TestFootprint(unittest.TestCase):
-    def test_default_factors_reproduce_the_legacy_constant(self):
-        self.assertEqual(CO2_PER_TOKEN_G, 0.0018)
-        self.assertEqual(footprint(100, "full")["eco_co2_g"], 0.18)
+    def test_default_factor_is_the_cited_output_token_anchor(self):
+        # 0.0006 Wh per output token (Epoch AI 2025) x 400 g/kWh.
+        self.assertEqual(CO2_PER_TOKEN_G, 0.00024)
+        self.assertEqual(footprint(100, "full")["eco_co2_g"], 0.024)
 
     def test_grid_intensity_scales_co2_not_tokens(self):
         base = footprint(100, "full")
