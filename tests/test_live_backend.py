@@ -748,18 +748,21 @@ class EntryPointAndSiteTests(unittest.TestCase):
         self.assertNotIn("MODEL_4B", out.stdout)
         self.assertNotIn("qwen3-4b", out.stdout)
 
-    def test_website_live_mode_off_by_default(self):
+    def test_website_live_only(self):
+        # Live-only site: no mode toggle, no demo store, every prompt goes
+        # to the backend. The baseline checkbox stays, unchecked by default.
         html = (ROOT / "website" / "index.html").read_text(encoding="utf-8")
-        toggle = re.search(r'<input[^>]*id="live-toggle"[^>]*>', html)
+        self.assertNotIn('id="live-toggle"', html)
+        self.assertNotIn('id="demo-pill"', html)
+        self.assertNotIn("mode-toggle", html)
+        self.assertNotIn("STORE_KEY='arboris-demo-v1'", html)
+        self.assertNotIn("EXPANDED_TOPICS", html)
         baseline = re.search(r'<input[^>]*id="live-baseline"[^>]*>', html)
-        self.assertIsNotNone(toggle)
         self.assertIsNotNone(baseline)
-        self.assertNotIn("checked", toggle.group(0))
         self.assertNotIn("checked", baseline.group(0))
         self.assertIn("arboris-live-backend-url", html)
         self.assertIn("http://localhost:8000/api/chat", html)
-        self.assertIn("Live mode sends prompts to this backend", html)
-        self.assertIn("STORE_KEY='arboris-demo-v1'", html)
+        self.assertIn("All prompts go to this backend", html)
         # The page must never handle a provider key.
         self.assertNotIn("Authorization", html)
         self.assertNotRegex(html, r"api_key|apiKey|ARBORIS_API_KEY")

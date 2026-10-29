@@ -1,25 +1,35 @@
-# Self-hosting the Arboris demo
+# Self-hosting the Arboris site
 
 The site and package are named Arboris (renamed from GreenSearch in 0.9.0).
 
-The demo is a single file, `website/index.html`. There is no build step, no dependencies, and no backend. It uses system fonts only and makes no network requests.
+The site is a single file, `website/index.html`, with no build step and no dependencies. It is **live only**: every question goes to an Arboris backend, which holds the API key. The page by itself, with no backend running, shows backend errors instead of answers.
 
-## Open it directly
+## Run it locally (recommended)
 
-Double-click `website/index.html`, or open it from your browser's File → Open. Everything works from `file://`, including localStorage persistence and Markdown export. Depending on the browser, clipboard copy may fall back to a "copy manually" message on `file://`. Serving over http(s) avoids that.
+From the repo root, start the backend — it serves the site itself at `/`:
 
-## Serve it locally
+```sh
+python3 server/app.py
+```
 
-From the repo root:
+Then open http://localhost:8000/. The backend URL defaults to the same origin on the hosted site and to `http://localhost:8000/api/chat` elsewhere, so this just works. See `server/README.md` for the backend's environment variables (API key, model, rate limits).
+
+## Serve the file separately
+
+Any static file server works for the file itself, but the page still needs a backend:
 
 ```sh
 cd website
 python3 -m http.server 8000
 ```
 
-Then open http://localhost:8000/. Any static file server works.
+Then open the static URL and set the backend URL in the page's settings popover to your running backend (for example `http://localhost:8000/api/chat`). The backend's CORS allowlist must include the static page's origin, or the browser blocks the calls — see `server/README.md` for the allowlist setting.
+
+Opening `website/index.html` directly from `file://` is not recommended: it tries the localhost backend by default, and cross-origin rules may block it.
 
 ## GitHub Pages
+
+GitHub Pages alone has no backend, so the site there will show backend errors unless you point its backend URL (in settings) at a running backend that allows the Pages origin. To publish the file:
 
 1. Create a repository (or use an existing one) for the site.
 2. Upload `website/index.html` as `index.html` at the root of the branch you will publish (for example `main`). No other files are needed and there is nothing to build.
@@ -28,8 +38,4 @@ Then open http://localhost:8000/. Any static file server works.
 
 To update, upload a new `index.html`. If the browser shows an old copy, hard-refresh it. Saved chats are stored per site address, so a chat saved at `localhost` won't appear on the Pages URL.
 
-Any static host (Netlify, Cloudflare Pages, an S3 bucket, a plain web server) works the same way: serve the one file.
-
-## What hosting does not change
-
-Hosting this page does not make it a live model. Wherever it is served from, it still gives the same canned answers for 95 topics with estimated token counts, and it still runs entirely in the visitor's browser. A live version would need a backend holding an API key, a real tokenizer, and measured results. It is a different project, not a different hosting choice.
+Any static host (Netlify, Cloudflare Pages, an S3 bucket, a plain web server) works the same way for the file — but the backend is still required for answers.

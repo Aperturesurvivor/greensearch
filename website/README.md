@@ -1,81 +1,67 @@
-# Arboris chat website demo
+# Arboris chat website (live only)
 
-The demo site, Python package and CLI are all named **Arboris** (renamed from GreenSearch in 0.9.0). Chats saved under the old `greensearch-*` localStorage keys are moved to the `arboris-*` keys on first load.
+The live site, Python package and CLI are all named **Arboris** (renamed from GreenSearch in 0.9.0). This page has no demo mode and no pre-written answers: every question goes to an Arboris backend, which holds the API key. The page never sees a key.
 
-A single-file, ChatGPT-style demo. Open index.html in a browser. No server, no backend, no API call, no external fonts, images or scripts, and nothing leaves the page. See [SELFHOST.md](SELFHOST.md) for hosting it.
+A single-file, ChatGPT-style site. On the hosted site the backend serves this page, so the backend URL defaults to the same origin (`/api/chat`). On your own machine the default is `http://localhost:8000/api/chat`, i.e. `python server/app.py`. You can enter a different backend URL in the settings popover. See [SELFHOST.md](SELFHOST.md) for hosting it.
 
 ## What it does
 
-- Chat input, multi-turn in one session, with sample chips for the original 6 covered topics, plus 89 more templated topics (95 total).
-- PromptShrink first: trims filler and verbose phrases from the question, protecting code fences. A live preview under the input shows what will be trimmed, and each sent message shows a diff row.
-- Session cache: a repeated question (after trimming, to the same core) reuses the earlier answer, with 0 new answer tokens.
-- Arboris routing: Sprout (12 words or fewer), Canopy, or Forest (35 words or more, complexity markers, or 2+ question marks).
-- Per-answer and session savings: tokens before/after, estimated CO2e vs a defined baseline, a session stats panel and a message history panel.
-- Finland panel: Google Cloud Finland (europe-north1) 98% carbon-free energy, grid 30 gCO2eq/kWh; Hamina 97%; global Google data centers 65% in 2025. The panel states clearly that this demo runs locally, not in Finland, so Finland numbers do not change the demo CO2 numbers. Token savings are the demo saving. Clean-energy hosting is a separate lever for a live version.
+- Chat input, multi-turn in one session. Every send goes to the backend as the raw text; the backend runs PromptShrink, its session cache, routing, the small-model cascade and the brevity trim, so nothing is shrunk twice.
+- A typing preview under the input shows what PromptShrink would trim (client-side estimate only; the backend shrinks on send).
+- Live answers stream back (SSE) and show meta tags: model used (plus the model the provider reports, when that differs), whether it escalated, cache hits, provider-reported tokens, latency, and a **truncated** marker when the answer hit the token cap.
+- Live totals (provider-reported): live answers, input tokens, output tokens, cache hits, escalations, and measured savings when the baseline checkbox is on.
+- Per-answer actions: **Copy** copies the answer text; **More detail** asks for a longer answer to the same question (a second, primary-model call).
+- Settings popover: backend URL, and **Measure baseline** (off by default; makes a second, unconstrained call per message to measure real savings, which doubles API cost).
+- Finland panel: Google Cloud Finland (europe-north1) 98% carbon-free energy, grid 30 gCO2eq/kWh. The panel states clearly that the hosted backend runs in us-central1, not Finland, so Finland numbers do not change the live CO2 numbers. Clean-energy hosting is a separate lever.
 
 ### Saved in your browser (localStorage)
 
-- The conversation is saved to `localStorage` under the key **`arboris-demo-v1`** after every send, edit, regenerate and clear. It holds each question, its answer, mode, savings and token figures, plus the session totals and history.
-- On reload the transcript is restored as it was: no typing animation, no re-counting of totals. A small "Restored from your last session" note marks it. The session cache is rebuilt from the saved turns, so a repeated question is still a cache hit.
+- Live turns are saved under the key **`arboris-live-v1`** after every completed answer. On reload the transcript is restored as it was, with no re-counting of totals.
+- Old demo keys (`arboris-demo-v1`, `greensearch-demo-v1`) are deleted on load, not migrated. Live keys migrate from the old `greensearch-live-v1` / `greensearch-live-backend-url` names once, never overwriting a new key that already holds data.
 - Corrupt or unreadable saved data is ignored. If storage is disabled (some private modes), the chat still works but won't persist.
-- **Clear** (the ✕ next to Send) empties the chat, totals, history and cache, and deletes the `arboris-demo-v1` key. You can also delete it in your browser's dev tools (Application → Local Storage).
+- **Clear** (the ✕ next to Send) empties the chat and deletes the `arboris-live-v1` key. You can also delete it in your browser's dev tools (Application → Local Storage).
 
 ### Export
 
-**Export** in the header downloads the transcript as a readable Markdown file named `arboris-chat-YYYY-MM-DD-HHMMSS.md`. It lists each question and answer with its mode (including cache hits and regenerated answers), baseline vs Arboris tokens, tokens saved and estimated CO2e saved, followed by the session totals and a note on what the numbers are. The file is built in the browser as a local Blob, with no server involved.
+**Export** in the header downloads the transcript as a readable Markdown file named `arboris-chat-YYYY-MM-DD-HHMMSS.md`. It lists each live question and answer with its meta line (model, tokens, escalation, cache hit, baseline when measured). The file is built in the browser as a local Blob, with no server involved beyond the answers themselves.
 
-### Per-message actions
+### How Arboris works
 
-- **Copy** (on each answer) copies the answer text to the clipboard and confirms with a toast. If the clipboard API is blocked, it falls back to a legacy copy, and if that also fails it tells you to select and copy manually.
-- **Regenerate** (on each answer) reruns the same original question with the cache skipped and replaces that answer in place. Totals are adjusted by subtracting the old turn's contribution and adding the new one, so the message count does not change. Regenerating a cache hit counts the answer tokens again, which honestly lowers the saving. Answers are deterministic templates, so the regenerated text matches what an uncached ask would give.
-- **Edit** (on each question) turns it into a text box with Save and Cancel (Ctrl/Cmd+Enter saves, Escape cancels). Save replaces that question and its answer, then replays every turn in order from scratch, rebuilding the cache, totals and history. A later question that used to be a cache hit may no longer be one, and the totals reflect that.
-
-### Topic browser
-
-A sidebar panel lists all 95 topics, grouped as Original six, Technology, Programming, Science, Math, History, Business, Health, Cooking, Home maintenance, and Learning & skills (the catch-all for writing, study, music and similar topics that don't fit the others). A search box filters by topic name, sample question or category. Each topic shows one sample question; clicking it sends that question.
-
-The list is built from the existing topic data (the six `TEMPLATES` plus `EXPANDED_TOPICS`). The only extra metadata is `TOPIC_META` (category, label and sample question per topic). It contains no answers. Every sample question has been checked to route back to its own topic through `shrinkPrompt` → `detectTopic` (95/95).
-
-### How this demo works
-
-The **How this demo works** button in the header opens an in-page dialog, with no new page and no external link. It explains, in plain language, that answers are canned templates and not a live model, that tokens are estimates, and that the baseline is assumed rather than measured. It also notes that the live baseline study script (`scripts/baseline_study.py`) exists but has no live results because there is no API key yet, and that no live numbers are invented. It covers what would change with a live model (a backend, a real tokenizer, a logprob cascade, Finland hosting) and how privacy works.
+The **How Arboris works** button in the header opens an in-page dialog, with no new page and no external link. It explains, in plain language, that answers come from a real model through the backend, that live token counts are provider-reported, that CO2e is an output-weighted estimate (not a measurement of any data centre), and that the baseline is assumed unless Measure baseline is on. It also notes that the live baseline study script (`scripts/baseline_study.py`) exists but has no systematic live results yet, so no live savings figure is claimed until it is run.
 
 ### Mobile and accessibility
 
-- Buttons, chips, topic entries and message actions are at least 44px tall (Send, Clear and the chat input 56px), and every control has a visible focus outline.
-- Icon buttons (theme, copy stats, clear, export, how-it-works, close) and the topic search box have aria-labels. Message action labels name the question they act on.
-- Only new or regenerated bot answers are announced, through one polite live region. Re-rendering after an edit or restore does not re-announce the whole transcript, and the cache flash is hidden from screen readers.
-- Under 860px wide, the sidebar collapses behind a "Topics, stats & how it works" toggle instead of a cramped strip.
-- `prefers-reduced-motion` turns off CSS animation and also skips the typewriter and counter animations.
-- Dark and light themes share one restrained green accent (buttons, LIVE pill, links, focus rings, savings tags). Every text/background pair in both palettes was checked at 4.5:1 or better (WCAG AA) by calculation; it has not been checked in a browser.
+- Buttons, message actions and the chat input are at least 44px tall (Send, Clear and the chat input 56px), and every control has a visible focus outline. The closed settings popover is not focusable.
+- Icon buttons (theme, copy stats, clear, export, how-it-works, close) have aria-labels. Message action labels name the question they act on.
+- Only new live answers are announced, through one polite live region. Re-rendering after a restore does not re-announce the whole transcript, and the cache flash is hidden from screen readers.
+- Under 860px wide, the sidebar collapses behind a "Stats & how it works" toggle instead of a cramped strip.
+- `prefers-reduced-motion` turns off CSS animation.
+- Dark and light themes share one restrained accent (buttons, LIVE pill, links, focus rings, savings tags). Every text/background pair in both palettes was checked at 4.5:1 or better (WCAG AA) by calculation; it has not been checked in a browser.
 - Base text is 17px (16px on phones), with larger chat bubbles, softer borders and shadows, and a divider-free totals row.
 
 ## Baseline, stated, not assumed
 
-Baseline per message: original question tokens + Forest (full) answer tokens for the same topic, with no trimming, no routing, no reuse.
-Arboris per message: trimmed question tokens + routed answer tokens, or trimmed question only on a cache hit.
-Tokens: words x 1.33, minimum 1. CO2e is output-weighted: output tokens x 0.0006 Wh x 400 g/kWh (0.00024 g each), input tokens at 1/800 of that. All are estimates, not measurements.
+Live baseline per message, when Measure baseline is on: a second, unconstrained call to the same model, with no trimming, routing or reuse. When it is off, no live savings figure is claimed.
+Live per message: trimmed question tokens + routed answer tokens (provider-reported), or trimmed question only on a cache hit.
+CO2e is output-weighted: output tokens x 0.0006 Wh x 400 g/kWh (0.00024 g each), input tokens at 1/800 of that. All CO2e figures are estimates, not measurements.
 
 ## What it does not do
 
-- No live model. Answers are pre-written templates: the original six (email, APIs, workouts, backups, firewalls/Portcullis, DNS) plus 89 more from spec/templates.json, inlined into this page. Anything else gets the honest generic fallback.
-- No cascade, confidence gating, per-model energy measurement, or real tokenizer.
-- No measured ChatGPT or Gemini comparison. "Regular LLM" in the demo means the verbose/full version of the same answer, as defined above.
-- No live baseline results. `scripts/baseline_study.py` can run a live study, but it needs an API key. Until then, nothing in the demo or the repo is a live measurement.
-- No Finland hosting yet. A live version would need an explicit model, key, and region choice from Grant.
+- No offline or demo answers. If the backend is unavailable, the answer bubble shows the backend error. There is no fallback to pre-written text.
+- No topic browser, no sample chips, no edit or regenerate of live turns. (More detail is the only way to get a longer answer to the same question.)
+- No measured ChatGPT or Gemini comparison. "Regular LLM" in the site means the verbose/full version of the same answer, as defined above.
+- No Finland hosting yet. A live version in Finland would need an explicit model, key, and region choice from Grant.
 - Saved chats live only in the browser that made them. They don't sync between devices and are lost if site data is cleared.
 
 ## Test
 
 The inline script is checked from the repo root by `tests/site_conformance.js` (run through `python -m unittest discover -s tests`). Those tests take the first `<script>` block and run it in Node, so the pure logic must stay in that first block, and the DOM code must stay behind its `typeof document` guard. Manual checks worth repeating after edits:
 
-- "Explain DNS simply" routes Sprout, topic dns, and saves vs its Forest baseline.
-- The bloated DNS sample from the integration corpus shrinks and saves more than the concise version.
-- A repeated DNS question, trimmed to the same core, is a cache hit with 0 new answer tokens.
-- "capital" does not route to API, and an empty question returns empty, with no invented answer.
-- Regenerate on a cache hit leaves the message count unchanged and lowers the saving. Regenerating it again does not change the totals.
-- Edit the first question, then check that the totals equal a fresh session asking the same questions in order.
-- Reload: the transcript and totals come back unchanged, with the "Restored" note. Clear, then reload: everything is empty.
+- "Explain DNS simply" routes Sprout in the conformance output, and the typing preview shows the PromptShrink preview.
+- Send a question with the backend running: a live answer streams in with meta tags, and the LIVE totals row updates.
+- Reload: the live transcript and totals come back unchanged. Clear, then reload: everything is empty.
+- Export with live turns: the downloaded file lists live answers only, with provider-reported tokens.
+- With the backend down: the answer bubble shows the backend error, with no demo switch.
 
 PromptShrink keeps words that carry instructions ("simply", "clearly") and does not collapse repeated numbers or words.
 

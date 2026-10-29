@@ -146,43 +146,31 @@ class TestExpandedSubstringTraps(unittest.TestCase):
                 self.assertGreater(len(answer), 10)
 
 
-class TestWebsiteExpandedParity(unittest.TestCase):
-    """Verify the website JS routes expanded topics the same as Python."""
+class TestWebsiteLiveOnly(unittest.TestCase):
+    """The website is live-only: no demo library, no topic detection."""
 
-    PARITY_CASES = [
-        ("Explain how passwords work", True),
-        ("What is machine learning", True),
-        ("How does gravity work", True),
-        ("Explain quantum computing in detail", False),  # not in library
-    ]
-
-    def test_website_js_expanded_routing(self):
-        """Run expanded topic detection through Node and check parity."""
+    def test_website_exports_live_only_no_demo(self):
+        """The site JS exports shrink/route only, and holds no demo library."""
+        html = (ROOT / "website" / "index.html").read_text(encoding="utf-8")
+        for gone in ("EXPANDED_TOPICS", "detectTopic", "greenAnswer",
+                     "integrateChat", "TOPIC_META", "TEMPLATES"):
+            self.assertNotIn(gone, html)
         js_code = """
 var fs = require('fs');
 var html = fs.readFileSync('website/index.html','utf8');
 var script = html.match(/<script>([\\s\\S]*?)<\\/script>/)[1];
-var mod = {};
+var mod = {exports: {}};
 var fn = new Function('module','exports', script + '; return module.exports || {};');
-var exports = fn({exports:{}},{});
-var cases = %s;
-var results = cases.map(function(c){
-    var topic = exports.detectTopic(c[0]);
-    return {prompt: c[0], hasTopic: topic !== null, expectedHit: c[1]};
-});
-console.log(JSON.stringify(results));
-""" % json.dumps([[p, hit] for p, hit in self.PARITY_CASES])
-
+var exports = fn(mod, mod.exports);
+console.log(JSON.stringify(Object.keys(exports).sort()));
+"""
         result = subprocess.run(
             ["node", "-e", js_code],
             capture_output=True, text=True, cwd=str(ROOT),
         )
         self.assertEqual(result.returncode, 0, f"Node failed: {result.stderr}")
-        results = json.loads(result.stdout)
-        for r in results:
-            with self.subTest(prompt=r["prompt"]):
-                self.assertEqual(r["hasTopic"], r["expectedHit"],
-                    f"JS routing for '{r['prompt']}': got topic={r['hasTopic']}, expected={r['expectedHit']}")
+        self.assertEqual(json.loads(result.stdout),
+                         ["estTokens", "routeMode", "shrinkPrompt"])
 
 
 if __name__ == "__main__":

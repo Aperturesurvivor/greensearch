@@ -88,14 +88,18 @@ class TestLegacyEnv(unittest.TestCase):
 
 class TestSiteStorageMigration(unittest.TestCase):
     def test_site_uses_new_keys_and_migrates_old_ones(self):
+        # Live-only site: there is no demo STORE_KEY any more. Live keys
+        # migrate from the old greensearch-* names, and old demo keys are
+        # deleted on load instead of being migrated.
         html = (ROOT / "website" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("var STORE_KEY='arboris-demo-v1';", html)
         self.assertIn("var LIVE_STATE_KEY='arboris-live-v1';", html)
         self.assertIn("var LIVE_URL_KEY='arboris-live-backend-url';", html)
-        for old, new in (("greensearch-demo-v1", "arboris-demo-v1"),
-                         ("greensearch-live-v1", "arboris-live-v1"),
-                         ("greensearch-live-backend-url", "arboris-live-backend-url")):
-            self.assertIn(f"['{old}','{new}']", html)
+        self.assertIn("localStorage.getItem('greensearch-live-v1')", html)
+        self.assertIn("localStorage.getItem('greensearch-live-backend-url')", html)
+        self.assertIn("localStorage.removeItem('arboris-demo-v1')", html)
+        self.assertIn("localStorage.removeItem('greensearch-demo-v1')", html)
+        self.assertNotIn("var STORE_KEY='arboris-demo-v1';", html)
+        self.assertNotIn("EXPANDED_TOPICS", html)
 
 
 if __name__ == "__main__":
