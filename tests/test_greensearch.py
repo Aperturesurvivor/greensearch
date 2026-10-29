@@ -143,6 +143,46 @@ class TestEnergyReceipt(unittest.TestCase):
         self.assertEqual((receipt["energy_wh"], receipt["co2e_g"]), (0.0, 0.0))
         self.assertIn("Cache hit", receipt["note"])
 
+    def test_receipt_states_unknown_region_and_anchor_range(self):
+        from greensearch.footprint import (WH_PER_TOKEN, WH_PER_TOKEN_RANGE,
+                                           energy_receipt)
+        receipt = energy_receipt(10, 50, model="google/gemma-4-31b-it:free")
+        factors = receipt["factors"]
+        self.assertEqual(factors["grid_region"], "unknown")
+        self.assertIn("Inference region unknown", receipt["note"])
+        low, high = factors["wh_per_token_range"]
+        self.assertEqual((low, high), WH_PER_TOKEN_RANGE)
+        self.assertLess(low, high)
+        # The default factor must sit inside the cited range.
+        self.assertTrue(low <= WH_PER_TOKEN <= high)
+        self.assertIn("Epoch AI", factors["wh_per_token_range_label"])
+        self.assertEqual(receipt["model_size_tier"], "medium")
+
+    def test_model_size_tier_reads_parameter_counts(self):
+        from greensearch.footprint import model_size_tier
+        cases = {
+            "google/gemma-4-31b-it:free": "medium",
+            "meta-llama/llama-3.1-8b-instruct": "small",
+            "qwen/qwen2.5-1.5b-instruct": "small",
+            "meta-llama/llama-3.1-405b": "large",
+            "openai/gpt-oss-120b": "large",
+            # Mixture of experts: active parameters win when stated.
+            "qwen/qwen3-30b-a3b": "small",
+            "qwen/qwen3-235b-a22b": "medium",
+            # Experts x size is sized by the total as an upper bound.
+            "mistralai/mixtral-8x7b-instruct": "medium",
+            # No parameter count in the id: no guess from brand names.
+            "openai/gpt-4o-mini": "unknown",
+            "anthropic/claude-sonnet-4": "unknown",
+            # "4bit" is a quantisation tag, not a size.
+            "some-model-4bit": "unknown",
+            "": "unknown",
+            None: "unknown",
+        }
+        for name, tier in cases.items():
+            with self.subTest(model=name):
+                self.assertEqual(model_size_tier(name), tier)
+
     def test_receipt_unavailable_invents_nothing(self):
         from greensearch.footprint import energy_receipt
         receipt = energy_receipt(None, 50)

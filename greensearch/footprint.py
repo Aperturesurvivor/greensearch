@@ -17,29 +17,34 @@ The "standard" (verbose) baseline is either:
   - measured: pass baseline_tokens from a real unconstrained completion.
 """
 
+import re
+
 WH_PER_TOKEN = 0.0045
 GRID_G_PER_KWH = 400.0
 CO2_PER_TOKEN_G = round(WH_PER_TOKEN / 1000 * GRID_G_PER_KWH, 10)  # 0.0018
 
-# Per-model-size energy factors (Wh/token), shown as ranges.
-# Sources:
-#   - Luccioni et al. 2023, "Power Hungry Processing" (ACL 2024):
-#     measured inference energy for models from 0.5B to 176B parameters.
-#   - de Vries 2023, "The growing energy footprint of AI" (Joule):
-#     estimated 0.001-0.01 Wh per query for smaller models, 0.01-0.03+
-#     for larger (70B+).
-#   - IEA 2024, "Electricity 2024" report: 2.9 Wh per ChatGPT query
-#     (GPT-4-class, ~1.8T params), approximately 0.003-0.006 Wh/token
-#     at typical query lengths.
-# These are ORDER-OF-MAGNITUDE estimates. Real values depend on hardware,
-# batch size, quantisation, and serving stack, none of which OpenRouter
-# discloses. Treat as illustrative context, not accounting.
-WH_PER_TOKEN_RANGES = {
-    # (min Wh/token, max Wh/token, label)
-    "small":  (0.0005, 0.002,  "< 10B params"),
-    "medium": (0.002,  0.006,  "10B - 70B params"),
-    "large":  (0.004,  0.015,  "> 70B params"),
-}
+# Published anchors for energy per generated token, shown as a range.
+# Neither end is a measurement of the model Arboris calls; both are
+# DERIVED here by dividing a published per-query figure by its stated
+# number of generated tokens:
+#   - Low end, about 0.0006 Wh/token: Epoch AI, "How much energy does
+#     ChatGPT use?" (Josh You, Feb 2025) estimates about 0.3 Wh for a
+#     GPT-4o query with 500 output tokens (about 100B active parameters
+#     assumed, H100 hardware). 0.3 / 500 = 0.0006.
+#   - High end, about 0.005 Wh/token: Luccioni, Jernite and Strubell,
+#     "Power Hungry Processing" (ACM FAccT 2024) report text generation
+#     at about 0.05 kWh per 1,000 inferences of 10 new tokens, on models
+#     up to 11B parameters in a research setup. 0.05 Wh / 10 = 0.005.
+# The default WH_PER_TOKEN (0.0045) sits near the high end. Google's
+# Aug 2025 figure (0.24 Wh per median Gemini text prompt) is not used as
+# an anchor because it states no token count. The range is the same for
+# every model: no source gives per-size figures Arboris could cite, and
+# OpenRouter does not disclose hardware, batching or region.
+WH_PER_TOKEN_RANGE = (0.0006, 0.005)
+WH_PER_TOKEN_RANGE_LABEL = (
+    "derived from published anchors: Epoch AI 2025 (GPT-4o-class) to "
+    "Luccioni et al. 2024 (models up to 11B, research setup)"
+)
 
 # Cooling water use effectiveness, litres per kWh, for modern closed-loop
 # systems. Shown as a range, never a single number: older evaporative
@@ -50,31 +55,43 @@ WUE_L_PER_KWH_LOW = 0.1
 WUE_L_PER_KWH_HIGH = 0.3
 
 
+_ACTIVE_PARAMS_RE = re.compile(r"(?<![a-z0-9.])a(\d+(?:\.\d+)?)b(?![a-z0-9])")
+_EXPERTS_RE = re.compile(r"(?<![a-z0-9.])(\d+)x(\d+(?:\.\d+)?)b(?![a-z0-9])")
+_PARAMS_RE = re.compile(r"(?<![a-z0-9.])(\d+(?:\.\d+)?)b(?![a-z0-9])")
+
+
 def model_size_tier(model_name):
-    """Guess model size tier from model name. Returns 'small', 'medium',
-    or 'large'. Falls back to 'medium' if unclear."""
+    """Size tier read from a parameter count in the model id, else "unknown".
+
+    Returns "small" (under 10B), "medium" (10B to 70B), "large" (over
+    70B) or "unknown". Energy scales with ACTIVE parameters, so a
+    mixture-of-experts id that states them ("qwen3-30b-a3b") is sized by
+    the active count. "8x7b" style ids state experts x size, not the
+    active count, so they are sized by the total as an upper bound. Ids
+    with no parameter count (most hosted models) are "unknown": no tier
+    is guessed from a brand or product name. The tier is information
+    only; it does not change the energy factor.
+    """
     if not model_name:
-        return "medium"
-    name = model_name.lower()
-    # Look for parameter counts in model names
-    import re
-    m = re.search(r'(\d+\.?\d*)\s*[bB]', name)
-    if m:
-        params_b = float(m.group(1))
-        if params_b < 10:
-            return "small"
-        elif params_b <= 70:
-            return "medium"
+        return "unknown"
+    name = str(model_name).lower()
+    match = _ACTIVE_PARAMS_RE.search(name)
+    if match:
+        params_b = float(match.group(1))
+    else:
+        match = _EXPERTS_RE.search(name)
+        if match:
+            params_b = int(match.group(1)) * float(match.group(2))
         else:
-            return "large"
-    # Name-based heuristics
-    for tag in ("mini", "tiny", "nano", "1b", "3b", "7b", "8b"):
-        if tag in name:
-            return "small"
-    for tag in ("70b", "72b", "405b", "gpt-4", "opus", "sonnet"):
-        if tag in name:
-            return "large"
-    return "medium"
+            match = _PARAMS_RE.search(name)
+            if not match:
+                return "unknown"
+            params_b = float(match.group(1))
+    if params_b < 10:
+        return "small"
+    if params_b <= 70:
+        return "medium"
+    return "large"
 
 
 def energy_receipt(input_tokens, output_tokens, *, model=None,
@@ -97,7 +114,6 @@ def energy_receipt(input_tokens, output_tokens, *, model=None,
     (Finland or otherwise) is claimed for the receipt.
     """
     size_tier = model_size_tier(model)
-    size_range = WH_PER_TOKEN_RANGES.get(size_tier, WH_PER_TOKEN_RANGES["medium"])
     base = {
         "basis": "estimate",
         "model": model,
@@ -107,8 +123,8 @@ def energy_receipt(input_tokens, output_tokens, *, model=None,
         "cache_hit": cache_hit,
         "factors": {
             "wh_per_token": wh_per_token,
-            "wh_per_token_range": [size_range[0], size_range[1]],
-            "wh_per_token_range_label": size_range[2],
+            "wh_per_token_range": list(WH_PER_TOKEN_RANGE),
+            "wh_per_token_range_label": WH_PER_TOKEN_RANGE_LABEL,
             "grid_g_per_kwh": grid_g_per_kwh,
             "grid_region": "unknown",
             "wue_l_per_kwh_low": wue_low,
