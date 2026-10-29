@@ -1,5 +1,15 @@
 # Changelog
 
+- **Unreleased -- Repo hygiene and docs (2026-10-29):**
+  - Main README rewritten in plain language and corrected: it said 0.8.0, Phase 2 local only, and a demo website, all of which are out of date. It now describes 0.9.0, the live-only website, and the hosted Cloud Run backend, and states the branch rule (main stable, work via dev).
+  - Server README corrected the same way: hosted, not local only; no demo mode; deployment section now describes the real Cloud Run service, with Finland as a future move.
+  - Added `.github/workflows/test.yml`: Python tests on 3.9 and 3.12 plus the site conformance check, on push and pull request to main or dev.
+  - Added patch files, the redeploy script, and `results/` to `.gitignore`, so a blanket `git add` cannot sweep local artifacts into a commit again.
+  - No AI authorship references were found in shipped docs or code to remove. The only Claude string in the repo is a model id (`anthropic/claude-sonnet-4`) used as test data in a model-size test, not a credit, so it stays.
+
+- **Unreleased -- Server startup error prefix (2026-10-29):**
+  - Server startup config errors now print `Error:` and exit 2, matching the CLI (gate G2). Previously it printed `Configuration error:`.
+
 - **Unreleased -- Website is live only (2026-10-29):**
   - Removed the demo library, demo mode, topic browser, sample chips, demo totals and demo history from `website/index.html`. The page no longer contains the 95 pre-written topics (the original six templates plus 89 expanded topics), `detectTopic`, `greenAnswer`, `integrateChat`, or any demo answer path. Every question goes to the backend; if the backend is unavailable, the answer bubble shows the backend error, with no offline fallback and no switch back to a demo.
   - Live turns, live totals, the typing preview, Copy, More detail, Export (live answers only), settings (backend URL, Measure baseline) and live persistence under `arboris-live-v1` are unchanged in behaviour. Old demo keys (`arboris-demo-v1`, `greensearch-demo-v1`) are deleted on load; live keys still migrate from the old `greensearch-live-*` names once.

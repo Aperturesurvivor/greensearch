@@ -1,11 +1,11 @@
-# Arboris live backend (Phase 2, local only)
+# Arboris live backend
 
-A thin server that lets the website's **Live mode** get real model answers
-without ever putting an API key in the browser. Python standard library
-only, Python 3.9+, no new dependencies. **Not deployed anywhere.** It has
-only been run on localhost: the tests use fake providers, and one local
-live run with an OpenRouter key (2026-10-27) found the bugs fixed in the
-"Model and fallbacks" section below.
+A thin server that lets the website get real model answers without ever
+putting an API key in the browser. Python standard library only, Python
+3.9+, no new dependencies. It runs locally with `python3 server/app.py`
+and hosted on Google Cloud Run in us-central1:
+https://arboris-1037861813679.us-central1.run.app
+The tests use fake providers and no key or network.
 
 **Default model: `google/gemma-4-31b-it:free`**, a named general chat
 model. `openrouter/free` (OpenRouter's router over its free models, not a
@@ -144,21 +144,17 @@ curl -s -X POST http://127.0.0.1:8000/api/chat \
 Options: `--host` (default `127.0.0.1`, local only) and `--port` (default
 `$PORT` or 8000).
 
-## Demo mode vs live mode
+## Live only
 
-| | Demo mode (default) | Live mode (toggle, off by default) |
-|---|---|---|
-| Needs this server | No. Open `website/index.html` directly or from any static host | Yes |
-| Answers | Canned, 95-topic library, in the browser | Real model via this server |
-| Network | None | Prompt goes to the backend URL you set, then to its provider |
-| Tokens | Estimates (words × 1.33) | Provider-reported |
-| Totals | Demo row | Separate LIVE row, never mixed with demo totals |
-| Saved in localStorage | Chat under `arboris-demo-v1` | Only the backend URL, under `arboris-live-backend-url` |
+The website is live only. There is no demo mode, no canned answers, and
+no offline fallback. Every question goes to this server, then to its
+model provider. Tokens are provider-reported. Live totals are the only
+totals. Live turns are saved in the browser under `arboris-live-v1`;
+the backend URL is saved under `arboris-live-backend-url`.
 
-Live mode resets to OFF on every page load. **Measure baseline** is also off
-by default and resets to off: when on, every live message makes a second,
-unconstrained call (original prompt, no brevity system prompt, no token cap)
-to measure real savings. **That doubles API cost.**
+**Measure baseline** is off by default: when on, every live message
+makes a second, unconstrained call (original prompt, no brevity system
+prompt, no token cap) to measure real savings. That doubles API cost.
 
 ## Environment variables
 
@@ -366,39 +362,30 @@ Never includes the key.
   has not been done.
 - Demo mode is unchanged: no network requests.
 
-## Deployment: future options only
+## Deployment
 
-> **Requires an account the user has not set up yet. Do not deploy from this repo.**
-> Nothing below has been done or tested.
+Hosted on Google Cloud Run, us-central1, service `arboris`, project
+`arboris-513009`. Deploy with `gcloud builds submit` then `gcloud run
+deploy` with no env flags (so the existing env and secret are kept);
+never use `--set-env-vars`, which replaces the whole env list. Full
+steps are in `server/CLOUDRUN.md`. That runbook also covers moving the
+service to europe-north1 (Finland, about 98% carbon-free) later: Cloud
+Run cannot rename a service, so the move is a new service, verified,
+then the old one deleted.
 
-- **Google Cloud Run, europe-north1 (Finland).** This matches the project's
-  low-carbon goal (the region Google reports as about 98% carbon-free). A
-  container would run `python server/app.py --host 0.0.0.0` with `PORT`
-  from Cloud Run, and the key in Secret Manager. Needs: a GCP account and
-  billing, a trusted-proxy rate-limit design (see above), and a production
-  origin in `ARBORIS_BACKEND_ORIGIN`. *Requires an account the user has
-  not set up yet; do not deploy from this repo.*
-- **Vercel serverless.** It would need a thin adapter that calls
-  `Backend.chat()` from a Python function handler. In-memory rate limits
-  and caches do not survive across serverless instances, so it would need
-  a shared store. *Requires an account the user has not set up yet; do not
-  deploy from this repo.*
-- **Cloudflare Workers.** Workers run JavaScript/Wasm, not this Python
-  server, so this would be a port of the pipeline (or Workers' Python
-  beta, with its own limits), not a drop-in deploy. The adapter would have
-  to keep the same rules: key in a Worker secret, exact-origin CORS, no
-  silent downgrade. *Requires an account the user has not set up yet; do not
-  deploy from this repo.*
+Vercel serverless and Cloudflare Workers are not drop-in options: the
+in-memory rate limits and caches do not survive across serverless
+instances, and Workers run JavaScript/Wasm, not this Python server.
 
-## Still blocked (on accounts and APIs, not code)
+## Still open
 
-- **Measured live numbers**: beyond one local live run, live answers,
-  latency and measured savings are unmeasured. The fallback chain and the
-  error mapping are tested with fake providers only.
+- **Measured live numbers**: no systematic live baseline has been run
+  yet. The fallback chain and the error mapping are tested with fake
+  providers only.
 - **Provider data policy check** (retention and training, for the exact
-  account settings, the primary model, the fallbacks, and every model the
-  last-resort `openrouter/free` may route to) before any privacy claim.
-- **Hosting account** (GCP, Vercel or Cloudflare) for any deployment.
+  account settings, the primary model, the fallbacks, and every model
+  the last-resort `openrouter/free` may route to) before any privacy
+  claim.
 - **Domain** for a public origin and the matching CORS setting.
 
 `scripts/compare_qwen.py` is still in the tree but targets the Qwen3

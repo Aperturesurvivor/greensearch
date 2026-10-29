@@ -1645,7 +1645,7 @@ def main(argv=None):
         config = Config.from_env()
         port = args.port if args.port is not None else int(os.environ.get("PORT", DEFAULT_PORT))
     except ValueError as exc:
-        print(f"Configuration error: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 2
 
     backend = Backend(config)

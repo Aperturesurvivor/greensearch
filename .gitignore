@@ -6,3 +6,9 @@ session.json
 *.egg-info/
 .env
 env.yaml
+
+# Local artifacts that must never be committed (patch files and deploy
+# scripts leaked into a commit once via `git add -A`; add paths explicitly).
+*.patch
+arboris-redeploy.ps1
+results/
