@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Features - Arboris</title>
+<meta name="description" content="How Arboris works: prompt trimming, right-sized answers, session caching, energy estimates.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2028%2028'%3E%3Cpath%20d='M14%203C14%203%206%208%206%2016c0%204.4%203.6%208%208%208s8-3.6%208-8C22%208%2014%203%2014%203z'%20fill='%233f8a4e'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="doc">
+<div class="main">
+<header class="doc-top"><a href="index.html">Arboris</a></header>
+
+<main class="doc-page">
+  <h1>How Arboris works</h1>
+  <p class="lede">Every message runs through three steps before it is answered.</p>
+
+  <h2>1. PromptShrink</h2>
+  <p>Removes filler words from your question before it reaches the model.</p>
+
+  <h2>2. Session cache</h2>
+  <p>Repeats a previous answer when you ask the same thing twice in a session. No model call, no new tokens.</p>
+
+  <h2>3. Right-sized answers</h2>
+  <p>Picks the shortest sufficient answer length by question length: Sprout (12 words or fewer), Canopy, or Forest (35+ words, or a complexity phrase).</p>
+
+  <hr class="rule">
+
+  <h2>Energy numbers</h2>
+  <p>Each answer shows how much CO2 it prevented versus a typical ChatGPT query.</p>
+  <ul>
+    <li>Token counts come from the provider. The typing preview estimates words x 1.33.</li>
+    <li>Energy is output tokens x 0.0006 Wh x 400 g CO2e/kWh. Input tokens count 1/800 as much.</li>
+  </ul>
+
+  <p class="foot">Arboris is open source. <a href="https://github.com/succulentsdev/Arboris" target="_blank" rel="noopener">Read the code</a>.</p>
+</main>
+</div>
+</body>
+</html>
